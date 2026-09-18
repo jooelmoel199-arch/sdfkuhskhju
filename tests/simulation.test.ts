@@ -108,6 +108,11 @@ function testGearSwapCanAttackSameTick() {
 
 function testFoodAddsToCombatTimer() {
   const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 4, additiveAttackDelayTicks: 0 }
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
   const startingSharks = state.blue.inventory.find(item => item.id === "shark")?.quantity ?? 0;
   state.humanControl = {
     attackEnabled: true,
@@ -640,7 +645,12 @@ function testPlayerNpcImpactWaitsForNpcTurn() {
 
 function testFoodAndPrayerCanPrecedeImpact() {
   const state = createPvpTestState();
-  state.blue = { ...state.blue, currentHp: 60 };
+  state.blue = {
+    ...state.blue,
+    currentHp: 60,
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 4, additiveAttackDelayTicks: 0 }
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
   state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
   state.pendingHits.push({
     id: "food-prayer-impact-test",
