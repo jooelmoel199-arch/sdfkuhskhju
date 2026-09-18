@@ -38,7 +38,7 @@ export interface CombatEvent {
   special?:boolean; hitChance?:number; x?:number; y?:number; prayer?:Prayer; style?:AttackStyle; reason?:string;
 }
 export interface QueuedInput { sequence:number; receivedTick:number; command:InputCommand; }
-export interface GameState { tick:number; nextInputSequence:number; players:Record<string,Player>; pendingInputs:QueuedInput[]; events:CombatEvent[]; readonly combatRules:CombatRules; }
+export interface GameState { tick:number; nextInputSequence:number; nextCombatSequence:number; players:Record<string,Player>; pendingInputs:QueuedInput[]; events:CombatEvent[]; readonly combatRules:CombatRules; }
 
 const styleBonus=MELEE_STYLE_BONUS;
 
@@ -49,7 +49,19 @@ function makePlayer(id:string,name:string,team:Team,x:number,y:number):Player{
 }
 
 export function createGame():GameState{
-  const players={player:makePlayer("player","Player","blue",10,10),opponent:makePlayer("opponent","Opponent","red",14,10)};
+  const players={
+    player:makePlayer("player","Player","blue",10,10),
+    opponent:makePlayer("opponent","Opponent","red",14,10),
+    goblin_guard_1:makePlayer("goblin_guard_1","Goblin guard","red",18,8),
+    goblin_guard_2:makePlayer("goblin_guard_2","Goblin guard","red",18,12),
+    goblin_guard_3:makePlayer("goblin_guard_3","Goblin guard","red",21,10)
+  };
+  for(const id of ["goblin_guard_1","goblin_guard_2","goblin_guard_3"]){
+    const g=players[id];
+    g.attack=45; g.strength=45; g.defence=35; g.hp=40; g.maxHp=40;
+    g.inventory.specialEnergy=0; g.targetId="player"; g.attackStyle="aggressive";
+    g.attackQueuedTick=0;
+  }
   return {tick:0,nextInputSequence:1,nextCombatSequence:1,pendingInputs:[],events:[],players,combatRules:createCombatRules()};
 }
 export function enqueueInput(state:GameState,command:InputCommand):void{state.pendingInputs.push({sequence:state.nextInputSequence++,receivedTick:state.tick,command});}
@@ -71,7 +83,7 @@ function processInput(state:GameState,command:InputCommand):void{
  }
 }
 function deterministicRoll(seed:number):number{const x=Math.sin(seed*12.9898)*43758.5453;return x-Math.floor(x);}
-function inMeleeRange(a:Player,b:Player):boolean{return Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<=a.equipment.attackRange;}
+function inMeleeRange(a:Player,b:Player):boolean{const distance=Math.abs(a.x-b.x)+Math.abs(a.y-b.y);return distance>0&&distance<=a.equipment.attackRange;}
 function nearestMeleeTile(from:Tile,target:Tile,range:number):Tile {
   const candidates:Tile[]=[];
   for(let dx=-range;dx<=range;dx++) for(let dy=-range;dy<=range;dy++) {
