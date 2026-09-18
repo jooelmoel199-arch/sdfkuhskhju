@@ -575,33 +575,27 @@ const clientInputStage: TickStage<SimulationState> = {
                   player.alive &&
                   player.team !== current.team
               );
-              const adjacent = target !== undefined && canMeleeReachThisTick({
-                attacker: current.tile,
-                defender: target.tile,
-                attackerFrozen: isFrozen(current.locks, state.tick),
-                attackRange: 1
-              }).canReach;
-
-              if (current.gmaulPreloaded && adjacent) {
+              if (current.gmaulPreloaded) {
+                // Target interaction is the release command. The player may be
+                // out of melee range at the moment of the click; movement then
+                // carries the queued special into reach just like a normal
+                // PlayerCombat target route.
                 const usable = Math.min(2, Math.floor(current.specEnergy / 50));
                 current = {
                   ...current,
                   queuedSpecialAttacks: usable,
                   queuedSpecialTargetId: command.targetId,
-                  specialActive: usable > 0,
+                  specialActive: false,
                   gmaulPreloaded: false,
                   gmaulPreloadExpiresAtTick: undefined
                 };
                 log(state, current.id + " releases Granite maul preload on target click");
-              } else if (
-                !current.gmaulPreloaded &&
-                current.specialActive &&
-                adjacent
-              ) {
+              } else if (!current.gmaulPreloaded && current.specialActive) {
                 current = {
                   ...current,
                   queuedSpecialAttacks: 1,
-                  queuedSpecialTargetId: command.targetId
+                  queuedSpecialTargetId: command.targetId,
+                  specialActive: false
                 };
                 log(state, current.id + (
                   gmaulAutoSpecWindowOpen(current, command.targetId, state.tick)
@@ -1097,7 +1091,11 @@ const combatStage: TickStage<SimulationState> = {
         }
 
         if (gmaulActor.queuedSpecialAttacks > 0) {
+          // A released Gmaul special owns the attack interaction until it fires;
+          // do not fall through to an ordinary maul swing while movement is
+          // still bringing the player into melee range.
           if (handleGraniteMaulSpecial(state, gmaulActor, enemy)) continue;
+          continue;
         }
       }
 
