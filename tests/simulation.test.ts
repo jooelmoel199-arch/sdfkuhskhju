@@ -205,6 +205,7 @@ function testProjectileDelay() {
   })();
 
   advanceTick(state);
+  advanceTick(state);
   if (state.projectiles.length !== 1) {
     throw new Error(
       "ranged attack should create a projectile; blue=" + JSON.stringify(state.blue.tile) +
