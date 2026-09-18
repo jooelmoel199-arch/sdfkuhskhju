@@ -5,6 +5,7 @@ import { effectiveCombatLevel, hitChanceFromRolls, magicMaxHit, playerMagicDefen
 
 export type Team = "blue" | "red";
 export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | "eagle_eye" | "mystic_might" | "burst_of_strength" | "clarity_of_thought" | "superhuman_strength" | "improved_reflexes" | "incredible_reflexes" | "ultimate_strength" | "steel_skin" | null;
+export type PrayerName = Exclude<Prayer,null>;
 export type AttackStyle = "accurate" | "aggressive" | "defensive" | "controlled";
 export type ItemAction = "eat" | "equip" | "unequip";
 export type RangedStyle = "accurate" | "rapid" | "longrange";
@@ -35,7 +36,7 @@ export interface Player {
   pid:number; id:string; name:string; team:Team; x:number; y:number; destinationX:number; destinationY:number;
   hp:number; maxHp:number; prayerPoints:number; maxPrayerPoints:number;
   attack:number; strength:number; defence:number; ranged:number; magic:number; xp:CombatXp; equipment:Equipment; inventory:Inventory;
-  prayer:Prayer; activePrayers:Prayer[]; prayerNextDrainTick:number|null; prayerDrainCounter:number; attackStyle:AttackStyle; rangedStyle:RangedStyle; magicStyle:MagicStyle; targetId:string|null; nextAttackTick:number;
+  prayer:Prayer; activePrayers:PrayerName[]; prayerNextDrainTick:number|null; prayerDrainCounter:number; attackStyle:AttackStyle; rangedStyle:RangedStyle; magicStyle:MagicStyle; targetId:string|null; nextAttackTick:number;
   attackQueuedTick:number|null; hitQueuedTick:number|null; specialQueued:boolean; path:Tile[];
 }
 export interface CombatEvent {
@@ -92,7 +93,7 @@ function processInput(state:GameState,command:InputCommand):void{
   case "prayer":{
    if(command.prayer===null){p.activePrayers=[];p.prayer=null;p.prayerNextDrainTick=null;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:null});return;}
    if(p.prayerPoints<=0)return;
-   const group=(prayer:Prayer):"overhead"|"offence"|"defence"|"other"=>{
+   const group=(prayer:PrayerName):"overhead"|"offence"|"defence"|"other"=>{
      if(prayer==="protect_melee"||prayer==="protect_mage"||prayer==="protect_range")return "overhead";
      if(prayer==="burst_of_strength"||prayer==="clarity_of_thought"||prayer==="superhuman_strength"||prayer==="improved_reflexes"||prayer==="incredible_reflexes"||prayer==="ultimate_strength"||prayer==="eagle_eye"||prayer==="mystic_might")return "offence";
      if(prayer==="steel_skin")return "defence";
@@ -231,7 +232,7 @@ function movementStageForPlayer(state:GameState,p:Player):void{
 }
 function prayerModifiers(p:Player):{attack:number;strength:number;defence:number;rangedAttack:number;rangedStrength:number;magicAttack:number;magicDefence:number;magicDamage:number}{
  const result={attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
- const prayers=p.activePrayers.length?p.activePrayers:(p.prayer?[p.prayer]:[]);
+ const prayers:PrayerName[]=p.activePrayers.length?p.activePrayers:(p.prayer?[p.prayer]:[]);
  for(const prayer of prayers){
    switch(prayer){
      case "eagle_eye":result.rangedAttack*=1.15;result.rangedStrength*=1.15;break;
