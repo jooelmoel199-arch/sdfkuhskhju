@@ -1,32 +1,41 @@
-import assert from "node:assert/strict";
+function equal(actual: unknown, expected: unknown, message: string): void {
+  if (actual !== expected) throw new Error(message + ` (expected ${String(expected)}, got ${String(actual)})`);
+}
+
+function ok(value: unknown, message: string): void {
+  if (!value) throw new Error(message);
+}
+
+function deepEqualSet(actual: Set<unknown>, expected: Set<unknown>, message: string): void {
+  if (actual.size !== expected.size || [...actual].some(value => !expected.has(value))) {
+    throw new Error(message);
+  }
+}
+
 import { createPrototypeState } from "../moba/factory";
 import { advanceTick } from "../moba/simulation";
 import { shopCatalog } from "../moba/economy";
 
 function testPrototypeShape() {
   const state = createPrototypeState();
-  assert.equal(state.players.length, 6, "prototype should have three players per team");
-  assert.equal(state.towers.length, 6, "prototype should have two towers per lane");
-  assert.equal(state.jungleCamps.length, 4, "prototype should have four neutral camps");
-  assert.equal(state.tick, 0, "simulation starts at tick zero");
+  equal(state.players.length, 6, "prototype should have three players per team");
+  equal(state.towers.length, 6, "prototype should have two towers per lane");
+  equal(state.jungleCamps.length, 4, "prototype should have four neutral camps");
+  equal(state.tick, 0, "simulation starts at tick zero");
 }
 
 function testWaveCadence() {
   const state = createPrototypeState();
   for (let i = 0; i < 15; i += 1) advanceTick(state);
-  assert.equal(state.tick, 15, "15 simulation steps should equal 15 ticks");
-  assert.equal(state.minions.length, 18, "one three-lane wave should create 18 minions");
-  assert.deepEqual(
-    new Set(state.minions.map(minion => minion.laneId)),
-    new Set(["top", "middle", "bottom"]),
-    "wave should populate all lanes"
-  );
+  equal(state.tick, 15, "15 simulation steps should equal 15 ticks");
+  equal(state.minions.length, 18, "one three-lane wave should create 18 minions");
+  deepEqualSet(new Set(state.minions.map(minion => minion.laneId)), new Set(["top", "middle", "bottom"]), "wave should populate all lanes");
 }
 
 function testProjectileDelay() {
   const state = createPrototypeState();
   const rangedWeapon = shopCatalog.find(item => item.id === "magic_shortbow");
-  assert.ok(rangedWeapon, "magic shortbow should exist in shop");
+  ok(rangedWeapon, "magic shortbow should exist in shop");
   state.blue = {
     ...state.blue,
     tile: { x: 10, y: 20 },
@@ -48,8 +57,8 @@ function testProjectileDelay() {
   })();
 
   advanceTick(state);
-  assert.equal(state.projectiles.length, 1, "ranged attack should create a projectile");
-  assert.equal(state.projectiles[0].hitTick, state.tick + 1, "projectile should land two ticks from launch time");
+  equal(state.projectiles.length, 1, "ranged attack should create a projectile");
+  equal(state.projectiles[0].hitTick, state.tick + 1, "projectile should land two ticks from launch time");
 }
 
 function testCampRespawnSchedule() {
@@ -57,10 +66,10 @@ function testCampRespawnSchedule() {
   const camp = state.jungleCamps[0];
   state.jungleCamps[0] = { ...camp, alive: false, currentHp: 0, respawnAtTick: 2 };
   advanceTick(state);
-  assert.equal(state.jungleCamps[0].alive, false);
+  equal(state.jungleCamps[0].alive, false, "camp should remain dead before respawn tick");
   advanceTick(state);
-  assert.equal(state.jungleCamps[0].alive, true, "neutral camp should respawn on its scheduled tick");
-  assert.equal(state.jungleCamps[0].currentHp, state.jungleCamps[0].maxHp);
+  equal(state.jungleCamps[0].alive, true, "neutral camp should respawn on its scheduled tick");
+  equal(state.jungleCamps[0].currentHp, state.jungleCamps[0].maxHp, "respawned camp should be full HP");
 }
 
 testPrototypeShape();
