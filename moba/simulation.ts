@@ -1,6 +1,6 @@
 import { createTickStageRunner, type TickStage } from "../engine/tick";
 import { applyFreeze, isFrozen, tickLocks } from "../entity/locks";
-import { consumeExpiredAttackDelay, createAttackTimerState } from "../combat/timers";
+import { consumeExpiredAttackDelay, createAttackTimerState, delayAttack } from "../combat/timers";
 import { dispatchAttack } from "../combat/attackGate";
 import { meleeHitTick, projectileHitTick, type PendingHit } from "../combat/pendingHits";
 import { rollAttack, rollDragonClawsSpecial } from "../combat/resolve";
@@ -722,7 +722,8 @@ function applyConsumableAction(state: SimulationState, actor: PlayerEntity, item
   const additive = item.attackDelayTicks;
   const next = {
     ...updated,
-    attackDelayUntilTick: Math.max(updated.attackDelayUntilTick, state.tick + additive),
+    attackTimer: delayAttack(actor.attackTimer, additive),
+    attackDelayUntilTick: 0,
     eatDelayUntilTick: state.tick + item.eatDelayTicks
   };
   log(state, actor.id + " eats " + item.name + " (" + additive + "t food delay; " + currentRemaining + "t attack cycle remaining)");
