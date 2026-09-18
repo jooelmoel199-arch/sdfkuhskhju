@@ -69,8 +69,9 @@ export function setAttackEnabled(enabled) {
 }
 
 export function toggleMeleePrayer() {
-  state.humanControl.activatePrayer =
-    state.humanControl.activatePrayer === "protect_from_melee" ? undefined : "protect_from_melee";
+  // Prayer toggles are authoritative one-shot commands. The simulation decides
+  // whether this request activates or deactivates the overhead from current state.
+  state.humanControl.activatePrayer = "protect_from_melee";
 }
 
 export function equipItem(itemId) {
