@@ -83,6 +83,12 @@ function updateHud() {
 
   renderAccountPanel();
 
+  if (state.matchResult) {
+    document.title = state.matchResult === "blue" ? "RS MOBA Prototype · Victory" : "RS MOBA Prototype · Defeat";
+  } else {
+    document.title = "RS MOBA Prototype";
+  }
+
   const relevant = state.log.slice(-8);
   if (relevant.length && relevant[relevant.length - 1].tick !== lastRenderedLogTick) {
     feedEl.innerHTML = relevant.map(entry => `<div><span class="muted">[${entry.tick}]</span> ${entry.message}</div>`).join("");
@@ -303,6 +309,18 @@ function draw() {
     ctx.fillText(player.id, p.x, p.y - radius - 22 * camera.zoom);
   }
 
+  if (state.matchResult) {
+    ctx.fillStyle = "rgba(0,0,0,.62)";
+    ctx.fillRect(0, 0, innerWidth, innerHeight);
+    ctx.fillStyle = state.matchResult === "blue" ? "#72d26b" : "#ff7474";
+    ctx.font = "900 48px system-ui,sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(state.matchResult === "blue" ? "VICTORY" : "DEFEAT", innerWidth / 2, innerHeight / 2 - 12);
+    ctx.fillStyle = "#f4f1df";
+    ctx.font = "600 15px ui-monospace,monospace";
+    ctx.fillText("Press R to run the prototype again", innerWidth / 2, innerHeight / 2 + 24);
+  }
+
   drawMinimap();
 }
 
@@ -384,6 +402,10 @@ canvas.addEventListener("click", event => {
       .filter(camp => camp.alive)
       .map(camp => ({ camp, pos: worldToScreen(simToWorldX(camp.tile.x), simToWorldY(camp.tile.y)) }))
       .find(entry => Math.hypot(event.clientX - entry.pos.x, event.clientY - entry.pos.y) <= 28);
+    const clickedTower = state.towers
+      .filter(tower => tower.alive && tower.team !== state.blue.team)
+      .map(tower => ({ tower, pos: worldToScreen(simToWorldX(tower.tile.x), laneToWorldY(tower.laneId)) }))
+      .find(entry => Math.hypot(event.clientX - entry.pos.x, event.clientY - entry.pos.y) <= 32);
 
     if (clickedEnemy) {
       setAttackTarget(clickedEnemy.player.id);
@@ -393,6 +415,10 @@ canvas.addEventListener("click", event => {
       setAttackTarget(clickedCamp.camp.id);
       state.humanControl.moveTargetX = clickedCamp.camp.tile.x;
       state.humanControl.moveTargetY = clickedCamp.camp.tile.y;
+    } else if (clickedTower) {
+      setAttackTarget(clickedTower.tower.id);
+      setLane(clickedTower.tower.laneId);
+      setMoveTarget(clickedTower.tower.tile.x, laneToWorldY(clickedTower.tower.laneId));
     } else {
       clearAttackTarget();
       const lane = worldToLane(world.y);
