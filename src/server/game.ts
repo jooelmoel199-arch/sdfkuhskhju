@@ -129,10 +129,11 @@ function rangedStyleBonuses(style:RangedStyle):{attack:number;strength:number;de
 }
 function magicStyleBonuses(style:MagicStyle):{attack:number;strength:number;defence:number}{return style==="defensive"?{attack:0,strength:0,defence:3}:{attack:0,strength:0,defence:0};}
 function awardCombatXp(a:Player,damage:number,attackType:AttackType,baseXp=0):void{
+ if(attackType==="magic"&&baseXp>0)a.xp.magic+=baseXp;
  if(damage<=0)return;
  if(attackType==="melee"){switch(a.attackStyle){case "accurate":a.xp.attack+=damage*4;break;case "aggressive":a.xp.strength+=damage*4;break;case "defensive":a.xp.defence+=damage*4;break;case "controlled":a.xp.attack+=damage*4/3;a.xp.strength+=damage*4/3;a.xp.defence+=damage*4/3;break;}}
  else if(attackType==="ranged"){if(a.rangedStyle==="longrange"){a.xp.ranged+=damage*2;a.xp.defence+=damage*2;}else a.xp.ranged+=damage*4;}
- else {a.xp.magic+=baseXp+(a.magicStyle==="defensive"?damage*4/3:damage*2);if(a.magicStyle==="defensive")a.xp.defence+=damage*4/3;}
+ else {a.xp.magic+=(a.magicStyle==="defensive"?damage*4/3:damage*2);if(a.magicStyle==="defensive")a.xp.defence+=damage*4/3;}
  a.xp.hitpoints+=damage*4/3;
 }
 function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
