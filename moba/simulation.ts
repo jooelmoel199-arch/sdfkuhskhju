@@ -678,6 +678,7 @@ export const tickRunner = createTickStageRunner<SimulationState>([
   effectsStage,
   towerStage,
   minionStage,
+  jungleStage,
   lockDecayStage,
   respawnStage
 ]);
