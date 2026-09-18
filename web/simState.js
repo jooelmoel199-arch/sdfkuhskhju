@@ -69,6 +69,10 @@ export function toggleMeleePrayer() {
     state.humanControl.activatePrayer === "protect_from_melee" ? undefined : "protect_from_melee";
 }
 
+export function equipItem(itemId) {
+  state.humanControl.equipItemId = itemId;
+}
+
 export function useConsumable(itemId) {
   state.humanControl.consumeItemId = itemId;
 }
