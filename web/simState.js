@@ -46,6 +46,17 @@ export function setLane(laneId) {
   delete state.humanControl.moveTargetY;
 }
 
+export function cycleAttackType() {
+  const style = state.blue.equipment.weapon?.style;
+  const modes = style === "ranged"
+    ? ["accurate", "rapid_ranged", "long_ranged"]
+    : style === "magic"
+      ? ["accurate"]
+      : ["accurate", "aggressive", "controlled"];
+  const current = modes.indexOf(state.blue.attackType);
+  state.blue = { ...state.blue, attackType: modes[(current + 1) % modes.length] };
+}
+
 export function setAttackEnabled(enabled) {
   state.humanControl.attackEnabled = enabled;
 }
