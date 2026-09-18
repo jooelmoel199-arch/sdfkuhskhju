@@ -128,7 +128,7 @@ function resolveAttack(state:GameState,a:Player):void{
  a.hitQueuedTick=hitTick;
  if(special){a.inventory.specialEnergy-=a.equipment.specialCost;event(state,{tick:state.tick,type:"special",attacker:a.id,defender:d.id,special:true});}
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,special});
- a.pendingHitDamage=damage;a.pendingHitSucceeded=rules.hit;a.pendingHitRoll=attackRoll;a.pendingDefenceRoll=defenceRoll;a.pendingHitTargetId=d.id;a.pendingAttackType=weapon.attackType;a.pendingSpecial=special;
+ a.pendingHit={sourceTick:state.tick,resolveTick:hitTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:weapon.attackType,attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special};
 }
 function movementStageForPlayer(state:GameState,p:Player):void{
  if(p.hp<=0)return;
