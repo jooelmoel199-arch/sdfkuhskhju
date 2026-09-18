@@ -43,7 +43,7 @@ canvas.addEventListener("mousemove",e=>{const r=canvas.getBoundingClientRect(),x
 canvas.addEventListener("click",async e=>{const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;if(hoverEntity&&hoverEntity.id!=="player"){await send({type:"attack",targetId:hoverEntity.id});say("You attack "+hoverEntity.name+".")}else{const t=tileAt(x,y);await send({type:"move",x:t.x,y:t.y});say("You walk here.");}});
 canvas.addEventListener("contextmenu",e=>{e.preventDefault();const r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,p=entityAt(x,y);menu.innerHTML="";
  const add=(label,fn)=>{const d=document.createElement("div");d.className="menuItem";d.textContent=label;d.onclick=()=>{fn();menu.style.display="none"};menu.appendChild(d)};
- if(p&&p.id!=="player"){add("Attack "+p.name,()=>{send({type:"attack",targetId:p.id});say("Attack -> "+p.name)});add("Walk here",()=>{const t=tileAt(x,y);send({type:"move",x:t.x,y:t.y)})} } else {const t=tileAt(x,y);add("Walk here",()=>send({type:"move",x:t.x,y:t.y}));}
+ if(p&&p.id!=="player"){add("Attack "+p.name,()=>{send({type:"attack",targetId:p.id});say("Attack -> "+p.name)});add("Walk here",()=>{const t=tileAt(x,y);send({type:"move",x:t.x,y:t.y})} } else {const t=tileAt(x,y);add("Walk here",()=>send({type:"move",x:t.x,y:t.y}));}
  menu.style.left=Math.min(x,canvas.width-180)+"px";menu.style.top=Math.min(y,canvas.height-100)+"px";menu.style.display="block";});
 document.addEventListener("click",e=>{if(!menu.contains(e.target))menu.style.display="none"});
 function prayer(i){send({type:"prayer",prayer:i===0?"protect_melee":i===1?"protect_mage":i===2?"protect_range":null})}
