@@ -1,4 +1,4 @@
-import { createPlayer, equipItem, addInventoryItem, type TowerEntity, type NeutralCampEntity, type PlayerRole } from "./entities";
+import { createPlayer, equipItem, addInventoryItem, type PlayerEntity, type TowerEntity, type NeutralCampEntity, type PlayerRole } from "./entities";
 import { createAttackTimerState } from "../combat/timers";
 import { shopCatalog } from "./economy";
 import { xpForLevel } from "./xp";
@@ -167,7 +167,7 @@ export function createPvpTestState(): SimulationState {
     "mystic_robe_top", "ancestral_hat", "amulet_of_glory", "berserker_ring"
   ];
 
-  function prepare(player: typeof blue, x: number) {
+  function prepare(player: PlayerEntity, x: number) {
     let prepared = {
       ...player,
       tile: { x, y: LANE_Y.middle },
