@@ -55,19 +55,20 @@ export interface ConsumableDef {
   readonly cost: number;
   readonly healAmount?: number;
   readonly restorePrayer?: number;
-  readonly attackDelayTicks: number; // ticks lost from the attack cycle when eaten (OSRS: food=3, karambwan=2/1)
+  readonly attackDelayTicks: number; // additive attack/skilling-timer delay while the cycle is active
+  readonly eatDelayTicks: number;
   readonly boostStat?: { readonly style: CombatStyle | "prayer"; readonly amount: number; readonly durationTicks: number };
 }
 
 export const consumableCatalog: readonly ConsumableDef[] = [
-  { id: "shark", name: "Shark", cost: 60, healAmount: 20, attackDelayTicks: 3 },
-  { id: "anglerfish", name: "Anglerfish", cost: 90, healAmount: 22, attackDelayTicks: 3 },
-  { id: "karambwan", name: "Karambwan", cost: 70, healAmount: 18, attackDelayTicks: 2 },
+  { id: "shark", name: "Shark", cost: 60, healAmount: 20, attackDelayTicks: 0, eatDelayTicks: 3, eatDelayTicks: 3, eatDelayTicks: 3 },
+  { id: "anglerfish", name: "Anglerfish", cost: 90, healAmount: 22, attackDelayTicks: 0, eatDelayTicks: 3, eatDelayTicks: 3, eatDelayTicks: 3 },
+  { id: "karambwan", name: "Karambwan", cost: 70, healAmount: 18, attackDelayTicks: 2, eatDelayTicks: 3, comboFood: true },
   { id: "prayer_potion", name: "Prayer potion", cost: 80, restorePrayer: 24, attackDelayTicks: 3 },
   { id: "super_restore", name: "Super restore", cost: 110, restorePrayer: 25, attackDelayTicks: 3 },
-  { id: "super_combat_potion", name: "Super combat potion", cost: 100, attackDelayTicks: 3, boostStat: { style: "slash", amount: 0.19, durationTicks: 500 } },
-  { id: "ranging_potion", name: "Ranging potion", cost: 100, attackDelayTicks: 3, boostStat: { style: "ranged", amount: 0.15, durationTicks: 500 } },
-  { id: "magic_potion", name: "Magic potion", cost: 100, attackDelayTicks: 3, boostStat: { style: "magic", amount: 0.15, durationTicks: 500 } }
+  { id: "super_combat_potion", name: "Super combat potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, eatDelayTicks: 3, boostStat: { style: "slash", amount: 0.19, durationTicks: 500 } },
+  { id: "ranging_potion", name: "Ranging potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, eatDelayTicks: 3, boostStat: { style: "ranged", amount: 0.15, durationTicks: 500 } },
+  { id: "magic_potion", name: "Magic potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, eatDelayTicks: 3, boostStat: { style: "magic", amount: 0.15, durationTicks: 500 } }
 ];
 
 /** GP income sources, tunable independently of combat balance. */
