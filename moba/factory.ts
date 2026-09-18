@@ -43,6 +43,10 @@ export function buildStartingLoadout(
   if (defaultAttackType) player = { ...player, attackType: defaultAttackType };
   player = { ...player, gp: 300 };
 
+  for (const item of Object.values(player.equipment)) {
+    if (item) player = addInventoryItem(player, item.id, 1);
+  }
+
   player = addInventoryItem(player, "shark", 3);
   player = addInventoryItem(player, "prayer_potion", 2);
   return player;
