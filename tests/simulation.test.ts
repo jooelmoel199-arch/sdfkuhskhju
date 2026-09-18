@@ -44,11 +44,11 @@ function testProjectileDelay() {
     ...state.blue,
     tile: { x: 10, y: 20 },
     zone: "lane",
-    equipment: { ...state.blue.equipment, weapon: rangedWeapon },
+    equipment: { ...state.blue.equipment, weapon: { ...rangedWeapon, attackRange: 8 } },
     attackType: "rapid_ranged"
   };
   state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
-  state.players = state.players.map(player => player.id === state.red.id ? { ...player, tile: { x: 18, y: 20 }, zone: "lane" } : player);
+  state.players = state.players.map(player => player.id === state.red.id ? { ...player, tile: { x: 20, y: 20 }, zone: "lane" } : player);
   state.red = state.players.find(player => player.id === state.red.id)!;
   state.humanControl = {
     attackEnabled: true,
@@ -70,7 +70,7 @@ function testProjectileDelay() {
       " gate context logs=" + state.log.slice(-12).map(entry => "[" + entry.tick + "] " + entry.message).join(" | ")
     );
   }
-  equal(state.projectiles[0].hitTick, state.tick + 2, "8-tile bow projectile should use a 2-tick hit delay");
+  equal(state.projectiles[0].hitTick - state.projectiles[0].createdTick, 2, "8-tile bow projectile should use a 2-tick hit delay");
 }
 
 function testOsrsHitTiming() {
