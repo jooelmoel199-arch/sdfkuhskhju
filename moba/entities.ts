@@ -65,6 +65,7 @@ export interface PlayerEntity {
   statusEffects: StatusEffect[];
   attackDelayUntilTick: number; // from eating, blocks attacking but not the underlying weapon cooldown
   eatDelayUntilTick: number; // consumable action delay, separate from attack-cycle delay
+  lastPrayerToggleTick: number;
   lastCombatTick: number; // for PJ/engagement timer + assist windows
   lastDamagedByPlayerId?: string;
   alive: boolean;
@@ -181,6 +182,7 @@ export function createPlayer(
     statusEffects: [],
     attackDelayUntilTick: 0,
     eatDelayUntilTick: 0,
+    lastPrayerToggleTick: -1000,
     lastCombatTick: -1000,
     alive: true,
     kills: 0,
