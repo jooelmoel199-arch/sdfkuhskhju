@@ -1435,8 +1435,9 @@ function applyConsumableAction(state: SimulationState, actor: PlayerEntity, item
 
   const isPotion = item.kind === "potion";
   if (isPotion) {
-    // Non-barbarian potions have their own three-tick consumption timer. They
-    // can be chained with food/karambwan without inheriting the food timer.
+    // Potions use their own repeat-sip timer, but their 3-tick action/eat delay
+    // also blocks a normal food consumed immediately afterwards. The reverse
+    // order (food -> potion) is legal, which is what enables common NH chains.
     if (combo || state.tick < actor.potionDelayUntilTick) return actor;
   } else {
     if (combo ? !item.comboFood : state.tick < actor.eatDelayUntilTick) return actor;
@@ -1451,17 +1452,21 @@ function applyConsumableAction(state: SimulationState, actor: PlayerEntity, item
       state.tick
   );
   const additive = item.attackDelayTicks;
+  const nextFoodDelay = state.tick + item.eatDelayTicks;
 
   const next: PlayerEntity = {
     ...updated,
-    // Potions have zero combat attack delay. Food adds only when an attack
-    // cycle is already live, preserving the "eat before attacking" behaviour.
+    // Potions have zero combat attack delay. Food adds only while an attack
+    // cycle is already live, preserving the "eat before attacking" rule.
     attackTimer: isPotion
       ? actor.attackTimer
       : delayAttack(actor.attackTimer, additive, state.tick),
     attackDelayUntilTick: 0,
-    eatDelayUntilTick: isPotion ? actor.eatDelayUntilTick : state.tick + item.eatDelayTicks,
-    potionDelayUntilTick: isPotion ? state.tick + item.eatDelayTicks : actor.potionDelayUntilTick
+    // A potion blocks a following normal food until its action delay expires;
+    // a food item retains the normal food timer. Combo foods may bypass the
+    // preceding food timer, but still establish the next normal-food delay.
+    eatDelayUntilTick: isPotion ? Math.max(actor.eatDelayUntilTick, nextFoodDelay) : nextFoodDelay,
+    potionDelayUntilTick: isPotion ? nextFoodDelay : actor.potionDelayUntilTick
   };
 
   log(
