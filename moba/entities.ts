@@ -74,6 +74,8 @@ export interface PlayerEntity {
   gmaulPreloaded: boolean;
   gmaulPreloadExpiresAtTick?: number;
   lastCombatTargetId?: string;
+  lastTargetId?: string;
+  lastTargetTimeoutTicks: number;
   lastGmaulTargetId?: string;
   lastGmaulAttackTick: number;
   vengeanceActive: boolean;
@@ -215,6 +217,8 @@ export function createPlayer(
     gmaulPreloaded: false,
     gmaulPreloadExpiresAtTick: undefined,
     lastCombatTargetId: undefined,
+    lastTargetId: undefined,
+    lastTargetTimeoutTicks: 0,
     lastGmaulTargetId: undefined,
     lastGmaulAttackTick: -1000,
     vengeanceActive: false,
