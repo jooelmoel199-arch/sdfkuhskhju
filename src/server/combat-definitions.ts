@@ -1,5 +1,7 @@
 export type AttackType = "melee" | "ranged" | "magic";
 export type MeleeAttackStyle = "accurate" | "aggressive" | "defensive" | "controlled";
+export type MeleeAttackType = "stab" | "slash" | "crush";
+export interface CombatStance { name: string; attackType: MeleeAttackType; style: MeleeAttackStyle; }
 
 export interface WeaponDefinition {
   id: string;
@@ -13,6 +15,7 @@ export interface WeaponDefinition {
   slashBonus?: number;
   stabBonus?: number;
   crushBonus?: number;
+  stances: CombatStance[];
 }
 
 export const WEAPONS: Record<string, WeaponDefinition> = {
@@ -28,6 +31,12 @@ export const WEAPONS: Record<string, WeaponDefinition> = {
     slashBonus: 45,
     stabBonus: 7,
     crushBonus: -2,
+    stances: [
+      { name: "Chop", attackType: "slash", style: "accurate" },
+      { name: "Slash", attackType: "slash", style: "aggressive" },
+      { name: "Lunge", attackType: "stab", style: "controlled" },
+      { name: "Block", attackType: "slash", style: "defensive" },
+    ],
   },
 };
 
@@ -38,11 +47,13 @@ export const MELEE_STYLE_BONUS: Record<MeleeAttackStyle, { attack: number; stren
   controlled: { attack: 1, strength: 1, defence: 1 },
 };
 
+export function weaponStance(weapon: WeaponDefinition, style: MeleeAttackStyle): CombatStance {
+  return weapon.stances.find(s => s.style === style) ?? weapon.stances[0];
+}
+
 export function weaponAttackBonus(weapon: WeaponDefinition, style: MeleeAttackStyle): number {
-  // A weapon's stance selects the relevant melee accuracy bonus. The prototype
-  // currently models the common slash stance used by the rune scimitar.
-  if (style === "aggressive" || style === "defensive" || style === "controlled") {
-    return weapon.slashBonus ?? weapon.attackBonus;
-  }
+  const type = weaponStance(weapon, style).attackType;
+  if (type === "stab") return weapon.stabBonus ?? weapon.attackBonus;
+  if (type === "crush") return weapon.crushBonus ?? weapon.attackBonus;
   return weapon.slashBonus ?? weapon.attackBonus;
 }
