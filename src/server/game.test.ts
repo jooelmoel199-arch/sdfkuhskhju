@@ -314,5 +314,5 @@ enqueueInput(freezeGame,{type:"attack",targetId:"opponent"});step(freezeGame);
 assert(freezeGame.players.player.equipment.spellId==="ice_barrage","Ice Barrage should be selectable from the authoritative inventory");
 assert(freezeGame.pendingHits.some(h=>h.attackType==="magic"&&h.freezeTicks===33),"Ice Barrage freeze duration should be snapshotted into the queued hit");
 const freezeBefore=freezeGame.players.opponent.freezeUntilTick;
-step(freezeGame);step(freezeGame);step(freezeGame);
+for(let i=0;i<5;i++)step(freezeGame);
 assert(freezeGame.players.opponent.freezeUntilTick>freezeBefore,"successful Ice Barrage should apply a server-side freeze on impact");
