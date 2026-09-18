@@ -540,7 +540,7 @@ function testStandardSpecialQueuesUntilAttackCycleIsReady() {
 
   for (let tick = 0; tick < 6; tick += 1) advanceTick(state);
   equal(state.blue.queuedSpecialAttacks, 0, "queued standard special should be consumed when the attack cycle becomes ready");
-  equal(state.blue.specEnergy, 50, "queued standard special should spend energy when the special attack executes");
+  equal(state.blue.specEnergy, 50.1, "queued standard special should spend energy when the special attack executes, then regenerate on later ticks");
 }
 
 function testGraniteMaulSpecialDoesNotPersistOutOfReach() {
