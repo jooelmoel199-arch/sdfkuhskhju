@@ -18,6 +18,8 @@ import { shopCatalog } from "../moba/economy";
 import { distanceHitDelay, meleeHitTick, projectileHitTick } from "../combat/pendingHits";
 import { rollDragonClawsSpecial } from "../combat/resolve";
 import { zeroBonuses, effectiveDefenceLevel, effectiveAttackLevel } from "../combat/formulas";
+import { drainPlayerCommands, enqueuePlayerCommand, makeStrongCommand } from "../combat/commandQueue";
+import { queueClientCommand } from "../moba/simulation";
 
 function testPrototypeShape() {
   const state = createPrototypeState();
@@ -419,11 +421,86 @@ function testFoodBeforeReadyAttackDoesNotCreateCooldown() {
     "eating while the attack cycle is ready must not create a new attack delay");
 }
 
+function testClientCommandQueueIsFifoAndCapped() {
+  const first = makeStrongCommand({ kind: "equip", itemId: "abyssal_whip" }, 1, 0, 0);
+  const weak = {
+    kind: "special" as const,
+    targetId: "red-dummy",
+    priority: "weak" as const,
+    id: "weak-2",
+    sequence: 2,
+    issuedTick: 0,
+    executeTick: 0
+  };
+  const interrupted = enqueuePlayerCommand([first, weak], makeStrongCommand({ kind: "prayer", prayerId: "protect_from_melee" }, 3, 0, 0));
+  ok(!interrupted.some(command => command.priority === "weak"), "a strong client command should interrupt stale weak queue entries");
+
+  let queue = interrupted;
+  for (let sequence = 4; sequence <= 15; sequence += 1) {
+    queue = enqueuePlayerCommand(queue, makeStrongCommand({ kind: "special", targetId: "red-dummy" }, sequence, 0, 0));
+  }
+  const drained = drainPlayerCommands(queue, 0, 10);
+  equal(drained.commands.length, 10, "client input should process at most ten queued commands per tick");
+  equal(drained.queue.length, queue.length - 10, "commands beyond the client-input cap must remain queued");
+  ok(
+    drained.commands.every((command, index) => index === 0 || command.sequence > drained.commands[index - 1].sequence),
+    "client input commands should preserve FIFO sequence"
+  );
+}
+
+function testClientCommandHasOneTickInputLatency() {
+  const state = createPvpTestState();
+  ok(state.blue.equipment.weapon?.id === "rune_scimitar", "fixture should begin with rune scimitar equipped");
+  queueClientCommand(state, { kind: "equip", itemId: "abyssal_whip" });
+
+  advanceTick(state);
+  equal(state.blue.equipment.weapon?.id, "rune_scimitar", "a command clicked during the current tick should not execute until the next server tick");
+
+  advanceTick(state);
+  equal(state.blue.equipment.weapon?.id, "abyssal_whip", "the queued client command should execute on the following server tick");
+}
+
+function testGraniteMaulSpecialIgnoresAttackCooldown() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    tile: { x: 19, y: state.blue.tile.y },
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 7, additiveAttackDelayTicks: 0 }
+  };
+  state.red = {
+    ...state.red,
+    tile: { x: 20, y: state.red.tile.y },
+    activePrayers: []
+  };
+  state.players = state.players.map(player =>
+    player.id === state.blue.id ? state.blue :
+    player.id === state.red.id ? state.red : player
+  );
+  state.humanControl = {
+    attackEnabled: true,
+    laneId: "middle",
+    attackTargetId: state.red.id,
+    equipItemId: "granite_maul",
+    useSpecial: true
+  };
+
+  advanceTick(state);
+
+  equal(state.blue.equipment.weapon?.id, "granite_maul", "Granite maul should equip from the queued client input");
+  equal(state.blue.specEnergy, 50, "one Granite maul special should consume 50% special energy");
+  equal(state.blue.attackTimer.lastAttackTick, 0, "Granite maul special should not start the normal 7-tick attack cooldown");
+  equal(state.blue.queuedSpecialAttacks, 0, "the instant Granite maul special should consume its queued special command");
+  ok(
+    state.pendingHits.some(hit => hit.attackerId === state.blue.id && hit.targetId === state.red.id),
+    "Granite maul special should enqueue an impact for the target's PID turn"
+  );
+}
+
 function testAuthoritativeStageOrder() {
   equal(
     tickRunner.stageNames.join(">"),
-    "npc-turns>player-turns>pending-hits>lock-decay>respawns",
-    "server tick should process NPCs before PID-ordered players"
+    "client-input>npc-turns>player-turns>pending-hits>lock-decay>respawns",
+    "server tick should process client input before NPCs and PID-ordered players"
   );
 }
 
@@ -565,6 +642,7 @@ function testCampRespawnSchedule() {
 
 testPrototypeShape();
 testPvpTestLane();
+testAuthoritativeStageOrder();
 testHumanPrayerInputIsOneShot();
 testQueuedHitResolvesOnTargetTurn();
 testGearSwapCanAttackSameTick();
@@ -575,6 +653,9 @@ testProjectileDelay();
 testOsrsHitTiming();
 testPlayerMagicFormula();
 testDragonClawsSpecial();
+testClientCommandQueueIsFifoAndCapped();
+testClientCommandHasOneTickInputLatency();
+testGraniteMaulSpecialIgnoresAttackCooldown();
 testPidTurnPreventsDeadPlayerAction();
 testPidTurnRunsPrayerBeforeIncomingImpact();
 testPvPDummyProvidesIncomingPressure();
