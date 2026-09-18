@@ -1,6 +1,6 @@
 import { createCombatRules, type CombatRules } from "./combat-rules";
 import { findPath, MAP_HEIGHT, MAP_WIDTH, type Tile } from "./pathfinding";
-import { MELEE_STYLE_BONUS, WEAPONS, weaponAttackBonus, type AttackType } from "./combat-definitions";
+import { MELEE_STYLE_BONUS, WEAPONS, weaponAttackBonus, weaponStance, type AttackType, type MeleeAttackType } from "./combat-definitions";
 
 export type Team = "blue" | "red";
 export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | null;
@@ -21,7 +21,7 @@ export type InputCommand =
 export interface Inventory { slots:Array<ItemStack|null>; food: number; specialEnergy: number; coins: number; }
 export interface Equipment {
   weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number;
-  specialCost: number; specialMultiplier: number; defenceBonus: number;
+  specialCost: number; specialMultiplier: number; defenceBonus: number; defenceStab: number; defenceSlash: number; defenceCrush: number;
 }
 export interface Player {
   id:string; name:string; team:Team; x:number; y:number; destinationX:number; destinationY:number;
@@ -42,7 +42,7 @@ const styleBonus=MELEE_STYLE_BONUS;
 
 function makePlayer(id:string,name:string,team:Team,x:number,y:number):Player{
   return {id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
-    attack:75,strength:75,defence:70,equipment:{...WEAPONS.rune_scimitar, defenceBonus:0},
+    attack:75,strength:75,defence:70,equipment:{...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
     inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},null,null,null,null,null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,pendingHitDamage:0,pendingHitSucceeded:false,pendingHitRoll:0,pendingDefenceRoll:0,pendingHitTargetId:null,pendingAttackType:"melee",pendingSpecial:false,specialQueued:false,path:[]};
 }
 
@@ -89,8 +89,10 @@ function resolveAttack(state:GameState,a:Player):void{
  const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
  const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+styleBonus[d.attackStyle].defence+8;
  const weapon=WEAPONS[a.equipment.weapon] ?? WEAPONS.rune_scimitar;
+ const stance=weaponStance(weapon, a.attackStyle);
  const attackBonus=weaponAttackBonus(weapon, a.attackStyle);
- const attackRoll=effectiveAttack*(attackBonus+64), defenceRoll=effectiveDefence*(d.equipment.defenceBonus+64);
+ const defenceBonus=stance.attackType==="stab"?d.equipment.defenceStab:stance.attackType==="crush"?d.equipment.defenceCrush:d.equipment.defenceSlash;
+ const attackRoll=effectiveAttack*(attackBonus+64), defenceRoll=effectiveDefence*(defenceBonus+64);
  const hitChance=attackRoll<=defenceRoll
    ? attackRoll/(2*(defenceRoll+1))
    : 1-(defenceRoll+2)/(2*(attackRoll+1));
