@@ -109,7 +109,7 @@ export function effectiveAttackLevel(
   multiplier = 1
 ): number {
   const base = style === "ranged" ? levels.ranged : style === "magic" ? levels.magic : levels.attack;
-  return base * multiplier + accuracyStyleBonus(style, attackType) + 8;
+  return Math.floor(base * multiplier) + accuracyStyleBonus(style, attackType) + 8;
 }
 
 export function effectiveDefenceLevel(
@@ -172,10 +172,10 @@ export function maxDamage(input: StyleEvInput): number {
       ? input.attackerBonuses.ranged_strength_bonus
       : input.attackerBonuses.melee_strength_bonus;
   const styleBonus = strengthStyleBonus(input.style, input.attackType);
-  const effectiveStrength = Math.ceil(stat * (input.strengthBoostMultiplier ?? 1)) + styleBonus;
+  const effectiveStrength = Math.floor(stat * (input.strengthBoostMultiplier ?? 1)) + styleBonus;
 
   return Math.floor(
-    1.3 + effectiveStrength / 10 + strengthBonus / 80 + (effectiveStrength * strengthBonus) / 640
+    0.5 + (effectiveStrength * (strengthBonus + 64)) / 640
   );
 }
 
