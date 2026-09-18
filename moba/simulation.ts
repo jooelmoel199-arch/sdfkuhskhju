@@ -748,19 +748,23 @@ function handleTowerAttack(
     return;
   }
 
-  tower.currentHp = Math.max(0, tower.currentHp - hit.finalDamage);
-  log(state, actor.id + " hits " + tower.id + " for " + hit.finalDamage);
-
-  if (tower.currentHp <= 0) {
-    tower.alive = false;
-    log(state, tower.id + " falls");
-    const enemyTeam = tower.team;
-    const remaining = state.towers.some(other => other.alive && other.team === enemyTeam);
-    if (!remaining) {
-      state.matchResult = actor.team;
-      log(state, actor.team + " wins the prototype match");
-    }
-  }
+  enqueuePendingNpcHit(state, {
+    id: `npc-target-hit-${actor.id}-${state.tick}-${state.pendingHitSequence + 1}`,
+    dueTick: state.tick + 1,
+    attackerId: actor.id,
+    targetId: tower.id,
+    attackerPid: actor.pid,
+    targetPid: -1,
+    style,
+    attackType,
+    landed: hit.landed,
+    hitChance: hit.hitChance,
+    rawDamage: hit.rawDamage,
+    createdTick: state.tick
+  });
+  log(state, hit.landed
+    ? actor.id + " queues " + tower.id + " for " + hit.rawDamage
+    : actor.id + " misses " + tower.id);
 }
 
 function applyConsumableAction(state: SimulationState, actor: PlayerEntity, itemId: string, combo = false): PlayerEntity {
@@ -1018,6 +1022,23 @@ const towerStage: TickStage<SimulationState> = {
   name: "towers",
   run: state => {
     for (const tower of state.towers) {
+      const queued = resolvePendingNpcHits(state, tower.id);
+      for (const hit of queued) {
+        if (!tower.alive || !hit.landed) continue;
+        tower.currentHp = Math.max(0, tower.currentHp - hit.rawDamage);
+        log(state, `${hit.attackerId} hits ${tower.id} for ${hit.rawDamage}`);
+        if (tower.currentHp <= 0) {
+          tower.alive = false;
+          log(state, tower.id + " falls");
+          const enemyTeam = tower.team;
+          const remaining = state.towers.some(other => other.alive && other.team === enemyTeam);
+          const winner = state.players.find(player => player.id === hit.attackerId);
+          if (!remaining && winner) {
+            state.matchResult = winner.team;
+            log(state, winner.team + " wins the prototype match");
+          }
+        }
+      }
       if (!tower.alive || !canAttackTimer(tower.attackTimer, state.tick)) continue;
 
       const enemyMinions = state.minions
