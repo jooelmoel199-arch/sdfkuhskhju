@@ -34,6 +34,10 @@ export function stopMovement() {
 
 export function setAttackTarget(targetId) {
   state.humanControl.attackTargetId = targetId;
+  const tower = state.towers.find(candidate => candidate.id === targetId && candidate.alive);
+  if (tower) {
+    state.humanControl.laneId = tower.laneId;
+  }
 }
 
 export function clearAttackTarget() {
