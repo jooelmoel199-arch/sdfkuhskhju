@@ -4,7 +4,7 @@ import { consumeExpiredAttackDelay, createAttackTimerState } from "../combat/tim
 import { dispatchAttack } from "../combat/attackGate";
 import { rollAttack } from "../combat/resolve";
 import { compatiblePrayerSet, aggregatePrayerBoosts, type PrayerId } from "../prayer/prayers";
-import type { PlayerEntity, MinionEntity, TowerEntity, NeutralCampEntity } from "./entities";
+import type { PlayerEntity, MinionEntity, TowerEntity, NeutralCampEntity, ProjectileEntity } from "./entities";
 import { consumeItem, equipItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
 import { gpRewards, xpRewards, shopCatalog } from "./economy";
@@ -31,6 +31,7 @@ const MINION_MAX_HIT = 4;
 const MINION_AGGRO_RANGE = 6;
 
 let minionSeq = 0;
+let projectileSeq = 0;
 
 export const TICK_MS = 600;
 
@@ -44,6 +45,7 @@ export interface SimulationState {
   blue: PlayerEntity;
   red: PlayerEntity;
   minions: MinionEntity[];
+  projectiles: ProjectileEntity[];
   towers: TowerEntity[];
   jungleCamps: NeutralCampEntity[];
   engagedAttackerTeamByLane: Partial<Record<LaneId, "blue" | "red">>;
