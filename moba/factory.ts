@@ -25,7 +25,7 @@ export function buildStartingLoadout(
   };
 
   let player = createPlayer(playerId, team, tile, laneId);
-  player = { ...player, zone: zoneAt(tile), gp: 300 };
+  player = { ...player, zone: zoneAt(tile), gp: 0 };
 
   const loadouts: Record<StartingRole, string[]> = {
     melee: ["rune_scimitar", "rune_defender", "fighter_torso", "berserker_helm"],
@@ -40,6 +40,7 @@ export function buildStartingLoadout(
 
   const defaultAttackType = player.equipment.weapon?.defaultAttackType;
   if (defaultAttackType) player = { ...player, attackType: defaultAttackType };
+  player = { ...player, gp: 300 };
 
   player = addInventoryItem(player, "shark", 3);
   player = addInventoryItem(player, "prayer_potion", 2);
