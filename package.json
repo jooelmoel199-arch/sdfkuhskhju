@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "sim": "tsx index.ts",
-    "web": "vite web --host 0.0.0.0",
-    "build:web": "vite build web",
+    "web": "vite --config vite.config.js",
+    "build:web": "vite build --config vite.config.js",
     "check": "npm run sim && npm run build:web"
   },
   "devDependencies": {
