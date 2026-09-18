@@ -33,10 +33,17 @@ export function updateLastAttack(
   };
 }
 
-export function delayAttack(state: AttackTimerState, ticks: number): AttackTimerState {
+export function delayAttack(state: AttackTimerState, ticks: number, currentTick?: number): AttackTimerState {
+  const delay = Math.max(0, Math.trunc(ticks));
+  // Food delays the existing attack cycle. Eating while already ready does not
+  // create a new weapon cooldown; this is the important OSRS distinction that
+  // lets a player eat before starting a fresh attack cycle.
+  if (currentTick !== undefined && canAttack(state, currentTick)) {
+    return state;
+  }
   return {
     ...state,
-    additiveAttackDelayTicks: state.additiveAttackDelayTicks + Math.max(0, Math.trunc(ticks))
+    additiveAttackDelayTicks: state.additiveAttackDelayTicks + delay
   };
 }
 
@@ -78,12 +85,12 @@ export function canAttack(state: AttackTimerState, currentTick: number): boolean
   return !getAttackDelayStatus(state, currentTick).delayed;
 }
 
-export function applyFoodAttackDelay(state: AttackTimerState): AttackTimerState {
-  return delayAttack(state, 3);
+export function applyFoodAttackDelay(state: AttackTimerState, currentTick?: number): AttackTimerState {
+  return delayAttack(state, 3, currentTick);
 }
 
-export function applyKarambwanAttackDelay(state: AttackTimerState, eatDelayActive: boolean): AttackTimerState {
-  return delayAttack(state, eatDelayActive ? 1 : 2);
+export function applyKarambwanAttackDelay(state: AttackTimerState, eatDelayActive: boolean, currentTick?: number): AttackTimerState {
+  return delayAttack(state, eatDelayActive ? 1 : 2, currentTick);
 }
 
 export function applyPotionAttackDelay(state: AttackTimerState): AttackTimerState {
