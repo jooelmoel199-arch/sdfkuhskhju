@@ -195,7 +195,8 @@ const movementStage: TickStage<SimulationState> = {
         setPlayer(state, rotated);
       }
 
-      const current = actor.team === "red" ? state.red : state.blue;
+      const current = state.players.find(player => player.id === actor.id);
+      if (!current) continue;
       const currentEnemy = opponentOf(state, current.id);
       const decision = decisionFor(state, current, currentEnemy);
       if (isFrozen(current.locks, state.tick) || decision.moveDelta === 0) continue;
