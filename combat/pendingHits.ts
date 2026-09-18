@@ -10,6 +10,7 @@ export interface PendingHit {
   readonly landed: boolean;
   readonly hitChance: number;
   readonly rawDamage: number;
+  readonly special?: boolean;
   readonly freezeTicks?: number;
   readonly createdTick: number;
   /** Monotonic insertion sequence preserves FIFO when several queue entries share a tick. */
