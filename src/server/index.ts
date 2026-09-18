@@ -21,7 +21,7 @@ function isInput(value:unknown):value is InputCommand{
   case "move":return typeof c.x==="number"&&Number.isFinite(c.x)&&typeof c.y==="number"&&Number.isFinite(c.y);
   case "prayer":return c.prayer===null||c.prayer==="protect_melee"||c.prayer==="protect_mage"||c.prayer==="protect_range";
   case "attack_style":return c.style==="accurate"||c.style==="aggressive"||c.style==="defensive"||c.style==="controlled";
-  case "eat":case "special":case "stop_attack":return true;
+  case "item_action":return Number.isInteger(c.slot)&&c.slot>=0&&c.slot<28&&(c.action==="eat"||c.action==="equip"||c.action==="unequip");\n  case "eat":case "special":case "stop_attack":return true;
   default:return false;
  }
 }
