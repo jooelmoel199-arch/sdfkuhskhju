@@ -488,7 +488,12 @@ const combatStage: TickStage<SimulationState> = {
         continue;
       }
 
-      const special = decision.useSpecial ? weapon.special : undefined;
+      // A special is a separate attack mode, not a damage multiplier that can
+      // silently fire when the energy bar is empty. If the player requests a
+      // special without enough energy, fall back to the weapon's normal attack.
+      const special = decision.useSpecial && weapon.special && actor.specEnergy >= weapon.special.energyCost
+        ? weapon.special
+        : undefined;
       const currentEnemy = opponentOf(state, actor.id);
       const prayerBoosts = aggregatePrayerBoosts(actor.activePrayers);
       const targetPrayerBoosts = aggregatePrayerBoosts(currentEnemy.activePrayers);
