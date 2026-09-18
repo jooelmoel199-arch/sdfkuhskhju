@@ -1,7 +1,7 @@
 import {
   state, stepSimulation, setMoveTarget, stopMovement, setLane, setAttackTarget, clearAttackTarget,
   setAttackEnabled, toggleMeleePrayer, resetSimulation, maxHitpoints, TICK_MS,
-  useConsumable, investAll, useSpecial, buyBestAffordableUpgrade, buyConsumables
+  useConsumable, investAll, useSpecial, buyBestAffordableUpgrade, buyConsumables, cycleAttackType
 } from "./simState.js";
 import { levelOf } from "../moba/stats.ts";
 import { accountLevelFromXp } from "../moba/xp.ts";
@@ -105,6 +105,7 @@ function renderActionbar() {
     '</div><div class="divider"></div>' +
     '<div class="actionGroup">' +
     '<button class="actionButton" data-action="attack"><span class="key">Q</span>ATTACK ' + (state.humanControl.attackEnabled ? 'ON' : 'OFF') + '</button>' +
+    '<button class="actionButton" data-action="style"><span class="key">T</span>' + state.blue.attackType.toUpperCase() + '</button>' +
     '<button class="actionButton" data-action="prayer-toggle"><span class="key">P</span>PROTECT</button>' +
     '<button class="actionButton" data-action="upgrade"><span class="key">J</span>+ATTACK</button>' +
     '<button class="actionButton" data-action="upgrade-str"><span class="key">K</span>+STRENGTH</button>' +
@@ -383,6 +384,7 @@ actionbarEl.addEventListener("click", event => {
   if (action === "prayer") useConsumable("prayer_potion");
   if (action === "spec") useSpecial();
   if (action === "attack") setAttackEnabled(!state.humanControl.attackEnabled);
+  if (action === "style") cycleAttackType();
   if (action === "prayer-toggle") toggleMeleePrayer();
   if (action === "upgrade") investAll("attack");
   if (action === "upgrade-str") investAll("strength");
@@ -404,6 +406,7 @@ addEventListener("keydown", event => {
   if (key === "c") useConsumable("prayer_potion");
   if (key === "x") useSpecial();
   if (key === "q") setAttackEnabled(!state.humanControl.attackEnabled);
+  if (key === "t") cycleAttackType();
   if (key === "j") investAll("attack");
   if (key === "k") investAll("strength");
   if (key === "l") investAll("defence");
