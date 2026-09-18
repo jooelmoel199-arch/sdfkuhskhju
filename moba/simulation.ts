@@ -1349,10 +1349,12 @@ const combatStage: TickStage<SimulationState> = {
             damageMultiplier: special?.damageMultiplier,
             rng: state.rng
           });
-          const secondaryDistance = Math.max(Math.abs(actor.tile.x - secondary.tile.x), Math.abs(actor.tile.y - secondary.tile.y));
           enqueuePendingHit(state, {
             id: "hit-" + actor.id + "-" + state.tick + "-" + (++projectileSeq),
-            dueTick: projectileHitTick(state.tick, "magic", secondaryDistance, playerPriority(state, actor.id), playerPriority(state, secondary.id)),
+            // Ancient splash damage is part of the same spell projectile.
+            // Resolve it on the primary projectile's impact tick rather than
+            // giving each splash recipient an independent travel time.
+            dueTick: hitTick,
             attackerId: actor.id,
             targetId: secondary.id,
             attackerPid: actor.pid,
