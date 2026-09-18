@@ -139,6 +139,7 @@ export function createPrototypeState(): SimulationState {
       makeJungleCamp("river-chaos-elemental", "Chaos Elemental", 20, 10, 350, 520, 350, 16, 5, 150)
     ],
     engagedAttackerTeamByLane: {},
+    teamBuffs: {},
     log: [],
     rng: Math.random
   };
