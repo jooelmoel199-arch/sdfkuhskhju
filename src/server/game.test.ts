@@ -36,7 +36,7 @@ step(ranged);
 assert(ranged.players.player.attackQueuedTick !== null, "out-of-range attack remains queued");
 assert(!ranged.events.some(e => e.type === "attack"), "out-of-range attack cannot resolve");
 
-enqueueInput(ranged, { type: "move", x: 4 });
+enqueueInput(ranged, { type: "move", x: 4, y: 10 });
 step(ranged);
 assert(ranged.events.some(e => e.type === "attack"), "queued attack resolves after entering range");
 
@@ -58,7 +58,7 @@ step(special);
 assert(special.players.player.inventory.food === 9, "eating should consume one food");
 assert(special.players.player.hp >= beforeFood, "eating should not reduce HP");
 
-enqueueInput(special, { type: "move", x: 14 });
+enqueueInput(special, { type: "move", x: 14, y: 10 });
 step(special);
 assert(special.players.player.x === 14, "movement input should be authoritative");
 
@@ -71,4 +71,19 @@ step(special);
 assert(special.players.player.targetId === null, "stop attack must clear the target");
 assert(special.players.player.attackQueuedTick === null, "stop attack must clear queued combat");
 
-console.log("server combat queue tests passed");
+
+const styled=createGame();
+enqueueInput(styled,{type:"attack_style",style:"aggressive"});step(styled);
+assert(styled.players.player.attackStyle==="aggressive","attack style should be authoritative");
+enqueueInput(styled,{type:"move",x:12,y:14});step(styled);
+assert(styled.players.player.x===11 && styled.players.player.y===11,"2D movement should follow a path one tile per tick");
+enqueueInput(styled,{type:"move",x:12,y:14});step(styled);
+assert(styled.players.player.x===12 && styled.players.player.y===11,"pathing should continue one tile per tick");
+const prayed=createGame();
+enqueueInput(prayed,{type:"prayer",prayer:"protect_melee"});step(prayed);
+const prayerBefore=prayed.players.player.prayerPoints;
+step(prayed);
+assert(prayed.players.player.prayerPoints===prayerBefore,"prayer drains on the configured cadence");
+step(prayed);
+assert(prayed.players.player.prayerPoints===prayerBefore-1,"active prayer should drain server-side");
+\nconsole.log("server combat queue tests passed");
