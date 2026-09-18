@@ -158,4 +158,4 @@ export function rollDragonClawsSpecial(input: HitRollInput): ClawSpecialResult {
     damages: protectedDamages,
     firstSuccessfulStrike
   };
-}\n
+}
