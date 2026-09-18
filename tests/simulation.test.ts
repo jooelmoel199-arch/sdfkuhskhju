@@ -294,12 +294,11 @@ function testPotionBoostsUseBoostedCombatLevelsAndDecay() {
   queueClientCommand(state, { kind: "eat", itemId: "super_combat_potion" }, false);
   advanceTick(state);
 
-  const base = 40;
-  equal(state.blue.combatBoosts.attack, 11, "level 40 super combat should give +11 Attack");
-  equal(state.blue.combatBoosts.strength, 11, "level 40 super combat should give +11 Strength");
-  equal(state.blue.combatBoosts.defence, 11, "level 40 super combat should give +11 Defence");
-  equal(combatLevelsForPlayer(state.blue).attack, base + 11, "boosted Attack level should feed combat formulas");
-  equal(combatLevelsForPlayer(state.blue).strength, base + 11, "boosted Strength level should feed max-hit formulas");
+  equal(state.blue.combatBoosts.attack, 16, "level 75 super combat should give +16 Attack");
+  equal(state.blue.combatBoosts.strength, 19, "level 99 super combat should give +19 Strength");
+  equal(state.blue.combatBoosts.defence, 15, "level 70 super combat should give +15 Defence");
+  equal(combatLevelsForPlayer(state.blue).attack, 91, "boosted Attack level should feed combat formulas");
+  equal(combatLevelsForPlayer(state.blue).strength, 118, "boosted Strength level should feed max-hit formulas");
 
   state.tick = 99;
   advanceTick(state);
