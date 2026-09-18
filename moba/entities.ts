@@ -84,6 +84,24 @@ export interface MinionEntity {
   alive: boolean;
 }
 
+export interface ProjectileEntity {
+  readonly id: string;
+  readonly kind: "projectile";
+  readonly attackerId: string;
+  readonly targetId: string;
+  readonly style: CombatStyle;
+  readonly attackType: AttackType;
+  readonly attackerLevels: CombatLevels;
+  readonly attackerBonuses: BonusTable;
+  readonly attackBoostMultiplier: number;
+  readonly strengthBoostMultiplier: number;
+  readonly damageMultiplier: number;
+  readonly accuracyMultiplier: number;
+  readonly createdTick: number;
+  readonly hitTick: number;
+  readonly fromTile: TilePosition;
+  readonly toTile: TilePosition;
+}
 export interface NeutralCampEntity {
   readonly id: string;
   readonly kind: "neutral_camp";
