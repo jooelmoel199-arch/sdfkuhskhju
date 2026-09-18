@@ -37,6 +37,9 @@ export function buildStartingLoadout(
     if (player.gp >= item.cost) player = equipItem(player, item);
   }
 
+  const defaultAttackType = player.equipment.weapon?.defaultAttackType;
+  if (defaultAttackType) player = { ...player, attackType: defaultAttackType };
+
   player = addInventoryItem(player, "shark", 3);
   player = addInventoryItem(player, "prayer_potion", 2);
   return player;
