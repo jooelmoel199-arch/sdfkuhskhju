@@ -534,17 +534,45 @@ function testStandardSpecialQueuesUntilAttackCycleIsReady() {
   queueClientCommand(state, { kind: "special" });
 
   advanceTick(state);
-  equal(state.blue.queuedSpecialAttacks, 0, "the click itself is still in the one-tick client delivery queue");
-  equal(state.clientCommands[state.blue.id]?.length, 1, "the special command should remain queued until the next client-input phase");
+  equal(state.blue.specialActive, false, "the click itself is still in the client input queue on the first server tick");
+  equal(state.clientCommands[state.blue.id]?.length, 1, "special input should have one tick of delivery latency");
 
   advanceTick(state);
-  equal(state.blue.queuedSpecialAttacks, 1, "a delivered standard special should remain queued while the weapon is on cooldown");
-  equal(state.blue.specEnergy, 100, "queued special should not spend energy before the attack is actually dispatched");
+  equal(state.blue.specialActive, true, "delivered special input should arm the standard special bar");
+  equal(state.blue.specEnergy, 100, "arming a standard special should not spend energy while the weapon is on cooldown");
 
   for (let tick = 0; tick < 6; tick += 1) advanceTick(state);
-  equal(state.blue.queuedSpecialAttacks, 0, "queued standard special should be consumed when the attack cycle becomes ready");
-  equal(state.blue.specEnergy, 50.1, "queued standard special should spend energy when the special attack executes, then regenerate on later ticks");
+  equal(state.blue.specialActive, false, "standard special should deactivate after the special attack executes");
+  equal(state.blue.specEnergy, 50.1, "standard special should spend 50 energy and then regenerate on later ticks");
 }
+
+function testGraniteMaulSpecialDoesNotPersistOutOfReach() {
+  const state = createPvpTestState();
+  state.red = {
+    ...state.red,
+    equipment: { ...state.red.equipment, weapon: undefined },
+    tile: { x: 35, y: state.red.tile.y }
+  };
+  state.blue = {
+    ...state.blue,
+    tile: { x: 5, y: state.blue.tile.y },
+    equipment: {
+      ...state.blue.equipment,
+      weapon: shopCatalog.find(item => item.id === "granite_maul")
+    }
+  };
+  state.players = state.players.map(player =>
+    player.id === state.blue.id ? state.blue :
+    player.id === state.red.id ? state.red : player
+  );
+  state.humanControl = { attackEnabled: true, laneId: "middle", attackTargetId: state.red.id };
+  queueClientCommand(state, { kind: "special" });
+  advanceTick(state);
+  advanceTick(state);
+  equal(state.blue.specialActive, false, "the second Gmaul bar click should arm preload rather than leave the special bar active");
+  equal(state.blue.gmaulPreloaded, true, "Gmaul should enter its short preload state");
+}
+
 
 function testGraniteMaulSpecialDoesNotPersistOutOfReach() {
   const state = createPvpTestState();
@@ -577,7 +605,11 @@ function testGraniteMaulSpecialIgnoresAttackCooldown() {
   state.blue = {
     ...state.blue,
     tile: { x: 19, y: state.blue.tile.y },
-    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 7, additiveAttackDelayTicks: 0 }
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 7, additiveAttackDelayTicks: 0 },
+    equipment: {
+      ...state.blue.equipment,
+      weapon: shopCatalog.find(item => item.id === "granite_maul")
+    }
   };
   state.red = {
     ...state.red,
@@ -590,34 +622,27 @@ function testGraniteMaulSpecialIgnoresAttackCooldown() {
     player.id === state.red.id ? state.red : player
   );
   state.humanControl = {
-    attackEnabled: false,
+    attackEnabled: true,
     laneId: "middle",
-    attackTargetId: state.red.id,
-    equipItemId: "granite_maul",
-    useSpecial: true
+    attackTargetId: state.red.id
   };
 
-  advanceTick(state);
-
-  equal(state.blue.equipment.weapon?.id, "granite_maul", "Granite maul should equip from the queued client input");
-  equal(state.blue.gmaulEquippedTick, 0, "Gmaul should remember the tick on which it was equipped");
-  equal(state.blue.gmaulSpecBarVisibleTick, 1, "switching from a non-spec weapon should reveal the Gmaul spec bar one tick later");
-  equal(state.blue.attackTimer.lastAttackTick, 0, "equipping should not itself start the attack cycle");
-  equal(state.blue.specEnergy, 100, "equipping should not spend special energy");
-
-  // The same client input that equips the maul cannot use its special
-  // yet because the spec bar is not visible until the following tick.
-  equal(state.blue.queuedSpecialAttacks, 0, "Gmaul spec should fail while its special bar is not yet visible");
-
-  // The bar is visible now. Queue and execute a Gmaul special despite the
-  // ordinary seven-tick maul attack cooldown.
-  state.humanControl.attackEnabled = true;
+  // First bar click arms the special.
   queueClientCommand(state, { kind: "special" }, false);
+  advanceTick(state);
+  equal(state.blue.gmaulSpecBarVisibleTick, 0, "already-equipped Gmaul in a test fixture should have a visible special bar");
+  equal(state.blue.specialActive, true, "first Gmaul bar click should activate the special");
+  equal(state.blue.specEnergy, 100, "arming the Gmaul should not spend energy");
+
+  // Clicking the target releases Quick Smash immediately despite the ordinary
+  // seven-tick maul attack timer.
+  queueClientCommand(state, { kind: "attack-target", targetId: state.red.id }, false);
   advanceTick(state);
 
   equal(state.blue.specEnergy, 50, "one Granite maul special should consume 50% special energy");
   equal(state.blue.attackTimer.lastAttackTick, 0, "Granite maul special should not start the normal 7-tick attack cooldown");
   equal(state.blue.queuedSpecialAttacks, 0, "the instant Granite maul special should consume its queued special command");
+  equal(state.blue.specialActive, false, "Gmaul should deactivate after firing its special");
   ok(
     state.combatEvents.some(event =>
       event.attackerId === state.blue.id &&
@@ -627,6 +652,113 @@ function testGraniteMaulSpecialIgnoresAttackCooldown() {
     "Granite maul special should produce a marked special combat event on the target's PID turn"
   );
 }
+
+function testGraniteMaulDoubleSpecConsumesTwoQueues() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    equipment: { ...state.blue.equipment, weapon: shopCatalog.find(item => item.id === "granite_maul") },
+    gmaulEquippedTick: 0,
+    gmaulSpecBarVisibleTick: 0,
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 7, additiveAttackDelayTicks: 0 }
+  };
+  state.red = { ...state.red, activePrayers: [], equipment: { ...state.red.equipment, weapon: undefined } };
+  state.players = state.players.map(player =>
+    player.id === state.blue.id ? state.blue :
+    player.id === state.red.id ? state.red : player
+  );
+  state.humanControl = { attackEnabled: true, laneId: "middle", attackTargetId: state.red.id };
+
+  // Two bar clicks arm the modern two-hit preload.
+  queueClientCommand(state, { kind: "special" }, false);
+  queueClientCommand(state, { kind: "special" }, false);
+  advanceTick(state);
+  equal(state.blue.gmaulPreloaded, true, "two Gmaul bar clicks should create the short double-spec preload");
+  equal(state.blue.queuedSpecialAttacks, 0, "arming the double preload should not fire yet");
+
+  // Target click releases the two queued specials.
+  queueClientCommand(state, { kind: "attack-target", targetId: state.red.id }, false);
+  advanceTick(state);
+
+  equal(state.blue.specEnergy, 0, "two queued Gmaul specials should consume 100 special energy");
+  equal(state.blue.queuedSpecialAttacks, 0, "both queued Gmaul specials should be consumed together");
+  equal(
+    state.combatEvents.filter(event => event.attackerId === state.blue.id && event.special).length,
+    2,
+    "double Gmaul should create two same-tick special impacts"
+  );
+}
+
+function testGraniteMaulSpecialAutoReleasesRecentTarget() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    equipment: { ...state.blue.equipment, weapon: shopCatalog.find(item => item.id === "granite_maul") },
+    tile: { x: 19, y: state.blue.tile.y },
+    attackTimer: { lastAttackTick: -7, weaponCooldownTicks: 7, additiveAttackDelayTicks: 0 }
+  };
+  state.red = {
+    ...state.red,
+    equipment: { ...state.red.equipment, weapon: undefined },
+    tile: { x: 20, y: state.red.tile.y }
+  };
+  state.players = state.players.map(player =>
+    player.id === state.blue.id ? state.blue :
+    player.id === state.red.id ? state.red : player
+  );
+  state.humanControl = { attackEnabled: true, laneId: "middle", attackTargetId: state.red.id };
+
+  advanceTick(state);
+  equal(state.blue.lastGmaulTargetId, state.red.id, "a normal Gmaul attack should remember its target");
+
+  queueClientCommand(state, { kind: "special" }, false);
+  advanceTick(state);
+  equal(state.blue.specEnergy, 50, "activating Gmaul within five ticks of a prior Gmaul attack should auto-release Quick Smash");
+  equal(state.blue.specialActive, false, "auto-released Gmaul should deactivate after the special attack");
+}
+
+function testGraniteMaulSpecialExpiresAfterThreeTicks() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    equipment: { ...state.blue.equipment, weapon: shopCatalog.find(item => item.id === "granite_maul") },
+    gmaulEquippedTick: 0,
+    gmaulSpecBarVisibleTick: 0,
+    gmaulPreloaded: true,
+    gmaulPreloadExpiresAtTick: 2
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.humanControl = { attackEnabled: false, laneId: "middle" };
+
+  advanceTick(state);
+  advanceTick(state);
+  advanceTick(state);
+
+  equal(state.blue.gmaulPreloaded, false, "Gmaul double-spec preload must expire after its short timer");
+  equal(state.blue.gmaulPreloadExpiresAtTick, undefined, "expired Gmaul preload must clear its expiry");
+}
+
+function testSwitchingAwayClearsGmaulQueue() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    equipment: { ...state.blue.equipment, weapon: shopCatalog.find(item => item.id === "granite_maul") },
+    gmaulEquippedTick: 0,
+    gmaulSpecBarVisibleTick: 0,
+    gmaulPreloaded: true,
+    gmaulPreloadExpiresAtTick: 5
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  queueClientCommand(state, { kind: "equip", itemId: "abyssal_whip" }, false);
+  state.humanControl = { attackEnabled: false, laneId: "middle" };
+  advanceTick(state);
+
+  equal(state.blue.equipment.weapon?.id, "abyssal_whip", "queued weapon swap should execute");
+  equal(state.blue.gmaulPreloaded, false, "switching away from Gmaul should clear its queued special");
+  equal(state.blue.gmaulSpecBarVisibleTick, undefined, "Gmaul spec-bar state should clear when leaving the weapon");
+}
+
+
 
 function testGraniteMaulDoubleSpecConsumesTwoQueues() {
   const state = createPvpTestState();
@@ -925,12 +1057,18 @@ testClientCommandQueueIsFifoAndCapped();
 testClientCommandHasOneTickInputLatency();
 testQueuedAttackTargetHasOneTickLatency();
 testQueuedMovementAndAttackPreserveFifo();
-testGraniteMaulSpecialIgnoresAttackCooldown();
-testGraniteMaulDoubleSpecConsumesTwoQueues();
-testGraniteMaulSpecialExpiresAfterFiveTicks();
-testSwitchingAwayClearsGmaulQueue();
+
+
+
+
 testStandardSpecialQueuesUntilAttackCycleIsReady();
 testGraniteMaulSpecialDoesNotPersistOutOfReach();
+testGraniteMaulSpecialIgnoresAttackCooldown();
+testGraniteMaulDoubleSpecConsumesTwoQueues();
+testGraniteMaulSpecialAutoReleasesRecentTarget();
+testGraniteMaulSpecialExpiresAfterThreeTicks();
+testSwitchingAwayClearsGmaulQueue();
+
 testPidTurnPreventsDeadPlayerAction();
 testPidTurnRunsPrayerBeforeIncomingImpact();
 testPvPDummyProvidesIncomingPressure();
