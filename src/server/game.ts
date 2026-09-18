@@ -1,7 +1,7 @@
 import { createCombatRules, type CombatRules } from "./combat-rules";
 import { findPath, MAP_HEIGHT, MAP_WIDTH, type Tile } from "./pathfinding";
 import { AMMUNITION, MELEE_STYLE_BONUS, SPELLS, WEAPONS, weaponAttackBonus, weaponStance, type AttackType } from "./combat-definitions";
-import { effectiveCombatLevel, hitChanceFromRolls, magicMaxHit, playerMagicDefenceLevel, prayerDrainResistance, standardMaxHit } from "./combat-formulas";
+import { effectiveCombatLevel, hitChanceFromRolls, magicMaxHit, playerMagicDefenceLevel, prayerDrainResistance, projectileHitDelay, standardMaxHit } from "./combat-formulas";
 
 export type Team = "blue" | "red";
 export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | "eagle_eye" | "mystic_might" | "burst_of_strength" | "clarity_of_thought" | "superhuman_strength" | "improved_reflexes" | "incredible_reflexes" | "ultimate_strength" | "steel_skin" | null;
