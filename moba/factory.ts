@@ -140,6 +140,8 @@ export function createPrototypeState(): SimulationState {
     pendingHits: [],
     pendingHitSequence: 0,
     pendingNpcHits: [],
+    clientCommands: [],
+    nextClientCommandSequence: 0,
     pidOrder: players.map(player => player.id),
     nextPidShuffleTick: 45,
     jungleCamps: [
