@@ -67,8 +67,6 @@ export const zeroBonuses: BonusTable = {
   prayer_bonus: 0
 };
 
-export const NH_PVP_MAGIC_ACCURACY_MODIFIER = 1.22;
-export const NH_PVP_MELEE_ACCURACY_MODIFIER = 1.12;
 
 export function aggregateBonuses(items: readonly { readonly bonuses: Partial<BonusTable> }[]): BonusTable {
   const total: Record<BonusKey, number> = { ...zeroBonuses };
@@ -119,11 +117,11 @@ export function effectiveDefenceLevel(
   defenceMultiplier = 1,
   magicMultiplier = 1
 ): number {
-  const defenceLevel = levels.defence * defenceMultiplier + defenceStyleBonus(attackType) + 8;
   if (style === "magic") {
-    return defenceLevel * 0.3 + levels.magic * magicMultiplier * 0.7;
+    // Player magic defence is 70% Magic + 30% Defence, then +8.
+    return Math.floor(levels.magic * magicMultiplier * 0.7 + levels.defence * defenceMultiplier * 0.3) + 8;
   }
-  return defenceLevel;
+  return Math.floor(levels.defence * defenceMultiplier) + defenceStyleBonus(attackType) + 8;
 }
 
 export function attackRoll(
