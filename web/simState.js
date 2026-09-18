@@ -1,4 +1,4 @@
-import { createPlayer, equipItem } from "../moba/entities.ts";
+import { createPlayer, equipItem, addInventoryItem } from "../moba/entities.ts";
 import { createAttackTimerState } from "../combat/timers.ts";
 import { shopCatalog } from "../moba/economy.ts";
 import { advanceTick, TICK_MS } from "../moba/simulation.ts";
@@ -25,6 +25,8 @@ function buildPlayer(id, team, role, laneId = "middle") {
     const item = itemById(id);
     if (player.gp >= item.cost) player = equipItem(player, item);
   }
+  player = addInventoryItem(player, "shark", 3);
+  player = addInventoryItem(player, "prayer_potion", 2);
   return player;
 }
 
@@ -78,6 +80,18 @@ export function setAttackTarget(targetId) {
 
 export function clearAttackTarget() {
   delete state.humanControl.attackTargetId;
+}
+
+export function useConsumable(itemId) {
+  state.humanControl.consumeItemId = itemId;
+}
+
+export function investAll(stat) {
+  state.humanControl.investStat = stat;
+}
+
+export function useSpecial() {
+  state.humanControl.useSpecial = true;
 }
 
 export function setLane(laneId) {
