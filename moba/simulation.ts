@@ -596,15 +596,18 @@ const clientInputStage: TickStage<SimulationState> = {
               } else if (
                 !current.gmaulPreloaded &&
                 current.specialActive &&
-                adjacent &&
-                gmaulAutoSpecWindowOpen(current, command.targetId, state.tick)
+                adjacent
               ) {
                 current = {
                   ...current,
                   queuedSpecialAttacks: 1,
                   queuedSpecialTargetId: command.targetId
                 };
-                log(state, current.id + " auto-releases Granite maul special on recent target");
+                log(state, current.id + (
+                  gmaulAutoSpecWindowOpen(current, command.targetId, state.tick)
+                    ? " auto-releases Granite maul special on recent target"
+                    : " releases Granite maul special on target click"
+                ));
               }
             }
 
