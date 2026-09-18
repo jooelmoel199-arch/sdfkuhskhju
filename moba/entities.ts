@@ -56,6 +56,7 @@ export interface PlayerEntity {
   activePrayers: PrayerId[];
   attackType: AttackType;
   prayerPoints: number;
+  prayerDrainAccumulator: number;
   specEnergy: number;
   locks: EntityLockState;
   attackTimer: AttackTimerState;
@@ -170,6 +171,7 @@ export function createPlayer(
     activePrayers: [],
     attackType: "accurate",
     prayerPoints: 30,
+    prayerDrainAccumulator: 0,
     specEnergy: 100,
     locks: createEntityLockState(),
     attackTimer: createAttackTimerState(),
