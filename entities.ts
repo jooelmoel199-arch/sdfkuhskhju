@@ -1,0 +1,149 @@
+import type { EntityLockState } from "../entity/locks";
+import { createEntityLockState } from "../entity/locks";
+import type { AttackTimerState } from "../combat/timers";
+import { createAttackTimerState } from "../combat/timers";
+import type { TilePosition } from "../world/movement";
+import type { PrayerId } from "../prayer/prayers";
+import type { StatBlock } from "./stats";
+import { createStatBlock, maxHitpoints } from "./stats";
+import type { BonusTable, CombatStyle } from "../combat/formulas";
+import { emptyEquipmentBonuses } from "./economy";
+import type { ShopItem, ConsumableDef } from "./economy";
+
+export type Team = "blue" | "red";
+export type ZoneKind = "lane" | "river" | "jungle" | "base";
+
+export interface StatusEffect {
+  readonly style: CombatStyle | "prayer";
+  readonly amount: number;
+  readonly expiresAtTick: number;
+}
+
+export interface Equipment {
+  weapon?: ShopItem;
+  shield?: ShopItem;
+  body?: ShopItem;
+  legs?: ShopItem;
+  head?: ShopItem;
+  amulet?: ShopItem;
+  ring?: ShopItem;
+  cape?: ShopItem;
+}
+
+export interface PlayerEntity {
+  readonly id: string;
+  readonly kind: "player";
+  readonly team: Team;
+  readonly pid: number; // deterministic per-tick processing order
+  tile: TilePosition;
+  zone: ZoneKind;
+  currentHp: number;
+  stats: StatBlock;
+  gp: number;
+  equipment: Equipment;
+  activePrayers: PrayerId[];
+  prayerPoints: number;
+  specEnergy: number;
+  locks: EntityLockState;
+  attackTimer: AttackTimerState;
+  statusEffects: StatusEffect[];
+  attackDelayUntilTick: number; // from eating, blocks attacking but not the underlying weapon cooldown
+  lastCombatTick: number; // for PJ/engagement timer + assist windows
+  lastDamagedByPlayerId?: string;
+  alive: boolean;
+  respawnAtTick?: number;
+  kills: number;
+  deaths: number;
+}
+
+export interface MinionEntity {
+  readonly id: string;
+  readonly kind: "minion";
+  readonly team: Team;
+  readonly pid: number;
+  tile: TilePosition;
+  currentHp: number;
+  maxHp: number;
+  attackBonus: number;
+  maxHit: number;
+  style: CombatStyle;
+  attackTimer: AttackTimerState;
+  targetId?: string;
+  alive: boolean;
+}
+
+export interface TowerEntity {
+  readonly id: string;
+  readonly kind: "tower";
+  readonly team: Team;
+  readonly tile: TilePosition;
+  currentHp: number;
+  maxHp: number;
+  attackBonus: number;
+  maxHit: number;
+  attackRange: number;
+  attackTimer: AttackTimerState;
+  alive: boolean;
+}
+
+let pidCounter = 0;
+export function nextPid(): number {
+  pidCounter += 1;
+  return pidCounter;
+}
+
+export function createPlayer(id: string, team: Team, spawnTile: TilePosition): PlayerEntity {
+  const stats = createStatBlock();
+  return {
+    id,
+    kind: "player",
+    team,
+    pid: nextPid(),
+    tile: spawnTile,
+    zone: "base",
+    currentHp: maxHitpoints(stats),
+    stats,
+    gp: 0,
+    equipment: {},
+    activePrayers: [],
+    prayerPoints: 30,
+    specEnergy: 100,
+    locks: createEntityLockState(),
+    attackTimer: createAttackTimerState(),
+    statusEffects: [],
+    attackDelayUntilTick: 0,
+    lastCombatTick: -1000,
+    alive: true,
+    kills: 0,
+    deaths: 0
+  };
+}
+
+export function equipmentBonuses(equipment: Equipment): BonusTable {
+  const rows = Object.values(equipment).filter((item): item is ShopItem => item !== undefined);
+  const total = emptyEquipmentBonuses() as Record<string, number>;
+  for (const item of rows) {
+    for (const [key, value] of Object.entries(item.bonuses)) {
+      total[key] = (total[key] ?? 0) + (value ?? 0);
+    }
+  }
+  return total as BonusTable;
+}
+
+export function equipItem(player: PlayerEntity, item: ShopItem): PlayerEntity {
+  const equipment: Equipment = { ...player.equipment, [item.slot]: item };
+  if (item.slot === "weapon" && item.twoHanded) {
+    equipment.shield = undefined;
+  }
+  return { ...player, gp: player.gp - item.cost, equipment };
+}
+
+export function consumeItem(player: PlayerEntity, item: ConsumableDef, currentTick: number): PlayerEntity {
+  const maxHp = maxHitpoints(player.stats);
+  const currentHp = item.healAmount ? Math.min(maxHp, player.currentHp + item.healAmount) : player.currentHp;
+  const prayerPoints = item.restorePrayer ? player.prayerPoints + item.restorePrayer : player.prayerPoints;
+  const statusEffects = item.boostStat
+    ? [...player.statusEffects, { ...item.boostStat, expiresAtTick: currentTick + item.boostStat.durationTicks }]
+    : player.statusEffects;
+  return { ...player, gp: player.gp - item.cost, currentHp, prayerPoints, statusEffects };
+}
