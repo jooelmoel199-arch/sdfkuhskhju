@@ -284,6 +284,11 @@ function testPotionBoostsUseBoostedCombatLevelsAndDecay() {
   const state = createPvpTestState();
   state.red = { ...state.red, equipment: { ...state.red.equipment, weapon: undefined } };
   state.players = state.players.map(player => player.id === state.red.id ? state.red : player);
+  state.blue = {
+    ...state.blue,
+    inventory: [...state.blue.inventory, { id: "super_combat_potion", quantity: 1 }]
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
   state.humanControl = { attackEnabled: false, laneId: "middle" };
 
   queueClientCommand(state, { kind: "eat", itemId: "super_combat_potion" }, false);
