@@ -91,7 +91,7 @@ function inventoryCount(id) {
 }
 
 function renderActionbar() {
-  actionbarEl.innerHTML = \
+  actionbarEl.innerHTML = 
     '<div class="actionGroup">' +
     '<button class="actionButton" data-action="food"><span class="key">F</span>SHARK<span class="count">' + inventoryCount("shark") + '</span></button>' +
     '<button class="actionButton" data-action="prayer"><span class="key">C</span>PRAYER POT<span class="count">' + inventoryCount("prayer_potion") + '</span></button>' +
