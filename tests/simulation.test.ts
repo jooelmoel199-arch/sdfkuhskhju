@@ -391,7 +391,13 @@ function testDragonClawsSpecial() {
 function testQueuedHitUsesImpactPrayer() {
   const state = createPvpTestState();
   state.blue = { ...state.blue, currentHp: 99, tile: { x: 19, y: state.blue.tile.y } };
-  state.red = { ...state.red, currentHp: 99, tile: { x: 20, y: state.red.tile.y }, activePrayers: [] };
+  state.red = {
+    ...state.red,
+    currentHp: 99,
+    tile: { x: 20, y: state.red.tile.y },
+    activePrayers: [],
+    equipment: { ...state.red.equipment, weapon: undefined }
+  };
   state.players = state.players.map(player =>
     player.id === state.blue.id ? state.blue :
     player.id === state.red.id ? state.red : player
@@ -413,7 +419,7 @@ function testQueuedHitUsesImpactPrayer() {
   state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
 
   advanceTick(state);
-  state.humanControl.activatePrayer = "protect_from_missiles";
+  queueClientCommand(state, { kind: "prayer", prayerId: "protect_from_missiles" }, false);
   advanceTick(state);
 
   equal(state.blue.currentHp, 87, "missile protection should reduce a queued 20 damage hit to 12 at impact");
