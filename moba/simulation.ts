@@ -761,7 +761,7 @@ function applyConsumableAction(state: SimulationState, actor: PlayerEntity, item
   const additive = item.attackDelayTicks;
   const next = {
     ...updated,
-    attackTimer: delayAttack(actor.attackTimer, additive),
+    attackTimer: delayAttack(actor.attackTimer, additive, state.tick),
     attackDelayUntilTick: 0,
     eatDelayUntilTick: state.tick + item.eatDelayTicks
   };
@@ -1238,6 +1238,20 @@ const jungleStage: TickStage<SimulationState> = {
     }
   }
 };
+// --- Authoritative NPC turns ---
+// Henke's model places NPC processing before the PID-ordered player turns.
+// Keeping the lane/jungle actors in one explicit stage makes the ordering
+// visible and prevents a world actor from being accidentally processed after
+// one player but before another player in the same server tick.
+const npcTurnStage: TickStage<SimulationState> = {
+  name: "npc-turns",
+  run: state => {
+    towerStage.run(state);
+    minionStage.run(state);
+    jungleStage.run(state);
+  }
+};
+
 // --- 9. Respawns ---
 const respawnStage: TickStage<SimulationState> = {
   name: "respawns",
@@ -1259,11 +1273,9 @@ const respawnStage: TickStage<SimulationState> = {
 };
 
 export const tickRunner = createTickStageRunner<SimulationState>([
+  npcTurnStage,
   playerTurnStage,
   pendingHitStage,
-  towerStage,
-  minionStage,
-  jungleStage,
   lockDecayStage,
   respawnStage
 ]);
