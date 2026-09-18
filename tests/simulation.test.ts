@@ -182,10 +182,10 @@ function testProjectileDelay() {
   state.humanControl = {
     attackEnabled: true,
     laneId: "middle",
-    attackTargetId: state.red.id,
-    moveTargetX: state.red.tile.x,
-    moveTargetY: state.red.tile.y
+    attackTargetId: state.red.id
   };
+  queueClientCommand(state, { kind: "attack-target", targetId: state.red.id });
+  queueClientCommand(state, { kind: "move", x: state.red.tile.x, y: state.red.tile.y });
   state.rng = (() => {
     let call = 0;
     return () => (call++ % 2 === 0 ? 0 : 0.999999);
