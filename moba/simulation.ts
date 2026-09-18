@@ -65,7 +65,7 @@ export interface SimulationState {
   pendingHitSequence: number;
   pendingNpcHits: PendingHit[];
   /** Client commands are delivered on the following server tick and consumed FIFO, up to ten per tick. */
-  clientCommands: PlayerCommand[];
+  clientCommands: Record<string, PlayerCommand[]>;
   nextClientCommandSequence: number;
   /** NPC currently executing its authoritative turn. */
   npcTurnId?: string;
@@ -152,7 +152,8 @@ function resolvePendingNpcHits(state: SimulationState, targetId: string): Pendin
 export function queueClientCommand(
   state: SimulationState,
   input: PlayerCommandInput,
-  executeNextTick = true
+  executeNextTick = true,
+  playerId = state.blue.id
 ): void {
   state.nextClientCommandSequence += 1;
   const command = makeStrongCommand(
@@ -161,7 +162,8 @@ export function queueClientCommand(
     state.tick,
     state.tick + (executeNextTick ? 1 : 0)
   );
-  state.clientCommands = enqueuePlayerCommand(state.clientCommands, command);
+  const currentQueue = state.clientCommands[playerId] ?? [];
+  state.clientCommands[playerId] = enqueuePlayerCommand(currentQueue, command);
 }
 
 function playerPriority(state: SimulationState, playerId: string): number {
@@ -278,8 +280,8 @@ const clientInputStage: TickStage<SimulationState> = {
   name: "client-input",
   run: state => {
     const human = state.humanControl;
-    // Existing tests and older callers still populate one-shot humanControl
-    // fields directly. Materialize those fields into the real client queue.
+    // Older tests/callers may still provide one-shot fields. Treat them as
+    // commands already received by the blue client on this tick.
     if (human) {
       if (human.equipItemId) queueClientCommand(state, { kind: "equip", itemId: human.equipItemId }, false);
       if (human.consumeItemId) queueClientCommand(state, { kind: "eat", itemId: human.consumeItemId }, false);
@@ -293,77 +295,83 @@ const clientInputStage: TickStage<SimulationState> = {
       delete human.useSpecial;
     }
 
-    const actor = state.blue;
-    if (!actor.alive) {
-      // Inputs issued before death do not survive into a later life.
-      state.clientCommands = state.clientCommands.filter(command => command.executeTick > state.tick);
-      return;
-    }
+    // Henke's model gives every player a client-input phase before the NPC
+    // phase. Each player's command stream is independent and FIFO.
+    for (const actorSnapshot of [...state.players]) {
+      const actor = state.players.find(player => player.id === actorSnapshot.id);
+      if (!actor || !actor.alive) continue;
 
-    const drained = drainPlayerCommands(state.clientCommands, state.tick, 10);
-    state.clientCommands = drained.queue;
-    let current = state.players.find(player => player.id === actor.id) ?? actor;
+      const queue = state.clientCommands[actor.id] ?? [];
+      const drained = drainPlayerCommands(queue, state.tick, 10);
+      state.clientCommands[actor.id] = drained.queue;
+      let current = actor;
 
-    for (const command of drained.commands) {
-      switch (command.kind) {
-        case "equip": {
-          const equipped = equipOwnedItem(current, command.itemId);
-          if (equipped !== current) current = equipped;
-          break;
-        }
-        case "eat":
-          current = applyConsumableAction(state, current, command.itemId, Boolean(command.combo));
-          break;
-        case "prayer": {
-          const active = current.activePrayers.includes(command.prayerId)
-            ? current.activePrayers.filter(prayer => prayer !== command.prayerId)
-            : compatiblePrayerSet([...current.activePrayers, command.prayerId]);
-          current = {
-            ...current,
-            activePrayers: current.prayerPoints > 0 ? active : [],
-            lastPrayerToggleTick: state.tick
-          };
-          break;
-        }
-        case "special":
-          current = {
-            ...current,
-            queuedSpecialAttacks: current.queuedSpecialAttacks + 1,
-            queuedSpecialTargetId: command.targetId
-          };
-          break;
-        case "attack-target":
-          if (state.players.some(player => player.id === command.targetId && player.alive && player.team !== current.team) ||
-              state.jungleCamps.some(camp => camp.id === command.targetId && camp.alive) ||
-              state.towers.some(tower => tower.id === command.targetId && tower.alive && tower.team !== current.team)) {
-            state.humanControl = {
-              ...(state.humanControl ?? { attackEnabled: true, laneId: current.laneId }),
-              attackTargetId: command.targetId
+      for (const command of drained.commands) {
+        switch (command.kind) {
+          case "equip": {
+            const equipped = equipOwnedItem(current, command.itemId);
+            if (equipped !== current) current = equipped;
+            break;
+          }
+          case "eat":
+            current = applyConsumableAction(state, current, command.itemId, Boolean(command.combo));
+            break;
+          case "prayer": {
+            const active = current.activePrayers.includes(command.prayerId)
+              ? current.activePrayers.filter(prayer => prayer !== command.prayerId)
+              : compatiblePrayerSet([...current.activePrayers, command.prayerId]);
+            current = {
+              ...current,
+              activePrayers: current.prayerPoints > 0 ? active : [],
+              lastPrayerToggleTick: state.tick
             };
+            break;
           }
-          break;
-        case "clear-attack-target":
-          if (state.humanControl) delete state.humanControl.attackTargetId;
-          current = { ...current, queuedSpecialTargetId: undefined };
-          break;
-        case "move":
-          if (state.humanControl) {
-            state.humanControl.moveTargetX = Math.max(1, Math.min(39, command.x));
-            state.humanControl.moveTargetY = command.y;
-          }
-          break;
-        case "stop-movement":
-          if (state.humanControl) {
-            delete state.humanControl.moveTargetX;
-            delete state.humanControl.moveTargetY;
-            delete state.humanControl.attackTargetId;
-          }
-          current = { ...current, queuedSpecialTargetId: undefined };
-          break;
+          case "special":
+            current = {
+              ...current,
+              queuedSpecialAttacks: current.queuedSpecialAttacks + 1,
+              queuedSpecialTargetId: command.targetId
+            };
+            break;
+          case "attack-target":
+            if (state.players.some(player => player.id === command.targetId && player.alive && player.team !== current.team) ||
+                state.jungleCamps.some(camp => camp.id === command.targetId && camp.alive) ||
+                state.towers.some(tower => tower.id === command.targetId && tower.alive && tower.team !== current.team)) {
+              if (current.id === state.blue.id) {
+                state.humanControl = {
+                  ...(state.humanControl ?? { attackEnabled: true, laneId: current.laneId }),
+                  attackTargetId: command.targetId
+                };
+              }
+            }
+            break;
+          case "clear-attack-target":
+            if (current.id === state.blue.id && state.humanControl) delete state.humanControl.attackTargetId;
+            current = { ...current, queuedSpecialTargetId: undefined };
+            break;
+          case "move":
+            if (current.id === state.blue.id) {
+              state.humanControl = {
+                ...(state.humanControl ?? { attackEnabled: true, laneId: current.laneId }),
+                moveTargetX: Math.max(1, Math.min(39, command.x)),
+                moveTargetY: command.y
+              };
+            }
+            break;
+          case "stop-movement":
+            if (current.id === state.blue.id && state.humanControl) {
+              delete state.humanControl.moveTargetX;
+              delete state.humanControl.moveTargetY;
+              delete state.humanControl.attackTargetId;
+            }
+            current = { ...current, queuedSpecialTargetId: undefined };
+            break;
+        }
       }
-    }
 
-    setPlayer(state, current);
+      setPlayer(state, current);
+    }
   }
 };
 
