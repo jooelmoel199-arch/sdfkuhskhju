@@ -17,6 +17,15 @@ export type Team = "blue" | "red";
 export type ZoneKind = "lane" | "river" | "jungle" | "base";
 export type PlayerRole = "top" | "jungle" | "middle" | "bottom" | "support";
 
+export interface CombatBoostState {
+  readonly attack: number;
+  readonly strength: number;
+  readonly defence: number;
+  readonly ranged: number;
+  readonly magic: number;
+  readonly expiresAtTick: number;
+}
+
 export interface StatusEffect {
   readonly style: CombatStyle | "prayer";
   readonly amount: number;
@@ -60,6 +69,7 @@ export interface PlayerEntity {
   prayerPoints: number;
   prayerDrainAccumulator: number;
   specEnergy: number;
+  combatBoosts: CombatBoostState;
   locks: EntityLockState;
   attackTimer: AttackTimerState;
   statusEffects: StatusEffect[];
@@ -205,6 +215,14 @@ export function createPlayer(
     prayerPoints: maxPrayerPoints(stats),
     prayerDrainAccumulator: 0,
     specEnergy: 100,
+    combatBoosts: {
+      attack: 0,
+      strength: 0,
+      defence: 0,
+      ranged: 0,
+      magic: 0,
+      expiresAtTick: 0
+    },
     locks: createEntityLockState(),
     attackTimer: createAttackTimerState(),
     statusEffects: [],
