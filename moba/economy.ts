@@ -70,11 +70,11 @@ export const consumableCatalog: readonly ConsumableDef[] = [
   { id: "shark", name: "Shark", cost: 60, healAmount: 20, attackDelayTicks: 3, eatDelayTicks: 3 },
   { id: "anglerfish", name: "Anglerfish", cost: 90, healAmount: 22, attackDelayTicks: 3, eatDelayTicks: 3 },
   { id: "karambwan", name: "Karambwan", cost: 70, healAmount: 18, attackDelayTicks: 2, eatDelayTicks: 3, comboFood: true },
-  { id: "prayer_potion", name: "Prayer potion", cost: 80, restorePrayer: 24, attackDelayTicks: 3, eatDelayTicks: 3 },
-  { id: "super_restore", name: "Super restore", cost: 110, restorePrayer: 25, attackDelayTicks: 3, eatDelayTicks: 3 },
-  { id: "super_combat_potion", name: "Super combat potion", cost: 100, attackDelayTicks: 3, eatDelayTicks: 3, boostStat: { style: "slash", amount: 0.19, durationTicks: 500 } },
-  { id: "ranging_potion", name: "Ranging potion", cost: 100, attackDelayTicks: 3, eatDelayTicks: 3, boostStat: { style: "ranged", amount: 0.15, durationTicks: 500 } },
-  { id: "magic_potion", name: "Magic potion", cost: 100, attackDelayTicks: 3, eatDelayTicks: 3, boostStat: { style: "magic", amount: 0.15, durationTicks: 500 } }
+  { id: "prayer_potion", name: "Prayer potion", cost: 80, restorePrayer: 24, attackDelayTicks: 0, eatDelayTicks: 3 },
+  { id: "super_restore", name: "Super restore", cost: 110, restorePrayer: 25, attackDelayTicks: 0, eatDelayTicks: 3 },
+  { id: "super_combat_potion", name: "Super combat potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, boostStat: { style: "slash", amount: 0.19, durationTicks: 500 } },
+  { id: "ranging_potion", name: "Ranging potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, boostStat: { style: "ranged", amount: 0.15, durationTicks: 500 } },
+  { id: "magic_potion", name: "Magic potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, boostStat: { style: "magic", amount: 0.15, durationTicks: 500 } }
 ];
 
 /** GP income sources, tunable independently of combat balance. */
