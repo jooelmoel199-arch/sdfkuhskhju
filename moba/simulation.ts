@@ -416,35 +416,47 @@ const movementStage: TickStage<SimulationState> = {
   }
 };
 
-// --- Player-turn substage: prayer changes ---
+// --- Player-turn substage: prayer state changes ---
 const prayerStage: TickStage<SimulationState> = {
-  name: "prayers",
+  name: "prayer-state",
   run: state => {
     const actors = state.playerTurnId
       ? state.players.filter(player => player.id === state.playerTurnId)
       : [...state.players];
     for (const actor of actors) {
       if (!actor.alive) continue;
-      const queuedSpecialTarget = actor.queuedSpecialTargetId
-        ? state.players.find(player => player.id === actor.queuedSpecialTargetId && player.alive && player.team !== actor.team)
-        : undefined;
-      const enemy = queuedSpecialTarget ?? opponentOf(state, actor.id);
+      const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
       const requested = actor.id === state.blue.id ? undefined : decision.activatePrayer as PrayerId | undefined;
-      const isHumanToggle = false;
-      // Human prayer commands are explicit toggles. AI prayer decisions are
-      // desired-state decisions: keep the requested overhead on until the AI
-      // changes style, rather than toggling it off every tick.
+      // Human prayer commands are already applied during client input.
+      // AI prayer is a desired state, not a repeated toggle.
       const active = requested
-        ? isHumanToggle && actor.activePrayers.includes(requested)
-          ? actor.activePrayers.filter(prayer => prayer !== requested)
-          : compatiblePrayerSet([...actor.activePrayers, requested])
+        ? compatiblePrayerSet([...actor.activePrayers, requested])
         : actor.activePrayers;
+      setPlayer(state, {
+        ...actor,
+        activePrayers: actor.prayerPoints > 0 ? [...active] : [],
+        lastPrayerToggleTick: requested ? state.tick : actor.lastPrayerToggleTick
+      });
+    }
+  }
+};
+
+// Timers are intentionally after the queue. A queued hit must see the prayer
+// state for this turn before prayer drain can consume points.
+const prayerDrainStage: TickStage<SimulationState> = {
+  name: "prayer-drain",
+  run: state => {
+    const actors = state.playerTurnId
+      ? state.players.filter(player => player.id === state.playerTurnId)
+      : [...state.players];
+    for (const actor of actors) {
+      if (!actor.alive) continue;
       const prayerBonus = equipmentBonuses(actor.equipment).prayer_bonus;
-      // OSRS prayer drain is accumulated over discrete game ticks. This also
-      // permits one-tick prayer flicking when the same overhead is toggled off
-      // before another drain tick is accumulated.
-      const drainEffect = active.reduce((sum, prayer) => sum + (prayerDefinitions[prayer]?.drain ?? 0), 0);
+      const drainEffect = actor.activePrayers.reduce(
+        (sum, prayer) => sum + (prayerDefinitions[prayer]?.drain ?? 0),
+        0
+      );
       const drainResistance = Math.max(60, 60 + 2 * prayerBonus);
       let drainAccumulator = actor.prayerDrainAccumulator + drainEffect;
       let prayerPoints = actor.prayerPoints;
@@ -454,8 +466,7 @@ const prayerStage: TickStage<SimulationState> = {
       }
       setPlayer(state, {
         ...actor,
-        activePrayers: prayerPoints > 0 ? [...active] : [],
-        lastPrayerToggleTick: requested ? state.tick : actor.lastPrayerToggleTick,
+        activePrayers: prayerPoints > 0 ? actor.activePrayers : [],
         prayerPoints,
         prayerDrainAccumulator: prayerPoints > 0 ? drainAccumulator : 0
       });
@@ -1231,6 +1242,7 @@ const playerTurnStage: TickStage<SimulationState> = {
       const current = state.players.find(actor => actor.id === playerId);
       if (!current || !current.alive) continue;
       resolvePendingHitsForPlayer(state, playerId);
+      prayerDrainStage.run(state);
 
       const afterHit = state.players.find(actor => actor.id === playerId);
       if (!afterHit || !afterHit.alive) continue;
