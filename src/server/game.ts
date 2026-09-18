@@ -31,7 +31,7 @@ export interface Equipment {
   ammoId?: string; spellId?: string;
 }
 export interface Player {
-  id:string; name:string; team:Team; x:number; y:number; destinationX:number; destinationY:number;
+  pid:number; id:string; name:string; team:Team; x:number; y:number; destinationX:number; destinationY:number;
   hp:number; maxHp:number; prayerPoints:number; maxPrayerPoints:number;
   attack:number; strength:number; defence:number; ranged:number; magic:number; xp:CombatXp; equipment:Equipment; inventory:Inventory;
   prayer:Prayer; attackStyle:AttackStyle; rangedStyle:RangedStyle; magicStyle:MagicStyle; targetId:string|null; nextAttackTick:number;
@@ -47,19 +47,19 @@ export interface GameState { tick:number; nextInputSequence:number; nextCombatSe
 
 const styleBonus=MELEE_STYLE_BONUS;
 
-function makePlayer(id:string,name:string,team:Team,x:number,y:number):Player{
-  return {id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
+function makePlayer(pid:number,id:string,name:string,team:Team,x:number,y:number):Player{
+  return {pid,id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
     attack:75,strength:75,defence:70,ranged:75,magic:75,xp:{attack:0,strength:0,defence:0,ranged:0,magic:0,hitpoints:0},equipment:{...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
     inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},{id:"shortbow",quantity:1},{id:"bronze_arrow",quantity:250},{id:"fire_rune",quantity:100},{id:"air_rune",quantity:300},{id:"fire_strike",quantity:1},null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,specialQueued:false,path:[]};
 }
 
 export function createGame():GameState{
   const players={
-    player:makePlayer("player","Player","blue",10,10),
-    opponent:makePlayer("opponent","Opponent","red",14,10),
-    goblin_guard_1:makePlayer("goblin_guard_1","Goblin guard","red",18,8),
-    goblin_guard_2:makePlayer("goblin_guard_2","Goblin guard","red",18,12),
-    goblin_guard_3:makePlayer("goblin_guard_3","Goblin guard","red",21,10)
+    player:makePlayer(1,"player","Player","blue",10,10),
+    opponent:makePlayer(2,"opponent","Opponent","red",14,10),
+    goblin_guard_1:makePlayer(100,"goblin_guard_1","Goblin guard","red",18,8),
+    goblin_guard_2:makePlayer(101,"goblin_guard_2","Goblin guard","red",18,12),
+    goblin_guard_3:makePlayer(102,"goblin_guard_3","Goblin guard","red",21,10)
   };
   for(const id of ["goblin_guard_1","goblin_guard_2","goblin_guard_3"]){
     const g=players[id];
@@ -152,7 +152,7 @@ function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
  const maxHit=special?Math.max(1,Math.floor(baseMaxHit*a.equipment.specialMultiplier)):baseMaxHit;
  const damage=rules.hit?Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1)):0;
  a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=a.nextAttackTick;
- const hitTick=a.id.localeCompare(d.id)<0?state.tick:state.tick+1;a.hitQueuedTick=hitTick;
+ const hitTick=a.pid<d.pid?state.tick:state.tick+1;a.hitQueuedTick=hitTick;
  if(special){a.inventory.specialEnergy-=a.equipment.specialCost;event(state,{tick:state.tick,type:"special",attacker:a.id,defender:d.id,special:true});}
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,special});
  state.pendingHits.push({sourceTick:state.tick,resolveTick:hitTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:"melee",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special,delivery:"melee"});
@@ -254,7 +254,7 @@ export function step(state:GameState):void{
  // Player turns are deliberately ordered by stable player id. A hit is queued
  // onto the defender and resolves when that defender reaches their turn, which
  // preserves the PvP ordering asymmetry documented for OSRS.
- const players=Object.values(state.players).sort((a,b)=>a.id.localeCompare(b.id));
+ const players=Object.values(state.players).sort((a,b)=>a.pid-b.pid);
  for(const p of players){
    resolveQueuedHitForPlayer(state,p);
    prayerStageForPlayer(state,p);
