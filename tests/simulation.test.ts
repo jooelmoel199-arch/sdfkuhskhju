@@ -57,6 +57,40 @@ function testHumanPrayerInputIsOneShot() {
   ok(state.blue.activePrayers.includes("protect_from_melee"), "prayer should remain active until another explicit toggle");
 }
 
+function testFoodAddsToCombatTimer() {
+  const state = createPvpTestState();
+  state.humanControl = {
+    attackEnabled: true,
+    laneId: "middle",
+    attackTargetId: state.red.id,
+    consumeItemId: "shark"
+  };
+  state.blue = {
+    ...state.blue,
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 4, additiveAttackDelayTicks: 0 },
+    eatDelayUntilTick: 0
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  advanceTick(state);
+  equal(state.blue.inventory.find(item => item.id === "shark")?.quantity, 19, "shark should be consumed once");
+  equal(state.blue.attackTimer.additiveAttackDelayTicks, 3, "shark should add three ticks to the attack cycle");
+}
+
+function testKarambwanCombo() {
+  const state = createPvpTestState();
+  state.humanControl = {
+    attackEnabled: true,
+    laneId: "middle",
+    attackTargetId: state.red.id,
+    consumeItemId: "shark",
+    comboConsumableId: "karambwan"
+  };
+  advanceTick(state);
+  equal(state.blue.inventory.find(item => item.id === "shark")?.quantity, 19, "combo shark should be consumed");
+  equal(state.blue.inventory.find(item => item.id === "karambwan")?.quantity, 19, "karambwan should be consumed on the same tick");
+  equal(state.blue.attackTimer.additiveAttackDelayTicks, 5, "shark plus karambwan should add five ticks");
+}
+
 function testWaveCadence() {
   const state = createPrototypeState();
   for (let i = 0; i < 16; i += 1) advanceTick(state);
@@ -152,6 +186,8 @@ function testCampRespawnSchedule() {
 testPrototypeShape();
 testPvpTestLane();
 testHumanPrayerInputIsOneShot();
+testFoodAddsToCombatTimer();
+testKarambwanCombo();
 testWaveCadence();
 testProjectileDelay();
 testOsrsHitTiming();
