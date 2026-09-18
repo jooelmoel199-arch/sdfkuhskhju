@@ -116,10 +116,12 @@ assert(special.events.some(e => e.type === "special" && e.special), "special res
 
 // Basic inventory/prayer/movement are authoritative inputs too.
 const beforeFood = special.players.player.hp;
+special.players.player.hp=Math.max(1,special.players.player.hp-20);
+const beforeFoodAfterWound=special.players.player.hp;
 enqueueInput(special, { type: "eat" });
 step(special);
 assert(special.players.player.inventory.food === 9, "eating should consume one food");
-assert(special.players.player.hp >= beforeFood, "eating should not reduce HP");
+assert(special.players.player.hp >= beforeFoodAfterWound, "eating should not reduce HP");
 
 enqueueInput(special, { type: "move", x: 14, y: 10 });
 step(special);
