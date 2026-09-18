@@ -263,8 +263,7 @@ function testQueuedHitUsesImpactPrayer() {
 
 function testPidTurnPreventsDeadPlayerAction() {
   const state = createPvpTestState();
-  const redWeapon = state.red.equipment.weapon;
-  ok(redWeapon, "red dummy should start with a weapon");
+  ok(state.red.equipment.weapon, "red dummy should start with a weapon");
   state.blue = {
     ...state.blue,
     tile: { x: 19, y: state.blue.tile.y },
