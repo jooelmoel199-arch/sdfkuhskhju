@@ -1,15 +1,9 @@
 import {
-  state,
-  stepSimulation,
-  setMoveTarget,
-  stopMovement,
-  setAttackEnabled,
-  toggleMeleePrayer,
-  resetSimulation,
-  maxHitpoints,
-  TICK_MS
+  state, stepSimulation, setMoveTarget, stopMovement, setLane,
+  setAttackEnabled, toggleMeleePrayer, resetSimulation, maxHitpoints, TICK_MS
 } from "./simState.js";
 import { levelOf } from "../moba/stats.ts";
+import { LANE_Y, LANES } from "../moba/lane.ts";
 
 const canvas = document.querySelector("#game");
 const ctx = canvas.getContext("2d");
@@ -21,8 +15,7 @@ const playersEl = document.querySelector("#players");
 const feedEl = document.querySelector("#feed");
 
 const WORLD = { w: 3600, h: 2400 };
-const SIM_X_OFFSET = 100;
-const SIM_X_SCALE = 85;
+const CAMERA_LANE_Y = { top: 350, middle: 1200, bottom: 2050 };
 const camera = { x: 1800, y: 1200, zoom: 0.56 };
 const keys = new Set();
 let last = performance.now();
@@ -33,26 +26,20 @@ let suppressNextClick = false;
 let lastMouse = { x: 0, y: 0 };
 let lastRenderedLogTick = -1;
 
-function simToWorldX(x) {
-  return SIM_X_OFFSET + x * SIM_X_SCALE;
+function simToWorldX(x) { return 150 + x * 82.5; }
+function worldToSimX(x) { return (x - 150) / 82.5; }
+function laneToWorldY(laneId) { return CAMERA_LANE_Y[laneId]; }
+function worldToLane(y) {
+  return LANES.reduce((best, lane) =>
+    Math.abs(y - CAMERA_LANE_Y[lane]) < Math.abs(y - CAMERA_LANE_Y[best]) ? lane : best,
+    "middle"
+  );
 }
-
-function worldToSimX(x) {
-  return (x - SIM_X_OFFSET) / SIM_X_SCALE;
-}
-
 function screenToWorld(x, y) {
-  return {
-    x: (x - innerWidth / 2) / camera.zoom + camera.x,
-    y: (y - innerHeight / 2) / camera.zoom + camera.y
-  };
+  return { x: (x - innerWidth / 2) / camera.zoom + camera.x, y: (y - innerHeight / 2) / camera.zoom + camera.y };
 }
-
 function worldToScreen(x, y) {
-  return {
-    x: (x - camera.x) * camera.zoom + innerWidth / 2,
-    y: (y - camera.y) * camera.zoom + innerHeight / 2
-  };
+  return { x: (x - camera.x) * camera.zoom + innerWidth / 2, y: (y - camera.y) * camera.zoom + innerHeight / 2 };
 }
 
 function resize() {
@@ -78,17 +65,14 @@ function updateHud() {
 
   playersEl.innerHTML = [state.blue, state.red].map(player => {
     const hp = maxHitpoints(player.stats);
-    const status = !player.alive
-      ? "RESPAWNING"
-      : player.activePrayers.length
-        ? "PRAYER " + player.activePrayers.join(", ")
-        : state.blue === player && state.humanControl?.moveTargetX !== undefined
-          ? "MOVING"
-          : "READY";
+    const weapon = player.equipment.weapon?.name ?? "Unarmed";
+    const status = !player.alive ? "RESPAWNING" :
+      player.activePrayers.length ? "PRAYER" :
+      player.team === "blue" && state.humanControl?.moveTargetX !== undefined ? "MOVING" : "READY";
     return `<div class="playerRow ${player.team}">
-      <b>${player.id}</b> <span class="muted">${status}</span><br>
+      <b>${player.id}</b> <span class="muted">${player.laneId.toUpperCase()} · ${status}</span><br>
       HP ${player.currentHp}/${hp} · GP ${player.gp} · K/D ${player.kills}/${player.deaths}<br>
-      <span class="muted">Atk ${levelOf(player.stats, "attack")} Str ${levelOf(player.stats, "strength")} Def ${levelOf(player.stats, "defence")} · Spec ${Math.floor(player.specEnergy)}%</span>
+      <span class="muted">Atk ${levelOf(player.stats, "attack")} Str ${levelOf(player.stats, "strength")} Def ${levelOf(player.stats, "defence")} · ${weapon}</span>
     </div>`;
   }).join("");
 
@@ -106,6 +90,15 @@ function drawHpBar(x, y, width, hp, maxHp, fill) {
   ctx.fillRect(x - width / 2 + 1, y + 1, Math.max(0, (width - 2) * hp / Math.max(1, maxHp)), 4);
 }
 
+function drawLaneLabel(lane) {
+  const y = laneToWorldY(lane);
+  const p = worldToScreen(3200, y);
+  ctx.fillStyle = "rgba(244,239,214,.55)";
+  ctx.font = "700 11px ui-monospace,monospace";
+  ctx.textAlign = "right";
+  ctx.fillText(lane.toUpperCase() + " LANE", p.x, p.y - 68 * camera.zoom);
+}
+
 function draw() {
   ctx.fillStyle = "#3b633c";
   ctx.fillRect(0, 0, innerWidth, innerHeight);
@@ -115,14 +108,12 @@ function draw() {
   ctx.fillStyle = "#426c3f";
   ctx.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
 
-  // Jungle blocks.
   ctx.fillStyle = "#294b30";
-  for (const r of [[420, 510, 1040, 450], [2140, 510, 1040, 450], [420, 1440, 1040, 450], [2140, 1440, 1040, 450]]) {
+  for (const r of [[420, 500, 1040, 430], [2140, 500, 1040, 430], [420, 1450, 1040, 430], [2140, 1450, 1040, 430]]) {
     const p = worldToScreen(r[0], r[1]);
     ctx.fillRect(p.x, p.y, r[2] * camera.zoom, r[3] * camera.zoom);
   }
 
-  // River.
   const river = worldToScreen(0, 925);
   ctx.fillStyle = "#315d7a";
   ctx.fillRect(river.x, river.y, WORLD.w * camera.zoom, 550 * camera.zoom);
@@ -135,16 +126,16 @@ function draw() {
     ctx.stroke();
   }
 
-  // Three lanes.
-  for (const y of [350, 1200, 2050]) {
+  for (const lane of LANES) {
+    const y = laneToWorldY(lane);
     const p = worldToScreen(0, y);
     ctx.fillStyle = "#8d805f";
     ctx.fillRect(p.x, p.y - 56 * camera.zoom, WORLD.w * camera.zoom, 112 * camera.zoom);
-    ctx.fillStyle = "#b5a57e";
+    ctx.fillStyle = state.humanControl?.laneId === lane ? "#c8b37a" : "#b5a57e";
     ctx.fillRect(p.x, p.y - 3 * camera.zoom, WORLD.w * camera.zoom, 6 * camera.zoom);
+    drawLaneLabel(lane);
   }
 
-  // Jungle decoration.
   ctx.fillStyle = "#172b1d";
   for (let x = 330; x < 3330; x += 170) {
     for (let y = 620; y < 1810; y += 160) {
@@ -157,7 +148,6 @@ function draw() {
     }
   }
 
-  // Bases.
   for (const team of ["blue", "red"]) {
     const x = team === "blue" ? simToWorldX(0) + 10 : simToWorldX(40) - 10;
     const p = worldToScreen(x, 1200);
@@ -171,21 +161,19 @@ function draw() {
     ctx.fillText(team === "blue" ? "BLUE BASE" : "RED BASE", p.x, p.y + 7);
   }
 
-  // Towers: simulation is one-dimensional, so render it on the middle lane for now.
   for (const tower of state.towers) {
     if (!tower.alive) continue;
-    const p = worldToScreen(simToWorldX(tower.tile.x), 1200);
+    const p = worldToScreen(simToWorldX(tower.tile.x), laneToWorldY(tower.laneId));
     const size = 34 * camera.zoom;
     ctx.fillStyle = tower.team === "blue" ? "#4d91d2" : "#d85a5a";
     ctx.fillRect(p.x - size / 2, p.y - size, size, size);
-    drawHpBar(p.x, p.y - size - 12 * camera.zoom, size * 1.35, tower.currentHp, tower.maxHp, tower.team === "blue" ? "#6eb2ff" : "#ff7474");
+    drawHpBar(p.x, p.y - size - 12 * camera.zoom, size * 1.35, tower.currentHp, tower.maxHp,
+      tower.team === "blue" ? "#6eb2ff" : "#ff7474");
   }
 
-  // Player movement target.
-  const targetX = state.humanControl?.moveTargetX;
-  if (targetX !== undefined && state.blue.alive) {
-    const p = worldToScreen(simToWorldX(targetX), 1200);
-    ctx.strokeStyle = "rgba(255,232,130,.9)";
+  if (state.humanControl?.moveTargetX !== undefined && state.blue.alive) {
+    const p = worldToScreen(simToWorldX(state.humanControl.moveTargetX), laneToWorldY(state.blue.laneId));
+    ctx.strokeStyle = "rgba(255,232,130,.95)";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(p.x, p.y, 15 * camera.zoom, 0, Math.PI * 2);
@@ -193,19 +181,20 @@ function draw() {
     ctx.lineWidth = 1;
   }
 
-  // Minions.
   for (const minion of state.minions.filter(m => m.alive)) {
-    const p = worldToScreen(simToWorldX(minion.tile.x), 1200 + (minion.team === "blue" ? -24 : 24));
+    const offset = minion.team === "blue" ? -24 : 24;
+    const p = worldToScreen(simToWorldX(minion.tile.x), laneToWorldY(minion.laneId) + offset);
     ctx.fillStyle = minion.team === "blue" ? "#71a8df" : "#df7474";
     ctx.beginPath();
     ctx.arc(p.x, p.y, 11 * camera.zoom, 0, Math.PI * 2);
     ctx.fill();
+    drawHpBar(p.x, p.y - 16 * camera.zoom, 25 * camera.zoom, minion.currentHp, minion.maxHp,
+      minion.team === "blue" ? "#71a8df" : "#df7474");
   }
 
-  // Players.
   for (const player of [state.blue, state.red]) {
     if (!player.alive) continue;
-    const p = worldToScreen(simToWorldX(player.tile.x), 1200);
+    const p = worldToScreen(simToWorldX(player.tile.x), laneToWorldY(player.laneId));
     const radius = 25 * camera.zoom;
     ctx.fillStyle = player.team === "blue" ? "#4da2ff" : "#ff5d5d";
     ctx.beginPath();
@@ -215,7 +204,8 @@ function draw() {
     ctx.lineWidth = player.team === "blue" ? 2 : 1;
     ctx.stroke();
     ctx.lineWidth = 1;
-    drawHpBar(p.x, p.y - radius - 13 * camera.zoom, 62 * camera.zoom, player.currentHp, maxHitpoints(player.stats), "#72d26b");
+    drawHpBar(p.x, p.y - radius - 13 * camera.zoom, 62 * camera.zoom, player.currentHp, maxHitpoints(player.stats),
+      player.team === "blue" ? "#72d26b" : "#d87373");
     ctx.fillStyle = "#fff";
     ctx.font = "bold " + Math.max(10, 13 * camera.zoom) + "px sans-serif";
     ctx.textAlign = "center";
@@ -231,44 +221,37 @@ function drawMinimap() {
   mini.fillRect(0, 0, 186, 122);
   mini.fillStyle = "#315d7a";
   mini.fillRect(0, 47, 186, 28);
-  for (const y of [18, 61, 103]) {
-    mini.fillStyle = "#8d805f";
-    mini.fillRect(0, y - 4, 186, 8);
+  const miniLaneY = { top: 18, middle: 61, bottom: 103 };
+
+  for (const lane of LANES) {
+    mini.fillStyle = state.humanControl?.laneId === lane ? "#bca772" : "#8d805f";
+    mini.fillRect(0, miniLaneY[lane] - 4, 186, 8);
   }
-  mini.fillStyle = "#37638d";
-  mini.fillRect(2, 54, 8, 15);
-  mini.fillStyle = "#8e4848";
-  mini.fillRect(176, 54, 8, 15);
+
   for (const tower of state.towers) {
     if (!tower.alive) continue;
     mini.fillStyle = tower.team === "blue" ? "#70adf0" : "#f07474";
-    mini.fillRect((tower.tile.x / 40) * 180 + 3, 58, 5, 5);
+    mini.fillRect((tower.tile.x / 40) * 180 + 3, miniLaneY[tower.laneId] - 3, 5, 5);
   }
+
   for (const minion of state.minions.filter(m => m.alive)) {
     mini.fillStyle = minion.team === "blue" ? "#71a8df" : "#df7474";
-    mini.fillRect((minion.tile.x / 40) * 180 + 3, minion.team === "blue" ? 56 : 66, 2, 2);
+    mini.fillRect((minion.tile.x / 40) * 180 + 3, miniLaneY[minion.laneId] - 1, 2, 2);
   }
+
   for (const player of [state.blue, state.red]) {
     if (!player.alive) continue;
     mini.fillStyle = player.team === "blue" ? "#4da2ff" : "#ff5d5d";
     mini.beginPath();
-    mini.arc((player.tile.x / 40) * 180 + 3, 61, 4, 0, Math.PI * 2);
+    mini.arc((player.tile.x / 40) * 180 + 3, miniLaneY[player.laneId], 4, 0, Math.PI * 2);
     mini.fill();
   }
-  mini.strokeStyle = "rgba(255,255,255,.45)";
-  mini.strokeRect(
-    Math.max(0, ((camera.x - WORLD.w / (2 * camera.zoom)) / WORLD.w) * 186),
-    Math.max(0, ((camera.y - WORLD.h / (2 * camera.zoom)) / WORLD.h) * 122),
-    Math.min(186, (WORLD.w / camera.zoom / WORLD.w) * 186),
-    Math.min(122, (WORLD.h / camera.zoom / WORLD.h) * 122)
-  );
 }
 
 function frame(now) {
   const dt = Math.min(100, now - last);
   last = now;
   accumulator += dt;
-
   while (accumulator >= TICK_MS) {
     accumulator -= TICK_MS;
     tick();
@@ -287,10 +270,17 @@ function frame(now) {
 }
 
 canvas.addEventListener("click", event => {
-  if (suppressNextClick) { suppressNextClick = false; return; }
+  if (suppressNextClick) {
+    suppressNextClick = false;
+    return;
+  }
   const world = screenToWorld(event.clientX, event.clientY);
+  const lane = worldToLane(world.y);
   const simX = worldToSimX(world.x);
-  if (simX >= 2 && simX <= 38) setMoveTarget(simX);
+  if (simX >= 2 && simX <= 38) {
+    setLane(lane);
+    setMoveTarget(simX);
+  }
 });
 
 canvas.addEventListener("contextmenu", event => {
@@ -304,15 +294,17 @@ canvas.addEventListener("mousedown", event => {
   lastMouse = { x: event.clientX, y: event.clientY };
   canvas.classList.add("dragging");
 });
+
 addEventListener("mouseup", () => {
   if (dragging && movedDuringDrag) suppressNextClick = true;
   dragging = false;
   canvas.classList.remove("dragging");
 });
+
 addEventListener("mousemove", event => {
+  if (!dragging) return;
   const dx = event.clientX - lastMouse.x;
   const dy = event.clientY - lastMouse.y;
-  if (!dragging) return;
   if (Math.abs(dx) + Math.abs(dy) > 4) movedDuringDrag = true;
   if (!movedDuringDrag) return;
   camera.x -= dx / camera.zoom;
@@ -332,11 +324,15 @@ canvas.addEventListener("wheel", event => {
 addEventListener("keydown", event => {
   const key = event.key.toLowerCase();
   keys.add(key);
+
   if (key === " ") {
     event.preventDefault();
     setAttackEnabled(!state.humanControl.attackEnabled);
   }
   if (key === "p") toggleMeleePrayer();
+  if (key === "1") setLane("top");
+  if (key === "2") setLane("middle");
+  if (key === "3") setLane("bottom");
   if (key === "r") {
     resetSimulation();
     camera.x = 1800;
@@ -346,6 +342,7 @@ addEventListener("keydown", event => {
     updateHud();
   }
 });
+
 addEventListener("keyup", event => keys.delete(event.key.toLowerCase()));
 
 updateHud();
