@@ -183,3 +183,44 @@ step(inputBacklog);
 assert(inputBacklog.pendingInputs.length===2,"input backlog must survive the per-tick processing cap");
 step(inputBacklog);
 assert(inputBacklog.pendingInputs.length===0,"queued inputs should drain on later ticks");
+
+
+const rangedGame=createGame();
+rangedGame.players.player.x=10;rangedGame.players.player.y=10;
+rangedGame.players.opponent.x=14;rangedGame.players.opponent.y=10;
+enqueueInput(rangedGame,{type:"item_action",slot:3,action:"equip"});
+step(rangedGame);
+assert(rangedGame.players.player.equipment.attackType==="ranged","shortbow should switch the authoritative attack type");
+const arrowsBefore=rangedGame.players.player.inventory.slots[4]?.quantity??0;
+enqueueInput(rangedGame,{type:"attack",targetId:"opponent"});
+step(rangedGame);
+assert(rangedGame.events.some(e=>e.type==="projectile"),"ranged attack should emit a projectile event");
+assert((rangedGame.players.player.inventory.slots[4]?.quantity??0)===arrowsBefore-1,"ranged attack should consume one arrow");
+assert(rangedGame.players.opponent.hp===99,"ranged projectile should not resolve on its source tick");
+step(rangedGame);
+assert(rangedGame.events.some(e=>e.type==="hit"||e.type==="miss"),"ranged projectile should resolve after travel");
+
+const rangedProtected=createGame();
+rangedProtected.players.player.x=10;rangedProtected.players.player.y=10;
+rangedProtected.players.opponent.x=14;rangedProtected.players.opponent.y=10;
+enqueueInput(rangedProtected,{type:"item_action",slot:3,action:"equip"});step(rangedProtected);
+enqueueInput(rangedProtected,{type:"prayer",prayer:"protect_range"});step(rangedProtected);
+enqueueInput(rangedProtected,{type:"attack",targetId:"opponent"});step(rangedProtected);
+assert(rangedProtected.players.opponent.prayer==="protect_range","ranged protection prayer should be authoritative");
+step(rangedProtected);
+
+const magicGame=createGame();
+magicGame.players.player.x=10;magicGame.players.player.y=10;
+magicGame.players.opponent.x=14;magicGame.players.opponent.y=10;
+enqueueInput(magicGame,{type:"item_action",slot:7,action:"equip"});step(magicGame);
+assert(magicGame.players.player.equipment.attackType==="magic","fire strike should switch the authoritative attack type");
+const fireBefore=magicGame.players.player.inventory.slots[5]?.quantity??0;
+const airBefore=magicGame.players.player.inventory.slots[6]?.quantity??0;
+enqueueInput(magicGame,{type:"attack",targetId:"opponent"});step(magicGame);
+assert(magicGame.events.some(e=>e.type==="spell"),"magic attack should emit a spell event");
+assert((magicGame.players.player.inventory.slots[5]?.quantity??0)===fireBefore-1,"magic attack should consume one fire rune");
+assert((magicGame.players.player.inventory.slots[6]?.quantity??0)===airBefore-3,"magic attack should consume three air runes");
+step(magicGame);
+assert(magicGame.events.some(e=>e.type==="hit"||e.type==="miss"),"spell should resolve after travel");
+
+console.log("ranged and magic combat queue tests passed");
