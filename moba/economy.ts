@@ -3,6 +3,8 @@ import { zeroBonuses } from "../combat/formulas";
 
 export type ShopSlot = "weapon" | "shield" | "body" | "legs" | "head" | "cape" | "amulet" | "ring";
 
+export type AncientSpellId = "ice_rush" | "ice_burst" | "ice_blitz" | "ice_barrage";
+
 export interface ShopItem {
   readonly id: string;
   readonly name: string;
@@ -16,7 +18,7 @@ export interface ShopItem {
   readonly twoHanded?: boolean;
   readonly bonuses: Partial<BonusTable>;
   readonly special?: { readonly energyCost: number; readonly damageMultiplier: number; readonly accuracyMultiplier: number };
-  readonly spell?: { readonly id: "ice_barrage"; readonly maxHit: number; readonly freezeTicks: number; readonly aoeRadius: number };
+  readonly spell?: { readonly id: AncientSpellId; readonly maxHit: number; readonly freezeTicks: number; readonly aoeRadius: number };
 }
 
 /** Small starting itemisation. Extend this list progressively per the design doc. */
