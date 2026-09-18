@@ -246,7 +246,7 @@ rangedProtected.players.opponent.x=14;rangedProtected.players.opponent.y=10;
 enqueueInput(rangedProtected,{type:"item_action",slot:3,action:"equip"});step(rangedProtected);
 enqueueInput(rangedProtected,{type:"prayer",prayer:"protect_range"});step(rangedProtected);
 enqueueInput(rangedProtected,{type:"attack",targetId:"opponent"});step(rangedProtected);
-assert(rangedProtected.players.opponent.prayer==="protect_range","ranged protection prayer should be authoritative");
+assert(rangedProtected.players.player.prayer==="protect_range","ranged protection prayer should be authoritative");
 step(rangedProtected);
 
 const magicGame=createGame();
