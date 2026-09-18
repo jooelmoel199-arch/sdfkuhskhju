@@ -13,7 +13,7 @@ proc on_attack(attacker_id, defender_id, accuracy_roll, hit_chance) {
 `;
 
 export interface CombatRules {
-  onAttack(attackerId:string, defenderId:string, attackRoll:number, defenceRoll:number):
+  onAttack(attackerId:string, defenderId:string, accuracyRoll:number, hitChance:number, attackRoll:number, defenceRoll:number):
     { hit:boolean; events:CombatEvent[] };
 }
 
