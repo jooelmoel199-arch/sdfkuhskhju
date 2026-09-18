@@ -115,7 +115,6 @@ assert(special.players.player.inventory.specialEnergy === energyBefore - 50, "sp
 assert(special.events.some(e => e.type === "special" && e.special), "special resolution event expected");
 
 // Basic inventory/prayer/movement are authoritative inputs too.
-const beforeFood = special.players.player.hp;
 special.players.player.hp=Math.max(1,special.players.player.hp-20);
 const beforeFoodAfterWound=special.players.player.hp;
 enqueueInput(special, { type: "eat" });
