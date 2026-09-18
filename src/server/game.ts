@@ -70,11 +70,13 @@ function processInput(state:GameState,command:InputCommand):void{
 }
 function deterministicRoll(seed:number):number{const x=Math.sin(seed*12.9898)*43758.5453;return x-Math.floor(x);}
 function inMeleeRange(a:Player,b:Player):boolean{return Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<=a.equipment.attackRange;}
-function nearestMeleeTile(from:Tile,target:Tile):Tile {
-  const candidates:Tile[]=[
-    {x:target.x-1,y:target.y},{x:target.x+1,y:target.y},
-    {x:target.x,y:target.y-1},{x:target.x,y:target.y+1}
-  ].filter(t=>t.x>=1&&t.x<MAP_WIDTH-1&&t.y>=1&&t.y<MAP_HEIGHT-1);
+function nearestMeleeTile(from:Tile,target:Tile,range:number):Tile {
+  const candidates:Tile[]=[];
+  for(let dx=-range;dx<=range;dx++) for(let dy=-range;dy<=range;dy++) {
+    if(Math.abs(dx)+Math.abs(dy)!==range) continue;
+    const t={x:target.x+dx,y:target.y+dy};
+    if(t.x>=1&&t.x<MAP_WIDTH-1&&t.y>=1&&t.y<MAP_HEIGHT-1)candidates.push(t);
+  }
   let best=candidates[0]??target,bestLen=Number.POSITIVE_INFINITY;
   for(const tile of candidates){
     const path=findPath(from,tile);
@@ -85,7 +87,7 @@ function nearestMeleeTile(from:Tile,target:Tile):Tile {
 function resolveAttack(state:GameState,a:Player):void{
  if(!a.targetId||a.attackQueuedTick===null||state.tick<a.attackQueuedTick)return;
  const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingHitSucceeded=false;a.pendingHitTargetId=null;a.pendingAttackType=null;a.pendingSpecial=false;a.specialQueued=false;return;}
- if(!inMeleeRange(a,d)){const goal=nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y});setDestination(a,goal.x,goal.y);return;}
+ if(!inMeleeRange(a,d)){const goal=nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y},a.equipment.attackRange);setDestination(a,goal.x,goal.y);return;}
  const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
  const attackerPrayer=prayerModifiers(a), defenderPrayer=prayerModifiers(d);
  const effectiveAttack=effectiveLevel(a.attack,attackerPrayer.attack,bonus.attack);
@@ -116,7 +118,7 @@ function resolveAttack(state:GameState,a:Player):void{
 }
 function movementStageForPlayer(state:GameState,p:Player):void{
  if(p.hp<=0)return;
- if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&!inMeleeRange(p,t)){const goal=nearestMeleeTile({x:p.x,y:p.y},{x:t.x,y:t.y});setDestination(p,goal.x,goal.y);}}
+ if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&!inMeleeRange(p,t)){const goal=nearestMeleeTile({x:p.x,y:p.y},{x:t.x,y:t.y},p.equipment.attackRange);setDestination(p,goal.x,goal.y);}}
  if(p.path.length){const next=p.path.shift()!;p.x=next.x;p.y=next.y;}
 }
 function prayerModifiers(p:Player):{attack:number;strength:number;defence:number}{
