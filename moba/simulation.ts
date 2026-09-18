@@ -223,7 +223,9 @@ function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerE
   if (state.humanControl.attackTargetId === enemy.id) {
     targetTile = enemy.tile;
   } else if (state.humanControl.attackTargetId) {
-    targetTile = state.jungleCamps.find(camp => camp.id === state.humanControl?.attackTargetId)?.tile;
+    targetTile =
+      state.jungleCamps.find(camp => camp.id === state.humanControl?.attackTargetId)?.tile ??
+      state.towers.find(tower => tower.id === state.humanControl?.attackTargetId && tower.alive)?.tile;
   }
   const targetX = targetTile?.x ?? state.humanControl.moveTargetX;
   const targetY = targetTile?.y ?? state.humanControl.moveTargetY;
