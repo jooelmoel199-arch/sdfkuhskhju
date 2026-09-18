@@ -62,6 +62,7 @@ export interface SimulationState {
   pendingHits: PendingHit[];
   /** Monotonic per-simulation insertion order for queue FIFO semantics. */
   pendingHitSequence: number;
+  pendingNpcHits: PendingHit[];
   towers: TowerEntity[];
   pidOrder: string[];
   nextPidShuffleTick: number;
@@ -830,36 +831,23 @@ function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: Neu
   const index = state.jungleCamps.findIndex(candidate => candidate.id === camp.id);
   if (index < 0) return;
   const currentCamp = state.jungleCamps[index];
-  const newHp = Math.max(0, currentCamp.currentHp - hit.finalDamage);
-  if (newHp <= 0) {
-    state.jungleCamps[index] = {
-      ...currentCamp,
-      currentHp: 0,
-      alive: false,
-      aggroTargetId: undefined,
-      respawnAtTick: state.tick + currentCamp.respawnTicks
-    };
-    const rewardPlayer = state.blue.id === actor.id ? state.blue : state.red;
-    setPlayer(state, {
-      ...rewardPlayer,
-      gp: rewardPlayer.gp + currentCamp.rewardGp,
-      stats: grantUnallocatedXp(rewardPlayer.stats, currentCamp.rewardXp)
-    });
-    if (currentCamp.id === "river-chaos-elemental") {
-      state.teamBuffs[actor.team] = {
-        name: "Elemental surge",
-        expiresAtTick: state.tick + 100,
-        damageMultiplier: 1.10
-      };
-      log(state, actor.team + " gains Elemental surge for 60s");
-    }
-    log(state, actor.id + " clears " + currentCamp.name + " for " + currentCamp.rewardGp + " GP");
-  } else {
-    state.jungleCamps[index] = { ...currentCamp, currentHp: newHp, aggroTargetId: actor.id };
-    log(state, hit.landed
-      ? actor.id + " hits " + currentCamp.name + " for " + hit.finalDamage
-      : actor.id + " misses " + currentCamp.name);
-  }
+  enqueuePendingNpcHit(state, {
+    id: `npc-target-hit-${actor.id}-${state.tick}-${state.pendingHitSequence + 1}`,
+    dueTick: state.tick + 1,
+    attackerId: actor.id,
+    targetId: currentCamp.id,
+    attackerPid: actor.pid,
+    targetPid: -1,
+    style,
+    attackType,
+    landed: hit.landed,
+    hitChance: hit.hitChance,
+    rawDamage: hit.rawDamage,
+    createdTick: state.tick
+  });
+  log(state, hit.landed
+    ? actor.id + " queues " + currentCamp.name + " for " + hit.rawDamage
+    : actor.id + " misses " + currentCamp.name);
 };
 function handlePlayerDeath(state: SimulationState, victim: PlayerEntity, killer: PlayerEntity): void {
   const killerCurrent = state.players.find(player => player.id === killer.id);
