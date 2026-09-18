@@ -101,7 +101,8 @@ export function rollDragonClawsSpecial(input: HitRollInput): ClawSpecialResult {
   if (firstSuccessfulStrike < 0) {
     // OSRS claws can still produce a tiny 0/2 result after four failed accuracy rolls.
     const fallback = rng() < 0.5 ? 0 : 2;
-    return { landed: fallback > 0, damages: fallback ? [fallback, 0, 0, 0] : [0, 0, 0, 0], firstSuccessfulStrike: -1 };
+    const protectedFallback = applyProtectionDamageReduction({ damage: fallback, attackStyle: "slash", defenderPrayers: input.defenderPrayers ?? [], attackerIsPlayer: input.attackerIsPlayer });
+    return { landed: protectedFallback > 0, damages: protectedFallback ? [protectedFallback, 0, 0, 0] : [0, 0, 0, 0], firstSuccessfulStrike: -1 };
   }
 
   const ordinaryMax = Math.max(1, maxDamage({
@@ -123,5 +124,11 @@ export function rollDragonClawsSpecial(input: HitRollInput): ClawSpecialResult {
     return base + (index < remainder ? 1 : 0);
   });
 
-  return { landed: true, damages, firstSuccessfulStrike };
+  const protectedDamages = damages.map(damage => applyProtectionDamageReduction({
+    damage,
+    attackStyle: "slash",
+    defenderPrayers: input.defenderPrayers ?? [],
+    attackerIsPlayer: input.attackerIsPlayer
+  }));
+  return { landed: true, damages: protectedDamages, firstSuccessfulStrike };
 }
