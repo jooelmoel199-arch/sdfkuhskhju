@@ -176,7 +176,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  }
  let resourceOk=false;
  if(ranged) resourceOk=consumeResource(a,a.equipment.ammoId??"bronze_arrow",1);
- else { const fire=a.inventory.slots.find(v=>v?.id==="fire_rune"),air=a.inventory.slots.find(v=>v?.id==="air_rune"); if(fire&&air&&fire.quantity>=1&&air.quantity>=3){fire.quantity--;air.quantity-=3;resourceOk=true;} }
+ else { const fire=a.inventory.slots.find(v=>v?.id==="fire_rune"),air=a.inventory.slots.find(v=>v?.id==="air_rune"); if(fire&&air&&fire.quantity>=1&&air.quantity>=3){consumeResource(a,"fire_rune",1);consumeResource(a,"air_rune",3);resourceOk=true;} }
  if(!resourceOk)return;
  const attackSpeed=ranged?(a.rangedStyle==="rapid"?Math.max(1,a.equipment.attackSpeed-1):a.rangedStyle==="longrange"?a.equipment.attackSpeed+1:a.equipment.attackSpeed):a.equipment.attackSpeed;
  a.nextAttackTick=state.tick+attackSpeed;a.attackQueuedTick=a.nextAttackTick;
