@@ -52,6 +52,7 @@ export interface SimulationState {
     attackEnabled: boolean;
     activatePrayer?: PrayerId;
     laneId: LaneId;
+    attackTargetId?: string;
   };
 }
 
@@ -75,7 +76,7 @@ function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerE
     return ai;
   }
 
-  const targetX = state.humanControl.moveTargetX;
+  const targetX = state.humanControl.attackTargetId === enemy.id ? enemy.tile.x : state.humanControl.moveTargetX;
   const moveDelta = targetX === undefined || Math.abs(targetX - actor.tile.x) < 0.01
     ? 0
     : targetX > actor.tile.x ? 1 : -1;
