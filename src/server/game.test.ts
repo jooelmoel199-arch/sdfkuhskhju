@@ -144,7 +144,7 @@ assert(styled.players.player.attackStyle==="aggressive","attack style should be 
 enqueueInput(styled,{type:"move",x:12,y:14});step(styled);
 assert(styled.players.player.x===11 && styled.players.player.y===10,"2D movement should follow a path one tile per tick");
 enqueueInput(styled,{type:"move",x:12,y:14});step(styled);
-assert(styled.players.player.x===12 && styled.players.player.y===10,"pathing should continue one tile per tick");
+assert(Number(styled.players.player.x)===12 && Number(styled.players.player.y)===10,"pathing should continue one tile per tick");
 const prayed=createGame();
 enqueueInput(prayed,{type:"prayer",prayer:"protect_melee"});step(prayed);
 const prayerBefore=prayed.players.player.prayerPoints;
@@ -196,7 +196,7 @@ for(let i=0;i<12;i++) enqueueInput(inputBacklog,{type:"move",x:2+i%10,y:2});
 step(inputBacklog);
 assert(inputBacklog.pendingInputs.length===2,"input backlog must survive the per-tick processing cap");
 step(inputBacklog);
-assert(inputBacklog.pendingInputs.length===0,"queued inputs should drain on later ticks");
+assert(Number(inputBacklog.pendingInputs.length)===0,"queued inputs should drain on later ticks");
 
 
 const rangedGame=createGame();
@@ -218,7 +218,7 @@ step(rangedGame);
 assert(rangedGame.events.filter(e=>e.type==="hit"||e.type==="miss").length===0,"ranged projectile should still be travelling after one tick");
 step(rangedGame);
 assert(rangedGame.events.some(e=>e.type==="hit"||e.type==="miss"),"ranged projectile should resolve at its arrival tick");
-assert(rangedGame.pendingHits.length===0,"resolved projectile should leave the combat queue");
+assert(Number(rangedGame.pendingHits.length)===0,"resolved projectile should leave the combat queue");
 const emptyAmmo=createGame();
 emptyAmmo.players.player.x=10;emptyAmmo.players.opponent.x=14;
 emptyAmmo.players.player.inventory.slots[4]={id:"bronze_arrow",quantity:1};
