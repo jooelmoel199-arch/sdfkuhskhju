@@ -399,6 +399,48 @@ function testProjectileDelay() {
   equal(state.projectiles[0].hitTick - state.projectiles[0].createdTick, 3, "8-tile bow projectile should use a 3-tick hit delay");
 }
 
+function testAncientSplashSharesPrimaryImpactTick() {
+  const state = createPvpTestState();
+  const ancientStaff = shopCatalog.find(item => item.id === "ancient_staff");
+  ok(ancientStaff, "ancient staff should exist");
+  state.blue = {
+    ...state.blue,
+    tile: { x: 16, y: 20 },
+    equipment: { ...state.blue.equipment, weapon: ancientStaff },
+    attackTimer: { lastAttackTick: -10, weaponCooldownTicks: 5, additiveAttackDelayTicks: 0 },
+    attackType: "accurate"
+  };
+  state.red = { ...state.red, tile: { x: 20, y: 20 }, zone: "river", activePrayers: [] };
+  const splashTarget = {
+    ...state.red,
+    id: "red-splash",
+    pid: state.red.pid + 1,
+    tile: { x: 21, y: 20 },
+    zone: "river",
+    activePrayers: []
+  };
+  state.players = [state.blue, state.red, splashTarget];
+  state.humanControl = {
+    attackEnabled: true,
+    laneId: "middle",
+    attackTargetId: state.red.id,
+    spellId: "ice_barrage"
+  };
+
+  advanceTick(state);
+
+  const hits = state.pendingHits.filter(hit =>
+    hit.attackerId === state.blue.id &&
+    (hit.targetId === state.red.id || hit.targetId === splashTarget.id)
+  );
+  equal(hits.length, 2, "Barrage should queue both the primary and splash target");
+  equal(
+    new Set(hits.map(hit => hit.dueTick)).size,
+    1,
+    "Ancient splash hits should share the primary projectile impact tick"
+  );
+}
+
 function testOsrsHitTiming() {
   equal(distanceHitDelay("ranged", 1), 2, "bows should hit in 2 ticks at distance 1");
   equal(distanceHitDelay("ranged", 8), 3, "bows should hit in 3 ticks at distance 8");
@@ -1191,6 +1233,7 @@ testKarambwanCombo();
 testWaveCadence();
 testProjectileDelay();
 testOsrsHitTiming();
+testAncientSplashSharesPrimaryImpactTick();
 testPlayerMagicFormula();
 testDragonClawsSpecial();
 testClientCommandQueueIsFifoAndCapped();
