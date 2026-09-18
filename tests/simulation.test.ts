@@ -448,6 +448,29 @@ function testClientCommandQueueIsFifoAndCapped() {
   );
 }
 
+function testQueuedAttackTargetHasOneTickLatency() {
+  const state = createPvpTestState();
+  state.humanControl = { attackEnabled: true, laneId: "middle" };
+  const targetId = state.red.id;
+  queueClientCommand(state, { kind: "attack-target", targetId });
+
+  advanceTick(state);
+  equal(state.humanControl?.attackTargetId, undefined, "attack target should not be selected before the next client-input tick");
+
+  advanceTick(state);
+  equal(state.humanControl?.attackTargetId, targetId, "attack target should become active when queued client input is processed");
+}
+
+function testQueuedMovementAndAttackPreserveFifo() {
+  const state = createPvpTestState();
+  queueClientCommand(state, { kind: "attack-target", targetId: state.red.id });
+  queueClientCommand(state, { kind: "move", x: 18, y: state.blue.tile.y });
+
+  advanceTick(state);
+  equal(state.humanControl?.attackTargetId, state.red.id, "queued attack selection should execute in sequence");
+  equal(state.humanControl?.moveTargetX, 18, "queued movement should execute after the target command in FIFO order");
+}
+
 function testClientCommandHasOneTickInputLatency() {
   const state = createPvpTestState();
   ok(state.blue.equipment.weapon?.id === "rune_scimitar", "fixture should begin with rune scimitar equipped");
@@ -655,6 +678,8 @@ testPlayerMagicFormula();
 testDragonClawsSpecial();
 testClientCommandQueueIsFifoAndCapped();
 testClientCommandHasOneTickInputLatency();
+testQueuedAttackTargetHasOneTickLatency();
+testQueuedMovementAndAttackPreserveFifo();
 testGraniteMaulSpecialIgnoresAttackCooldown();
 testPidTurnPreventsDeadPlayerAction();
 testPidTurnRunsPrayerBeforeIncomingImpact();
