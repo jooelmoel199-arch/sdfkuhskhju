@@ -118,12 +118,6 @@ function nearestMeleeTile(from:Tile,target:Tile,range:number):Tile {
 }
 function combatDistance(a:Player,b:Player):number{return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));}
 function inAttackRange(a:Player,b:Player):boolean{return combatDistance(a,b)>0&&combatDistance(a,b)<=a.equipment.attackRange;}
-function projectileHitDelay(attackType:AttackType,distance:number):number{
- const d=Math.max(1,distance);
- if(attackType==="melee")return 0;
- if(attackType==="ranged")return 1+Math.floor((d+3)/6);
- return 1+Math.floor((d+1)/3);
-}
 function consumeResource(p:Player,id:string,amount:number):boolean{
   const stack=p.inventory.slots.find(v=>v?.id===id);
   if(!stack||stack.quantity<amount)return false;
