@@ -662,7 +662,7 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
 
     setPlayer(state, resolvedTarget);
     pushCombatEvent(state, { tick: state.tick, attackerId: hit.attackerId, targetId: target.id,
-      style: eventStyle(hit.style), damage: impactDamage, landed: true, freezeTicks: hit.freezeTicks });
+      style: eventStyle(hit.style), damage: impactDamage, landed: true, special: Boolean(hit.special), freezeTicks: hit.freezeTicks });
     log(state, hit.attackerId + " hits " + target.id + " for " + impactDamage +
       " (" + hit.style + " " + hit.attackType + ", tick " + hit.dueTick + ")");
     if (resolvedTarget.currentHp <= 0) {
@@ -683,6 +683,20 @@ function handleGraniteMaulSpecial(
   target: PlayerEntity
 ): boolean {
   if (actor.equipment.weapon?.id !== "granite_maul" || actor.queuedSpecialAttacks <= 0) return false;
+  if (
+    actor.queuedSpecialExpiresAtTick !== undefined &&
+    state.tick >= actor.queuedSpecialExpiresAtTick
+  ) {
+    setPlayer(state, {
+      ...actor,
+      queuedSpecialAttacks: 0,
+      queuedSpecialTargetId: undefined,
+      queuedSpecialExpiresAtTick: undefined,
+      gmaulPreloaded: false
+    });
+    log(state, actor.id + " Granite maul special queue expires");
+    return true;
+  }
 
   const reach = canMeleeReachThisTick({
     attacker: actor.tile,
@@ -694,7 +708,13 @@ function handleGraniteMaulSpecial(
   if (!reach.canReach) {
     // Current OSRS behaviour does not allow a stale pre-queued maul spec to
     // persist until the player eventually reaches a target.
-    setPlayer(state, { ...actor, queuedSpecialAttacks: 0, queuedSpecialTargetId: undefined });
+    setPlayer(state, {
+      ...actor,
+      queuedSpecialAttacks: 0,
+      queuedSpecialTargetId: undefined,
+      queuedSpecialExpiresAtTick: undefined,
+      gmaulPreloaded: false
+    });
     log(state, actor.id + " fails Granite maul special: target not melee-reachable");
     return true;
   }
@@ -702,7 +722,13 @@ function handleGraniteMaulSpecial(
   const specialEnergyCost = actor.equipment.weapon.special?.energyCost ?? 50;
   const usable = Math.min(actor.queuedSpecialAttacks, Math.floor(actor.specEnergy / specialEnergyCost));
   if (usable <= 0) {
-    setPlayer(state, { ...actor, queuedSpecialAttacks: 0, queuedSpecialTargetId: undefined });
+    setPlayer(state, {
+      ...actor,
+      queuedSpecialAttacks: 0,
+      queuedSpecialTargetId: undefined,
+      queuedSpecialExpiresAtTick: undefined,
+      gmaulPreloaded: false
+    });
     log(state, actor.id + " fails Granite maul special: not enough energy");
     return true;
   }
@@ -753,6 +779,7 @@ function handleGraniteMaulSpecial(
       landed: hit.landed,
       hitChance: hit.hitChance,
       rawDamage: hit.rawDamage,
+      special: true,
       createdTick: state.tick
     });
     hitsQueued += 1;
@@ -764,6 +791,10 @@ function handleGraniteMaulSpecial(
     lastSpecEnergyUseTick: state.tick,
     queuedSpecialAttacks: Math.max(0, actor.queuedSpecialAttacks - hitsQueued),
     queuedSpecialTargetId: actor.queuedSpecialAttacks - hitsQueued > 0 ? target.id : undefined,
+    queuedSpecialExpiresAtTick: actor.queuedSpecialAttacks - hitsQueued > 0
+      ? actor.queuedSpecialExpiresAtTick
+      : undefined,
+    gmaulPreloaded: false,
     lastCombatTick: state.tick,
     lastCombatTargetId: target.id
   });
@@ -1296,6 +1327,10 @@ function respawnPlayer(state: SimulationState, victim: PlayerEntity): void {
     zone: "base",
     queuedSpecialAttacks: 0,
     queuedSpecialTargetId: undefined,
+    queuedSpecialExpiresAtTick: undefined,
+    gmaulEquippedTick: undefined,
+    gmaulSpecBarVisibleTick: undefined,
+    gmaulPreloaded: false,
     lastCombatTargetId: undefined,
     deaths: victim.deaths + 1
   });
