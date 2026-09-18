@@ -1,4 +1,4 @@
-import { createPlayer, equipItem, type TowerEntity } from "./moba/entities";
+import { createPlayer, equipItem, addInventoryItem, type TowerEntity } from "./moba/entities";
 import { createAttackTimerState } from "./combat/timers";
 import { shopCatalog } from "./moba/economy";
 import { advanceTick, TICK_MS, type SimulationState } from "./moba/simulation";
@@ -46,6 +46,8 @@ function buildStartingLoadout(playerId: string, team: "blue" | "red", role: "mel
     const item = itemById(id);
     if (player.gp >= item.cost) player = equipItem(player, item);
   }
+  player = addInventoryItem(player, "shark", 3);
+  player = addInventoryItem(player, "prayer_potion", 2);
   return player;
 }
 
