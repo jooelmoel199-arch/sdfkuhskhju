@@ -6,10 +6,12 @@
   "type": "module",
   "scripts": {
     "sim": "tsx src/index.ts",
-    "runescript": "tsx src/runescript/prototype.ts"
+    "runescript": "tsx src/runescript/prototype.ts",
+    "server": "tsx src/server/index.ts"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "@types/node": "^22.10.0"
   }
 }
