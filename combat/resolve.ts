@@ -11,6 +11,7 @@ import { applyProtectionDamageReduction, type PrayerId } from "../prayer/prayers
 
 export interface HitRollInput {
   readonly style: CombatStyle;
+  readonly attackType?: "accurate" | "aggressive" | "controlled" | "rapid_ranged" | "long_ranged";
   readonly attackerLevels: CombatLevels;
   readonly defenderLevels: CombatLevels;
   readonly attackerBonuses: BonusTable;
@@ -38,9 +39,9 @@ export interface HitResult {
 export function rollAttack(input: HitRollInput): HitResult {
   const rng = input.rng ?? Math.random;
   const attack =
-    attackRoll(input.attackerLevels, input.attackerBonuses, input.style, "accurate", input.attackBoostMultiplier ?? 1) *
+    attackRoll(input.attackerLevels, input.attackerBonuses, input.style, input.attackType, input.attackBoostMultiplier ?? 1) *
     (input.accuracyMultiplier ?? 1);
-  const defence = defenceRoll(input.defenderLevels, input.defenderBonuses, input.style, "accurate", input.defenceBoostMultiplier ?? 1, 1);
+  const defence = defenceRoll(input.defenderLevels, input.defenderBonuses, input.style, input.attackType, input.defenceBoostMultiplier ?? 1, 1);
   const chance = hitChance(attack, defence);
   const landed = rng() < chance;
 
@@ -53,6 +54,7 @@ export function rollAttack(input: HitRollInput): HitResult {
         defenderLevels: input.defenderLevels,
         attackerBonuses: input.attackerBonuses,
         defenderBonuses: input.defenderBonuses,
+        attackType: input.attackType,
         strengthBoostMultiplier: input.strengthBoostMultiplier ?? 1,
         maxMagicDamage: input.maxMagicDamage
       }) * (input.damageMultiplier ?? 1)
