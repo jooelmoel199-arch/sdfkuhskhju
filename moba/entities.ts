@@ -74,6 +74,8 @@ export interface PlayerEntity {
   gmaulPreloaded: boolean;
   gmaulPreloadExpiresAtTick?: number;
   lastCombatTargetId?: string;
+  lastGmaulTargetId?: string;
+  lastGmaulAttackTick: number;
   lastSpecEnergyUseTick: number;
   lastPrayerToggleTick: number;
   lastCombatTick: number; // for PJ/engagement timer + assist windows
@@ -209,6 +211,8 @@ export function createPlayer(
     gmaulPreloaded: false,
     gmaulPreloadExpiresAtTick: undefined,
     lastCombatTargetId: undefined,
+    lastGmaulTargetId: undefined,
+    lastGmaulAttackTick: -1000,
     lastSpecEnergyUseTick: -1000,
     lastPrayerToggleTick: -1000,
     lastCombatTick: -1000,
