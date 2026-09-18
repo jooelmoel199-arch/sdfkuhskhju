@@ -16,6 +16,7 @@ export interface ShopItem {
   readonly twoHanded?: boolean;
   readonly bonuses: Partial<BonusTable>;
   readonly special?: { readonly energyCost: number; readonly damageMultiplier: number; readonly accuracyMultiplier: number };
+  readonly spell?: { readonly id: "ice_barrage"; readonly maxHit: number; readonly freezeTicks: number; readonly aoeRadius: number };
 }
 
 /** Small starting itemisation. Extend this list progressively per the design doc. */
@@ -39,8 +40,8 @@ export const shopCatalog: readonly ShopItem[] = [
   { id: "black_dhide_body", name: "Black d'hide body", cost: 220, slot: "body", bonuses: { range_defence_bonus: 65 } },
   { id: "archer_helm", name: "Archer helm", cost: 130, slot: "head", bonuses: { range_attack_bonus: 3, ranged_strength_bonus: 6 } },
   // Magic
-  { id: "ancient_staff", name: "Ancient staff", cost: 250, slot: "weapon", style: "magic", defaultAttackType: "accurate", attackTypes: ["accurate", "defensive"], cooldownTicks: 5, attackRange: 6, bonuses: { magic_attack_bonus: 15 } },
-  { id: "kodai_wand", name: "Kodai wand", cost: 1800, slot: "weapon", style: "magic", cooldownTicks: 5, attackRange: 6, bonuses: { magic_attack_bonus: 27, magic_damage_bonus: 15 } },
+  { id: "ancient_staff", name: "Ancient staff", cost: 250, slot: "weapon", style: "magic", defaultAttackType: "accurate", attackTypes: ["accurate", "defensive"], cooldownTicks: 5, attackRange: 10, bonuses: { magic_attack_bonus: 15 }, spell: { id: "ice_barrage", maxHit: 30, freezeTicks: 32, aoeRadius: 1 } },
+  { id: "kodai_wand", name: "Kodai wand", cost: 1800, slot: "weapon", style: "magic", cooldownTicks: 5, attackRange: 10, bonuses: { magic_attack_bonus: 27, magic_damage_bonus: 15 }, spell: { id: "ice_barrage", maxHit: 30, freezeTicks: 32, aoeRadius: 1 } },
   { id: "mystic_robe_top", name: "Mystic robe top", cost: 200, slot: "body", bonuses: { magic_attack_bonus: 6, magic_defence_bonus: 8 } },
   { id: "ancestral_hat", name: "Ancestral hat", cost: 900, slot: "head", bonuses: { magic_attack_bonus: 3, magic_damage_bonus: 6 } },
   // Utility
