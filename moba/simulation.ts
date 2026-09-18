@@ -3,7 +3,7 @@ import { applyFreeze, isFrozen, tickLocks } from "../entity/locks";
 import { consumeExpiredAttackDelay, createAttackTimerState } from "../combat/timers";
 import { dispatchAttack } from "../combat/attackGate";
 import { meleeHitTick, projectileHitTick, type PendingHit } from "../combat/pendingHits";
-import { rollAttack } from "../combat/resolve";
+import { rollAttack, rollDragonClawsSpecial } from "../combat/resolve";
 import { compatiblePrayerSet, aggregatePrayerBoosts, prayerDefinitions, type PrayerId } from "../prayer/prayers";
 import type { PlayerEntity, MinionEntity, TowerEntity, NeutralCampEntity, ProjectileEntity } from "./entities";
 import { consumeItem, equipItem, equipOwnedItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
@@ -357,21 +357,56 @@ const combatStage: TickStage<SimulationState> = {
         ? projectileHitTick(state.tick, attackStyle, distance, playerPriority(state, actor.id), playerPriority(state, currentEnemy.id))
         : meleeHitTick(state.tick, playerPriority(state, actor.id), playerPriority(state, currentEnemy.id));
 
-      state.pendingHits.push({
-        id: "hit-" + actor.id + "-" + state.tick + "-" + (++projectileSeq),
-        dueTick: hitTick,
-        attackerId: actor.id,
-        targetId: currentEnemy.id,
-        attackerPid: actor.pid,
-        targetPid: currentEnemy.pid,
-        style: attackStyle,
-        attackType,
-        landed: hit.landed,
-        hitChance: hit.hitChance,
-        rawDamage: hit.finalDamage,
-        freezeTicks: attackStyle === "magic" ? weapon.spell?.freezeTicks : undefined,
-        createdTick: state.tick
-      });
+      if (weapon.id === "dragon_claws" && special) {
+        const claw = rollDragonClawsSpecial({
+          style: "slash",
+          attackType,
+          attackerLevels: toCombatLevels(actor.stats),
+          defenderLevels: toCombatLevels(currentEnemy.stats),
+          attackerBonuses: equipmentBonuses(actor.equipment),
+          defenderBonuses: equipmentBonuses(currentEnemy.equipment),
+          defenderPrayers: currentEnemy.activePrayers,
+          attackerIsPlayer: true,
+          attackBoostMultiplier,
+          strengthBoostMultiplier,
+          defenceBoostMultiplier,
+          rng: state.rng
+        });
+        const clawTick = meleeHitTick(state.tick, playerPriority(state, actor.id), playerPriority(state, currentEnemy.id));
+        for (let strike = 0; strike < 4; strike += 1) {
+          state.pendingHits.push({
+            id: "claw-" + actor.id + "-" + state.tick + "-" + strike,
+            dueTick: clawTick,
+            attackerId: actor.id,
+            targetId: currentEnemy.id,
+            attackerPid: actor.pid,
+            targetPid: currentEnemy.pid,
+            style: "slash",
+            attackType,
+            landed: claw.landed,
+            hitChance: 0,
+            rawDamage: claw.damages[strike],
+            createdTick: state.tick
+          });
+        }
+        log(state, actor.id + " uses Dragon claws on " + currentEnemy.id + " (" + claw.damages.join("/") + ")");
+      } else {
+        state.pendingHits.push({
+          id: "hit-" + actor.id + "-" + state.tick + "-" + (++projectileSeq),
+          dueTick: hitTick,
+          attackerId: actor.id,
+          targetId: currentEnemy.id,
+          attackerPid: actor.pid,
+          targetPid: currentEnemy.pid,
+          style: attackStyle,
+          attackType,
+          landed: hit.landed,
+          hitChance: hit.hitChance,
+          rawDamage: hit.finalDamage,
+          freezeTicks: attackStyle === "magic" ? weapon.spell?.freezeTicks : undefined,
+          createdTick: state.tick
+        });
+      }
 
       if (attackStyle === "magic" && weapon.spell?.aoeRadius && currentEnemy.zone !== "lane") {
         const secondaryTargets = state.players.filter(target =>
