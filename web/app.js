@@ -354,6 +354,7 @@ function draw() {
       ctx.fillStyle = "#8fd7ff";
       ctx.font = "900 " + Math.max(9, 12 * camera.zoom) + "px ui-monospace,monospace";
       ctx.fillText("FROZEN " + (player.locks.freezeUntilTick - state.tick + 1) + "t", p.x, p.y + radius + 34 * camera.zoom);
+    }
   }
 
   if (state.matchResult) {
