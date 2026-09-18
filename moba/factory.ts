@@ -99,6 +99,7 @@ export function createPrototypeState(): SimulationState {
       ...LANES.map(lane => makeTower(`blue-${lane}-tower`, "blue", lane, BLUE_TOWER_X)),
       ...LANES.map(lane => makeTower(`red-${lane}-tower`, "red", lane, RED_TOWER_X))
     ],
+    projectiles: [],
     jungleCamps: [
       makeJungleCamp("camp-top-west", "Hill giant camp", 12, 5, 120, 220),
       makeJungleCamp("camp-top-east", "Hill giant camp", 28, 5, 120, 220),
