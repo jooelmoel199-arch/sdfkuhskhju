@@ -1,6 +1,6 @@
 import {
   state, stepSimulation, setMoveTarget, stopMovement, setLane, setAttackTarget, clearAttackTarget,
-  setAttackEnabled, toggleMeleePrayer, resetSimulation, maxHitpoints, TICK_MS,
+  setAttackEnabled, resetSimulation, maxHitpoints, TICK_MS, togglePrayer,
   useConsumable, equipItem, investAll, useSpecial, buyBestAffordableUpgrade, buyConsumables, cycleAttackType
 } from "./simState.js";
 import { levelOf } from "../moba/stats.ts";
@@ -158,7 +158,7 @@ function renderCombatHud() {
     el.innerHTML =
       '<b>' + (weapon?.name ?? "Unarmed") + '</b> · ' + player.attackType.toUpperCase() +
       ' · CD <b>' + remaining + '</b>t · SPEC <b>' + player.specEnergy + '%</b><br>' +
-      'HP <b>' + player.currentHp + '/' + maxHitpoints(player.stats) + '</b> · PRAYER <b>' + player.prayerPoints + '/' + maxHitpoints(player.stats) + '</b> · ' +
+      'HP <b>' + player.currentHp + '/' + maxHitpoints(player.stats) + '</b> · PRAYER <b>' + player.prayerPoints + '/' + player.stats.xp.prayer + '</b> · ' +
       '<span class="prayer">' + prayer + '</span><br>' +
       'TARGET HP <b>' + targetHp + '</b>' + (freeze ? ' · FROZEN ' + freeze + 't' : '');
   }
@@ -345,6 +345,15 @@ function draw() {
     ctx.font = "bold " + Math.max(10, 13 * camera.zoom) + "px sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(player.id, p.x, p.y - radius - 22 * camera.zoom);
+    if (player.activePrayers.length) {
+      ctx.fillStyle = "#f7f2c5";
+      ctx.font = "700 " + Math.max(9, 11 * camera.zoom) + "px ui-monospace,monospace";
+      ctx.fillText(player.activePrayers[0].replace("protect_from_", "PROT "), p.x, p.y + radius + 18 * camera.zoom);
+    }
+    if (player.locks.freezeUntilTick >= state.tick) {
+      ctx.fillStyle = "#8fd7ff";
+      ctx.font = "900 " + Math.max(9, 12 * camera.zoom) + "px ui-monospace,monospace";
+      ctx.fillText("FROZEN " + (player.locks.freezeUntilTick - state.tick + 1) + "t", p.x, p.y + radius + 34 * camera.zoom);
   }
 
   if (state.matchResult) {
