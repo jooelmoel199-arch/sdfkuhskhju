@@ -40,7 +40,7 @@ export interface Player {
 export interface CombatEvent {
   tick:number; type:"attack_queued"|"attack_cancelled"|"attack"|"hit"|"miss"|"eat"|"special_queued"|"special"|"move"|"prayer"|"attack_style"|"death"|"projectile"|"spell";
   attacker?:string; defender?:string; damage?:number; attackRoll?:number; defenceRoll?:number;
-  special?:boolean; hitChance?:number; x?:number; y?:number; prayer?:Prayer; style?:AttackStyle; reason?:string; resolveTick?:number; attackType?:AttackType;
+  special?:boolean; hitChance?:number; x?:number; y?:number; sourceX?:number; sourceY?:number; prayer?:Prayer; style?:AttackStyle; reason?:string; resolveTick?:number; attackType?:AttackType;
 }
 export interface QueuedInput { sequence:number; receivedTick:number; command:InputCommand; }
 export interface GameState { tick:number; nextInputSequence:number; nextCombatSequence:number; players:Record<string,Player>; pendingInputs:QueuedInput[]; pendingHits:PendingHit[]; events:CombatEvent[]; readonly combatRules:CombatRules; }
