@@ -255,6 +255,37 @@ function testQueuedHitUsesImpactPrayer() {
   equal(state.blue.currentHp, 87, "missile protection should reduce a queued 20 damage hit to 12 at impact");
 }
 
+function testRedemptionSavesLethalHit() {
+  const state = createPvpTestState();
+  state.red = {
+    ...state.red,
+    currentHp: 5,
+    prayerPoints: 99,
+    activePrayers: ["redemption"]
+  };
+  state.players = state.players.map(player => player.id === state.red.id ? state.red : player);
+  state.pendingHits.push({
+    id: "redemption-test",
+    dueTick: 1,
+    attackerId: state.blue.id,
+    targetId: state.red.id,
+    attackerPid: state.blue.pid,
+    targetPid: state.red.pid,
+    style: "slash",
+    attackType: "aggressive",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 20,
+    createdTick: 0
+  });
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+  advanceTick(state);
+  advanceTick(state);
+  equal(state.red.alive, true, "Redemption should prevent a lethal queued hit from killing the target");
+  equal(state.red.currentHp, 24, "Redemption should restore the target to at least 25% of 99 HP");
+  equal(state.red.prayerPoints, 0, "Redemption should consume the remaining prayer");
+}
+
 function testCampRespawnSchedule() {
   const state = createPrototypeState();
   const camp = state.jungleCamps[0];
@@ -279,6 +310,7 @@ testOsrsHitTiming();
 testPlayerMagicFormula();
 testDragonClawsSpecial();
 testQueuedHitUsesImpactPrayer();
+testRedemptionSavesLethalHit();
 testCampRespawnSchedule();
 
 console.log("All simulation tests passed.");
