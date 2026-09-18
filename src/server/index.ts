@@ -25,7 +25,7 @@ function isInput(value:unknown):value is InputCommand{
   case "attack_style":return c.style==="accurate"||c.style==="aggressive"||c.style==="defensive"||c.style==="controlled";
   case "ranged_style":return c.style==="accurate"||c.style==="rapid"||c.style==="longrange";
   case "magic_style":return c.style==="standard"||c.style==="defensive";
-  case "item_action":return Number.isInteger(c.slot)&&c.slot>=0&&c.slot<28&&(c.action==="eat"||c.action==="equip"||c.action==="unequip");
+  case "item_action":return typeof c.slot==="number"&&Number.isInteger(c.slot)&&c.slot>=0&&c.slot<28&&(c.action==="eat"||c.action==="equip"||c.action==="unequip");
   case "eat":case "special":case "stop_attack":return true;
   default:return false;
  }
