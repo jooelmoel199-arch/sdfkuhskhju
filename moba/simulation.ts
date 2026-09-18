@@ -2126,7 +2126,10 @@ const jungleStage: TickStage<SimulationState> = {
       }
 
       if (!target) continue;
-      const distance = Math.hypot(target.tile.x - camp.tile.x, target.tile.y - camp.tile.y);
+      const distance = Math.max(
+        Math.abs(target.tile.x - camp.tile.x),
+        Math.abs(target.tile.y - camp.tile.y)
+      );
       if (distance > camp.attackRange || !canAttackTimer(camp.attackTimer, state.tick)) continue;
 
       const hit = rollAttack({
@@ -2144,7 +2147,10 @@ const jungleStage: TickStage<SimulationState> = {
       state.jungleCamps[index] = { ...camp, attackTimer: { ...camp.attackTimer, lastAttackTick: state.tick, weaponCooldownTicks: 5 }, aggroTargetId: target.id };
       enqueuePendingHit(state, {
         id: `npc-hit-${camp.id}-${state.tick}-${state.pendingHitSequence + 1}`,
-        dueTick: state.tick,
+        dueTick:
+          camp.style === "ranged" || camp.style === "magic"
+            ? projectileHitTick(state.tick, camp.style, distance, -1, playerPriority(state, target.id))
+            : state.tick,
         attackerId: camp.id,
         targetId: target.id,
         attackerPid: -1,
