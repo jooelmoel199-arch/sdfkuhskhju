@@ -1,7 +1,7 @@
 import {
   state, stepSimulation, setMoveTarget, stopMovement, setLane, setAttackTarget, clearAttackTarget,
   setAttackEnabled, resetSimulation, maxHitpoints, TICK_MS, togglePrayer,
-  useConsumable, equipItem, investAll, useSpecial, buyBestAffordableUpgrade, buyConsumables, cycleAttackType
+  useConsumable, useComboFood, equipItem, investAll, useSpecial, buyBestAffordableUpgrade, buyConsumables, cycleAttackType
 } from "./simState.js";
 import { levelOf, maxPrayerPoints } from "../moba/stats.ts";
 import { accountLevelFromXp } from "../moba/xp.ts";
