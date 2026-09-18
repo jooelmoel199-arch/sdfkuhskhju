@@ -234,7 +234,11 @@ export function equipOwnedItem(player: PlayerEntity, itemId: string): PlayerEnti
   }
 
   equipment = { ...equipment, [item.slot]: item };
-  return { ...player, inventory, equipment };
+  const supportedStyles = item.attackTypes ?? ["accurate"];
+  const attackType = item.defaultAttackType && supportedStyles.includes(item.defaultAttackType)
+    ? item.defaultAttackType
+    : supportedStyles.includes(player.attackType) ? player.attackType : supportedStyles[0];
+  return { ...player, inventory, equipment, attackType };
 }
 
 export function inventoryCount(player: PlayerEntity, itemId: string): number {
