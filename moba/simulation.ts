@@ -4,7 +4,7 @@ import { consumeExpiredAttackDelay, createAttackTimerState } from "../combat/tim
 import { dispatchAttack } from "../combat/attackGate";
 import { rollAttack } from "../combat/resolve";
 import { compatiblePrayerSet, aggregatePrayerBoosts, type PrayerId } from "../prayer/prayers";
-import type { PlayerEntity, MinionEntity, TowerEntity } from "./entities";
+import type { PlayerEntity, MinionEntity, TowerEntity, NeutralCampEntity } from "./entities";
 import { consumeItem, equipItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
 import { gpRewards, xpRewards, shopCatalog } from "./economy";
@@ -45,6 +45,7 @@ export interface SimulationState {
   red: PlayerEntity;
   minions: MinionEntity[];
   towers: TowerEntity[];
+  jungleCamps: NeutralCampEntity[];
   engagedAttackerTeamByLane: Partial<Record<LaneId, "blue" | "red">>;
   log: SimulationLogEntry[];
   rng: () => number;
@@ -82,8 +83,14 @@ function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerE
   const ai = decideAction(actor, enemy, state.tick);
   if (actor.team !== "blue" || !state.humanControl) return ai;
 
-  const targetX = state.humanControl.attackTargetId === enemy.id ? enemy.tile.x : state.humanControl.moveTargetX;
-  const targetY = state.humanControl.attackTargetId === enemy.id ? enemy.tile.y : state.humanControl.moveTargetY;
+  let targetTile: TilePosition | undefined;
+  if (state.humanControl.attackTargetId === enemy.id) {
+    targetTile = enemy.tile;
+  } else if (state.humanControl.attackTargetId) {
+    targetTile = state.jungleCamps.find(camp => camp.id === state.humanControl?.attackTargetId)?.tile;
+  }
+  const targetX = targetTile?.x ?? state.humanControl.moveTargetX;
+  const targetY = targetTile?.y ?? state.humanControl.moveTargetY;
   const moveDelta = targetX === undefined || Math.abs(targetX - actor.tile.x) < 0.01
     ? 0
     : targetX > actor.tile.x ? 1 : -1;
