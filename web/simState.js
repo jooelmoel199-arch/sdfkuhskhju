@@ -124,5 +124,5 @@ export function resetSimulation() {
 }
 
 export function setSpell(spellId) {
-  state.humanControl.spellId = spellId;
+  queueClientCommand(state, { kind: "spell-select", spellId });
 }
