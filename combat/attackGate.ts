@@ -15,6 +15,7 @@ export interface WeaponProfile {
   readonly style: CombatStyle;
   readonly cooldownTicks: number;
   readonly attackRange: number;
+  readonly attackType?: "accurate" | "aggressive" | "defensive" | "controlled" | "rapid_ranged" | "long_ranged";
 }
 
 export interface AttackGateInput {
