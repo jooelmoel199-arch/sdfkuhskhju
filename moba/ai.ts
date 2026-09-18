@@ -23,6 +23,7 @@ export interface AiDecision {
   readonly buyItemId: string | undefined;
   readonly buyConsumableId?: string;
   readonly buyConsumableQuantity?: number;
+  readonly equipItemId?: string;
 }
 
 export function decideAction(self: PlayerEntity, enemy: PlayerEntity, currentTick: number): AiDecision {
@@ -61,7 +62,7 @@ export function decideAction(self: PlayerEntity, enemy: PlayerEntity, currentTic
   }
 
   const attackType: AttackType = weapon?.attackTypes?.[0] ?? "accurate";
-  return { moveDelta, attackStyle, attackType, activatePrayer, eatItemId, useSpecial, investStat, buyItemId };
+  return { moveDelta, attackStyle, attackType, activatePrayer, eatItemId, useSpecial, investStat, buyItemId, equipItemId: undefined };
 }
 
 export function findConsumable(id: string) {
