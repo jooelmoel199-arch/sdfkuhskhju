@@ -70,6 +70,23 @@ export interface SimulationState {
   };
 }
 
+function playerPriority(state: SimulationState, playerId: string): number {
+  const index = state.pidOrder.indexOf(playerId);
+  return index < 0 ? 9999 : index;
+}
+
+function refreshPid(state: SimulationState): void {
+  if (state.tick < state.nextPidShuffleTick) return;
+  const order = [...state.pidOrder];
+  for (let i = order.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(state.rng() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  state.pidOrder = order;
+  state.nextPidShuffleTick = state.tick + 40 + Math.floor(state.rng() * 21);
+  log(state, "PID order shuffled");
+}
+
 function log(state: SimulationState, message: string): void {
   state.log.push({ tick: state.tick, message });
   if (state.log.length > 250) state.log.splice(0, state.log.length - 250);
@@ -153,7 +170,7 @@ function clearLaneEngagementForPlayer(state: SimulationState, team: "blue" | "re
 const movementStage: TickStage<SimulationState> = {
   name: "movement",
   run: state => {
-    const actors = [...state.players].sort((a, b) => a.pid - b.pid);
+    refreshPid(state);\n    const actors = [...state.players].sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id));
 
     for (const actor of actors) {
       if (!actor.alive) continue;
@@ -230,7 +247,7 @@ const prayerStage: TickStage<SimulationState> = {
 const combatStage: TickStage<SimulationState> = {
   name: "combat",
   run: state => {
-    const actors = [...state.players].sort((a, b) => a.pid - b.pid);
+    const actors = [...state.players].sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id));
 
     for (const snapshot of actors) {
       const actor = state.players.find(player => player.id === snapshot.id);
@@ -333,8 +350,8 @@ const combatStage: TickStage<SimulationState> = {
 
       const distance = Math.max(Math.abs(actor.tile.x - currentEnemy.tile.x), Math.abs(actor.tile.y - currentEnemy.tile.y));
       const hitTick = attackStyle === "ranged" || attackStyle === "magic"
-        ? projectileHitTick(state.tick, attackStyle, distance, actor.pid, currentEnemy.pid)
-        : meleeHitTick(state.tick, actor.pid, currentEnemy.pid);
+        ? projectileHitTick(state.tick, attackStyle, distance, playerPriority(state, actor.id), playerPriority(state, currentEnemy.id))
+        : meleeHitTick(state.tick, playerPriority(state, actor.id), playerPriority(state, currentEnemy.id));
 
       state.pendingHits.push({
         id: "hit-" + actor.id + "-" + state.tick + "-" + (++projectileSeq),
