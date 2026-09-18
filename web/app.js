@@ -435,23 +435,6 @@ canvas.addEventListener("wheel", event => {
   camera.y += before.y - after.y;
 }, { passive: false });
 
-actionbarEl.addEventListener("click", event => {
-  const button = event.target.closest("[data-action]");
-  if (!button) return;
-  const action = button.dataset.action;
-  if (action === "food") useConsumable("shark");
-  if (action === "prayer") useConsumable("prayer_potion");
-  if (action === "spec") useSpecial();
-  if (action === "attack") setAttackEnabled(!state.humanControl.attackEnabled);
-  if (action === "style") cycleAttackType();
-  if (action === "prayer-toggle") toggleMeleePrayer();
-  if (action === "upgrade") investAll("attack");
-  if (action === "upgrade-str") investAll("strength");
-  if (action === "upgrade-def") investAll("defence");
-  if (action === "buy") buyBestAffordableUpgrade();
-  if (action === "restock") buyConsumables("shark", 3);
-});
-
 addEventListener("keydown", event => {
   const key = event.key.toLowerCase();
   keys.add(key);
