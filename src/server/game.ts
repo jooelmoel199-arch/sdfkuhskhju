@@ -158,7 +158,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const attackerPrayer=prayerModifiers(a),defenderPrayer=prayerModifiers(d);
  const effectiveAttack=effectiveLevel(ranged?a.ranged:a.magic,ranged?attackerPrayer.rangedAttack:attackerPrayer.magicAttack,style.attack);
  const effectiveDefence=effectiveLevel(d.defence,defenderPrayer.defence,styleBonus[d.attackStyle].defence+style.defence);
- const attackBonus=ranged?a.equipment.attackBonus+(a.equipment.magicAttackBonus??0):a.equipment.magicAttackBonus??0, defenceBonus=d.equipment.defenceBonus;
+ const attackBonus=ranged?a.equipment.attackBonus:(a.equipment.magicAttackBonus??0), defenceBonus=d.equipment.defenceBonus;
  const baseMagicDefence=Math.floor(d.magic*0.7+d.defence*0.3);
  const effectiveMagicDefence=effectiveLevel(baseMagicDefence,defenderPrayer.magicDefence,styleBonus[d.attackStyle].defence+style.defence);
  const rangedDefence=effectiveDefence, magicDefence=effectiveMagicDefence;
@@ -180,7 +180,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
   const distance=combatDistance(a,d);
   const travelTicks=projectileHitDelay(ranged?"ranged":"magic",distance);
   const travelTick=state.tick+travelTicks;
-  event(state,{tick:state.tick,type:ranged?"projectile":"spell",attacker:a.id,defender:d.id,x:d.x,y:d.y,sourceX:a.x,sourceY:a.y,reason:ranged?"arrow":"fire_strike",resolveTick:travelTick,attackType:ranged?"ranged":"magic"});
+  event(state,{tick:state.tick,type:ranged?"projectile":"spell",attacker:a.id,defender:d.id,x:d.x,y:d.y,sourceX:a.x,sourceY:a.y,reason:ranged?(a.equipment.ammoId??"projectile"):(a.equipment.spellId??"spell"),resolveTick:travelTick,attackType:ranged?"ranged":"magic"});
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,attackType:ranged?"ranged":"magic"});
  a.hitQueuedTick=travelTick;
  state.pendingHits.push({sourceTick:state.tick,resolveTick:travelTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:ranged?"ranged":"magic",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special:false,delivery:ranged?"projectile":"spell"});
