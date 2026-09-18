@@ -20,6 +20,11 @@ export interface StatusEffect {
   readonly expiresAtTick: number;
 }
 
+export interface InventoryEntry {
+  readonly id: string;
+  readonly quantity: number;
+}
+
 export interface Equipment {
   weapon?: ShopItem;
   shield?: ShopItem;
@@ -42,6 +47,7 @@ export interface PlayerEntity {
   currentHp: number;
   stats: StatBlock;
   gp: number;
+  inventory: InventoryEntry[];
   equipment: Equipment;
   activePrayers: PrayerId[];
   prayerPoints: number;
@@ -109,6 +115,7 @@ export function createPlayer(id: string, team: Team, spawnTile: TilePosition, la
     currentHp: maxHitpoints(stats),
     stats,
     gp: 0,
+    inventory: [],
     equipment: {},
     activePrayers: [],
     prayerPoints: 30,
@@ -143,12 +150,29 @@ export function equipItem(player: PlayerEntity, item: ShopItem): PlayerEntity {
   return { ...player, gp: player.gp - item.cost, equipment };
 }
 
+export function inventoryCount(player: PlayerEntity, itemId: string): number {
+  return player.inventory.find(entry => entry.id === itemId)?.quantity ?? 0;
+}
+
+export function addInventoryItem(player: PlayerEntity, itemId: string, quantity = 1): PlayerEntity {
+  if (quantity <= 0) return player;
+  const existing = inventoryCount(player, itemId);
+  const inventory = existing > 0
+    ? player.inventory.map(entry => entry.id === itemId ? { ...entry, quantity: entry.quantity + quantity } : entry)
+    : [...player.inventory, { id: itemId, quantity }];
+  return { ...player, inventory };
+}
+
 export function consumeItem(player: PlayerEntity, item: ConsumableDef, currentTick: number): PlayerEntity {
+  if (inventoryCount(player, item.id) <= 0) return player;
   const maxHp = maxHitpoints(player.stats);
   const currentHp = item.healAmount ? Math.min(maxHp, player.currentHp + item.healAmount) : player.currentHp;
   const prayerPoints = item.restorePrayer ? player.prayerPoints + item.restorePrayer : player.prayerPoints;
   const statusEffects = item.boostStat
     ? [...player.statusEffects, { ...item.boostStat, expiresAtTick: currentTick + item.boostStat.durationTicks }]
     : player.statusEffects;
-  return { ...player, gp: player.gp - item.cost, currentHp, prayerPoints, statusEffects };
+  const inventory = player.inventory
+    .map(entry => entry.id === item.id ? { ...entry, quantity: entry.quantity - 1 } : entry)
+    .filter(entry => entry.quantity > 0);
+  return { ...player, inventory, currentHp, prayerPoints, statusEffects };
 }
