@@ -8,7 +8,8 @@
     "sim": "tsx index.ts",
     "web": "vite --config vite.config.js",
     "build:web": "vite build --config vite.config.js",
-    "check": "npm run sim && npm run build:web"
+    "check": "npm run typecheck && npm run sim && npm run build:web",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
