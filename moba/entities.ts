@@ -84,6 +84,26 @@ export interface MinionEntity {
   alive: boolean;
 }
 
+export interface NeutralCampEntity {
+  readonly id: string;
+  readonly kind: "neutral_camp";
+  readonly name: string;
+  readonly tile: TilePosition;
+  currentHp: number;
+  readonly maxHp: number;
+  readonly maxHit: number;
+  readonly attackRange: number;
+  attackTimer: AttackTimerState;
+  readonly combatLevels: CombatLevels;
+  readonly bonuses: BonusTable;
+  readonly style: CombatStyle;
+  readonly rewardGp: number;
+  readonly rewardXp: number;
+  readonly respawnTicks: number;
+  respawnAtTick?: number;
+  alive: boolean;
+  aggroTargetId?: string;
+}
 export interface TowerEntity {
   readonly id: string;
   readonly kind: "tower";
