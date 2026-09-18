@@ -346,7 +346,7 @@ function testPidTurnPreventsDeadPlayerAction() {
 function testPidTurnRunsPrayerBeforeIncomingImpact() {
   const state = createPvpTestState();
   state.blue = { ...state.blue, currentHp: 99, tile: { x: 19, y: state.blue.tile.y }, activePrayers: [] };
-  state.red = { ...state.red, tile: { x: 20, y: state.red.tile.y } };
+  state.red = { ...state.red, tile: { x: 20, y: state.red.tile.y }, equipment: { ...state.red.equipment, weapon: undefined } };
   state.players = state.players.map(player =>
     player.id === state.blue.id ? state.blue :
     player.id === state.red.id ? state.red : player
