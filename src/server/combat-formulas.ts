@@ -27,3 +27,10 @@ export function playerMagicDefenceLevel(
 export function prayerDrainResistance(prayerBonus:number):number {
   return 60 + prayerBonus * 2;
 }
+
+export function projectileHitDelay(attackType:"melee"|"ranged"|"magic", distance:number):number {
+  const d=Math.max(1,distance);
+  if(attackType==="melee") return 0;
+  if(attackType==="ranged") return 1 + Math.floor((d+3)/6);
+  return 1 + Math.floor((d+1)/3);
+}
