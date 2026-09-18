@@ -4,17 +4,19 @@ import { findPath, MAP_HEIGHT, MAP_WIDTH, type Tile } from "./pathfinding";
 export type Team = "blue" | "red";
 export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | null;
 export type AttackStyle = "accurate" | "aggressive" | "defensive" | "controlled";
+export type ItemAction = "eat" | "equip" | "unequip";
+export interface ItemStack { id:string; quantity:number; }
 
 export type InputCommand =
   | { type: "attack"; targetId: string }
   | { type: "move"; x: number; y: number }
   | { type: "prayer"; prayer: Prayer }
   | { type: "attack_style"; style: AttackStyle }
-  | { type: "eat" }
+  | { type: "item_action"; slot:number; action:ItemAction }\n  | { type: "eat" }
   | { type: "special" }
   | { type: "stop_attack" };
 
-export interface Inventory { food: number; specialEnergy: number; coins: number; }
+export interface Inventory { slots:Array<ItemStack|null>; food: number; specialEnergy: number; coins: number; }
 export interface Equipment {
   weapon: string; attackSpeed: number; attackBonus: number; strengthBonus: number;
   specialCost: number; specialMultiplier: number;
@@ -39,7 +41,7 @@ const styleBonus={accurate:{attack:3,strength:0,defence:0},aggressive:{attack:0,
 function makePlayer(id:string,name:string,team:Team,x:number,y:number):Player{
   return {id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
     attack:75,strength:75,defence:70,equipment:{weapon:"rune_scimitar",attackSpeed:4,attackBonus:45,strengthBonus:44,specialCost:50,specialMultiplier:1.25},
-    inventory:{food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,pendingHitDamage:0,pendingHitRoll:0,pendingDefenceRoll:0,pendingSpecial:false,specialQueued:false,path:[]};
+    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},null,null,null,null,null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,pendingHitDamage:0,pendingHitRoll:0,pendingDefenceRoll:0,pendingSpecial:false,specialQueued:false,path:[]};
 }
 
 export function createGame():GameState{
@@ -59,8 +61,8 @@ function processInput(state:GameState,command:InputCommand):void{
   case "move":setDestination(p,command.x,command.y);p.targetId=null;p.attackQueuedTick=null;p.specialQueued=false;event(state,{tick:state.tick,type:"move",attacker:p.id,x:p.destinationX,y:p.destinationY});return;
   case "attack_style":p.attackStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,style:p.attackStyle});return;
   case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
-  case "eat":if(p.inventory.food>0&&p.hp<p.maxHp){p.inventory.food--;p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});}return;
-  case "special":if(p.targetId&&p.inventory.specialEnergy>=p.equipment.specialCost&&p.attackQueuedTick!==null){p.specialQueued=true;event(state,{tick:state.tick,type:"special_queued",attacker:p.id,defender:p.targetId,special:true});}return;
+  case "item_action":{const stack=p.inventory.slots[command.slot];if(!stack||stack.quantity<=0)return;if(command.action==="eat"&&stack.id==="lobster"&&p.hp<p.maxHp){stack.quantity--;p.inventory.food=Math.max(0,p.inventory.food-1);p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});if(stack.quantity===0)p.inventory.slots[command.slot]=null;return;}if(command.action==="equip"&&stack.id==="rune_scimitar"){p.equipment.weapon="rune_scimitar";p.equipment.attackSpeed=4;p.equipment.attackBonus=45;p.equipment.strengthBonus=44;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped rune scimitar"});return;}return;}
+  case "eat":{const slot=p.inventory.slots.findIndex(v=>v?.id==="lobster");if(slot>=0)processInput(state,{type:"item_action",slot,action:"eat"});return;}\n  case "special":if(p.targetId&&p.inventory.specialEnergy>=p.equipment.specialCost&&p.attackQueuedTick!==null){p.specialQueued=true;event(state,{tick:state.tick,type:"special_queued",attacker:p.id,defender:p.targetId,special:true});}return;
  }
 }
 function deterministicRoll(seed:number):number{const x=Math.sin(seed*12.9898)*43758.5453;return x-Math.floor(x);}
