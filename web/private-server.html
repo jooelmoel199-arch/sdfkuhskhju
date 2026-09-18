@@ -1,16 +1,35 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>Local OSRS Server Prototype</title>
-<style>body{font-family:system-ui;background:#111;color:#eee;max-width:900px;margin:30px auto}button{padding:10px 16px;margin:4px}.bar{height:18px;background:#333;margin:8px 0}.hp{height:100%;background:#c33}.row{border:1px solid #444;padding:12px;margin:8px 0}</style>
-</head><body>
-<h1>Local OSRS Private Server Prototype</h1><p>Authoritative 600 ms server tick. This is the client shell; combat state lives on the server.</p>
-<div id="state">Connecting...</div>
-<button onclick="tick()">Advance server tick</button>
-<button onclick="attack()">Attack</button>
-<pre id="events"></pre>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Private Server Combat Client</title>
+<style>
+body{font-family:system-ui;background:#111;color:#eee;max-width:960px;margin:24px auto;padding:0 16px}
+button{padding:9px 14px;margin:3px;border:1px solid #555;background:#222;color:#eee;border-radius:5px}
+.row{border:1px solid #444;padding:12px;margin:8px 0;border-radius:6px}.bar{height:16px;background:#333;margin:7px 0}.hp{height:100%;background:#c33}
+.controls{position:sticky;top:0;background:#111;padding:8px 0;border-bottom:1px solid #333}.mono{font-family:monospace}
+</style></head><body>
+<h1>Private Server Combat Client</h1>
+<p>Client inputs are queued; the server owns the 600 ms simulation clock and resolves combat.</p>
+<div class="controls">
+<button onclick="send({type:'attack',targetId:'opponent'})">Attack</button>
+<button onclick="send({type:'special'})">Special</button>
+<button onclick="send({type:'eat'})">Eat</button>
+<button onclick="send({type:'prayer',prayer:'protect_melee'})">Protect melee</button>
+<button onclick="send({type:'prayer',prayer:null})">Prayer off</button>
+<button onclick="send({type:'move',x:9})">Move left</button>
+<button onclick="send({type:'move',x:11})">Move right</button>
+<button onclick="tick()">Force tick</button>
+</div>
+<div id="state">Connecting...</div><h3>Recent events</h3><pre id="events"></pre>
 <script>
-async function state(){const r=await fetch('/state');return r.json()}
-function render(s){document.getElementById('state').innerHTML=Object.values(s.players).map(p=>'<div class="row"><b>'+p.id+'</b> '+p.weapon+' | tile '+p.x+' | HP '+p.hp+'/'+p.maxHp+'<div class="bar"><div class="hp" style="width:'+100*p.hp/p.maxHp+'%"></div></div></div>').join('');document.getElementById('events').textContent=s.events.join('\n')}
+async function getState(){return (await fetch('/state')).json()}
+async function send(command){await fetch('/input',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(command)});render(await getState())}
 async function tick(){render(await (await fetch('/tick',{method:'POST'})).json())}
-async function attack(){await fetch('/tick',{method:'POST'});render(await state())}
-state().then(render);setInterval(()=>state().then(render),600);
+function render(s){
+ document.getElementById('state').innerHTML=Object.values(s.players).map(p=>{
+   const target=p.targetId?' → '+p.targetId:'';
+   return '<div class="row"><b>'+p.id+'</b> '+p.equipment.weapon+' | tile '+p.x+' | HP '+p.hp+'/'+p.maxHp+' | prayer '+(p.prayer||'off')+' | food '+p.inventory.food+' | spec '+p.inventory.specialEnergy+'%'+target+
+   '<div class="bar"><div class="hp" style="width:'+Math.max(0,100*p.hp/p.maxHp)+'%"></div></div></div>'
+ }).join('')+'<div class="mono">server tick: '+s.tick+' | queued inputs: '+s.queuedInputs+'</div>';
+ document.getElementById('events').textContent=s.events.map(e=>JSON.stringify(e)).join('\n')
+}
+const stream=new EventSource('/events');stream.onmessage=e=>render(JSON.parse(e.data));getState().then(render);
 </script></body></html>
