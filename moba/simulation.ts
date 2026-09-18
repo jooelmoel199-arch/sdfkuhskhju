@@ -370,6 +370,51 @@ const combatStage: TickStage<SimulationState> = {
         createdTick: state.tick
       });
 
+      if (attackStyle === "magic" && weapon.spell?.aoeRadius && currentEnemy.zone !== "lane") {
+        const secondaryTargets = state.players.filter(target =>
+          target.alive &&
+          target.team !== actor.team &&
+          target.id !== currentEnemy.id &&
+          Math.max(Math.abs(target.tile.x - currentEnemy.tile.x), Math.abs(target.tile.y - currentEnemy.tile.y)) <= weapon.spell!.aoeRadius
+        );
+        for (const secondary of secondaryTargets) {
+          const secondaryPrayer = aggregatePrayerBoosts(secondary.activePrayers);
+          const secondaryHit = rollAttack({
+            style: attackStyle,
+            attackType,
+            attackerLevels: toCombatLevels(actor.stats),
+            defenderLevels: toCombatLevels(secondary.stats),
+            attackerBonuses: equipmentBonuses(actor.equipment),
+            defenderBonuses: equipmentBonuses(secondary.equipment),
+            defenderPrayers: secondary.activePrayers,
+            attackerIsPlayer: true,
+            attackBoostMultiplier,
+            strengthBoostMultiplier,
+            defenceBoostMultiplier: 1 + secondaryPrayer.defence,
+            maxMagicDamage: weapon.spell.maxHit,
+            accuracyMultiplier: special?.accuracyMultiplier,
+            damageMultiplier: special?.damageMultiplier,
+            rng: state.rng
+          });
+          const secondaryDistance = Math.max(Math.abs(actor.tile.x - secondary.tile.x), Math.abs(actor.tile.y - secondary.tile.y));
+          state.pendingHits.push({
+            id: "hit-" + actor.id + "-" + state.tick + "-" + (++projectileSeq),
+            dueTick: projectileHitTick(state.tick, "magic", secondaryDistance, playerPriority(state, actor.id), playerPriority(state, secondary.id)),
+            attackerId: actor.id,
+            targetId: secondary.id,
+            attackerPid: actor.pid,
+            targetPid: secondary.pid,
+            style: "magic",
+            attackType,
+            landed: secondaryHit.landed,
+            hitChance: secondaryHit.hitChance,
+            rawDamage: secondaryHit.finalDamage,
+            freezeTicks: weapon.spell.freezeTicks,
+            createdTick: state.tick
+          });
+        }
+      }
+
       if (attackStyle === "ranged" || attackStyle === "magic") {
         state.projectiles.push({
           id: "projectile-" + projectileSeq,
