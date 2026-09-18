@@ -408,7 +408,10 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
       style: eventStyle(hit.style), damage: impactDamage, landed: true, freezeTicks: hit.freezeTicks });
     log(state, hit.attackerId + " hits " + target.id + " for " + impactDamage +
       " (" + hit.style + " " + hit.attackType + ", tick " + hit.dueTick + ")");
-    if (resolvedTarget.currentHp <= 0 && attacker) handlePlayerDeath(state, resolvedTarget, attacker);
+    if (resolvedTarget.currentHp <= 0) {
+      if (attacker) handlePlayerDeath(state, resolvedTarget, attacker);
+      else handleEnvironmentalDeath(state, resolvedTarget, hit.attackerId);
+    }
   }
 }
 
