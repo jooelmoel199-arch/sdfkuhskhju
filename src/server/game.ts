@@ -24,7 +24,7 @@ export type InputCommand =
 
 export interface Inventory { slots:Array<ItemStack|null>; food: number; specialEnergy: number; coins: number; }
 export interface CombatXp { attack:number; strength:number; defence:number; ranged:number; magic:number; hitpoints:number; }
-export interface PendingHit { sourceTick:number; resolveTick:number; sequence:number; attackerId:string; defenderId:string; attackType:AttackType; attackStyle:AttackStyle; attackRoll:number; defenceRoll:number; hitChance:number; succeeded:boolean; rawDamage:number; special:boolean; delivery:"melee"|"projectile"|"spell"; }
+export interface PendingHit { sourceTick:number; resolveTick:number; sequence:number; attackerId:string; defenderId:string; attackType:AttackType; attackStyle:AttackStyle; attackRoll:number; defenceRoll:number; hitChance:number; succeeded:boolean; rawDamage:number; special:boolean; baseXp:number; delivery:"melee"|"projectile"|"spell"; }
 export interface Equipment {
   weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number;
   specialCost: number; specialMultiplier: number; defenceBonus: number; defenceStab: number; defenceSlash: number; defenceCrush: number;
@@ -128,11 +128,11 @@ function rangedStyleBonuses(style:RangedStyle):{attack:number;strength:number;de
   return style==="accurate"?{attack:3,strength:0,defence:0}:{attack:0,strength:0,defence:0};
 }
 function magicStyleBonuses(style:MagicStyle):{attack:number;strength:number;defence:number}{return style==="defensive"?{attack:0,strength:0,defence:3}:{attack:0,strength:0,defence:0};}
-function awardCombatXp(a:Player,damage:number,attackType:AttackType):void{
+function awardCombatXp(a:Player,damage:number,attackType:AttackType,baseXp=0):void{
  if(damage<=0)return;
  if(attackType==="melee"){switch(a.attackStyle){case "accurate":a.xp.attack+=damage*4;break;case "aggressive":a.xp.strength+=damage*4;break;case "defensive":a.xp.defence+=damage*4;break;case "controlled":a.xp.attack+=damage*4/3;a.xp.strength+=damage*4/3;a.xp.defence+=damage*4/3;break;}}
  else if(attackType==="ranged"){if(a.rangedStyle==="longrange"){a.xp.ranged+=damage*2;a.xp.defence+=damage*2;}else a.xp.ranged+=damage*4;}
- else {a.xp.magic+=a.magicStyle==="defensive"?damage*4/3:damage*2;if(a.magicStyle==="defensive")a.xp.defence+=damage*4/3;}
+ else {a.xp.magic+=baseXp+(a.magicStyle==="defensive"?damage*4/3:damage*2);if(a.magicStyle==="defensive")a.xp.defence+=damage*4/3;}
  a.xp.hitpoints+=damage*4/3;
 }
 function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
@@ -151,7 +151,7 @@ function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
  const hitTick=a.pid<d.pid?state.tick:state.tick+1;a.hitQueuedTick=hitTick;
  if(special){a.inventory.specialEnergy-=a.equipment.specialCost;event(state,{tick:state.tick,type:"special",attacker:a.id,defender:d.id,special:true});}
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,special,attackType:"melee"});
- state.pendingHits.push({sourceTick:state.tick,resolveTick:hitTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:"melee",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special,delivery:"melee"});
+ state.pendingHits.push({sourceTick:state.tick,resolveTick:hitTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:"melee",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special,baseXp:0,delivery:"melee"});
 }
 function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const ranged=a.equipment.attackType==="ranged", style=ranged?rangedStyleBonuses(a.rangedStyle):magicStyleBonuses(a.magicStyle);
@@ -183,7 +183,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
   event(state,{tick:state.tick,type:ranged?"projectile":"spell",attacker:a.id,defender:d.id,x:d.x,y:d.y,sourceX:a.x,sourceY:a.y,reason:ranged?(a.equipment.ammoId??"projectile"):(a.equipment.spellId??"spell"),resolveTick:travelTick,attackType:ranged?"ranged":"magic"});
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,attackType:ranged?"ranged":"magic"});
  a.hitQueuedTick=travelTick;
- state.pendingHits.push({sourceTick:state.tick,resolveTick:travelTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:ranged?"ranged":"magic",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special:false,delivery:ranged?"projectile":"spell"});
+ state.pendingHits.push({sourceTick:state.tick,resolveTick:travelTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:ranged?"ranged":"magic",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special:false,baseXp:ranged?0:(SPELLS[a.equipment.spellId??""]?.baseXp??0),delivery:ranged?"projectile":"spell"});
 }
 function resolveAttack(state:GameState,a:Player):void{
  if(!a.targetId||a.attackQueuedTick===null||state.tick<a.attackQueuedTick)return;
@@ -234,7 +234,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    // Protection is evaluated on the defender turn, so prayer flicks affect the queued hit.
    const protectedByPrayer=(attackType==="melee"&&p.prayer==="protect_melee")||(attackType==="ranged"&&p.prayer==="protect_range")||(attackType==="magic"&&p.prayer==="protect_mage");
    const damage=protectedByPrayer?Math.floor(rawDamage*0.6):rawDamage;
-   if(damage>0){p.hp=Math.max(0,p.hp-damage);awardCombatXp(a,damage,attackType);}
+   if(damage>0){p.hp=Math.max(0,p.hp-damage);awardCombatXp(a,damage,attackType,hit.baseXp);}
    event(state,{tick:state.tick,type:succeeded?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special,attackType,reason:hit.delivery});
    if(p.hp<=0){
      p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;
