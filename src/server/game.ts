@@ -1,6 +1,7 @@
 import { createCombatRules, type CombatRules } from "./combat-rules";
 import { findPath, MAP_HEIGHT, MAP_WIDTH, type Tile } from "./pathfinding";
 import { AMMUNITION, MELEE_STYLE_BONUS, SPELLS, WEAPONS, weaponAttackBonus, weaponStance, type AttackType } from "./combat-definitions";
+import { effectiveCombatLevel, hitChanceFromRolls, magicMaxHit, playerMagicDefenceLevel, prayerDrainResistance, standardMaxHit } from "./combat-formulas";
 
 export type Team = "blue" | "red";
 export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | "eagle_eye" | "mystic_might" | "burst_of_strength" | "clarity_of_thought" | "superhuman_strength" | "improved_reflexes" | "incredible_reflexes" | "ultimate_strength" | "steel_skin" | null;
@@ -147,10 +148,10 @@ function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
  const weapon=WEAPONS[a.equipment.weapon]??WEAPONS.rune_scimitar, stance=weaponStance(weapon,a.attackStyle), attackBonus=weaponAttackBonus(weapon,a.attackStyle);
  const defenceBonus=stance.attackType==="stab"?d.equipment.defenceStab:stance.attackType==="crush"?d.equipment.defenceCrush:d.equipment.defenceSlash;
  const attackRoll=effectiveAttack*(attackBonus+64),defenceRoll=effectiveDefence*(defenceBonus+64);
- const hitChance=attackRoll<=defenceRoll?attackRoll/(2*(defenceRoll+1)):1-(defenceRoll+2)/(2*(attackRoll+1));
+ const hitChance=hitChanceFromRolls(attackRoll,defenceRoll);
  const rules=state.combatRules.onAttack(a.id,d.id,deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17),hitChance,attackRoll,defenceRoll);
  const effectiveStrength=effectiveLevel(a.strength,attackerPrayer.strength,bonus.strength);
- const baseMaxHit=Math.floor(0.5+effectiveStrength*(weapon.strengthBonus+64)/640);
+ const baseMaxHit=standardMaxHit(effectiveStrength,weapon.strengthBonus);
  const maxHit=special?Math.max(1,Math.floor(baseMaxHit*a.equipment.specialMultiplier)):baseMaxHit;
  const damage=rules.hit?Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1)):0;
  a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=a.nextAttackTick;
@@ -165,17 +166,16 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const effectiveAttack=effectiveLevel(ranged?a.ranged:a.magic,ranged?attackerPrayer.rangedAttack:attackerPrayer.magicAttack,style.attack);
  const effectiveDefence=effectiveLevel(d.defence,defenderPrayer.defence,styleBonus[d.attackStyle].defence+style.defence);
  const attackBonus=ranged?a.equipment.attackBonus+(AMMUNITION[a.equipment.ammoId??""]?.attackBonus??0):(a.equipment.magicAttackBonus??0), defenceBonus=d.equipment.defenceBonus;
- const baseMagicDefence=Math.floor(d.magic*0.7*defenderPrayer.magicDefence+d.defence*0.3*defenderPrayer.defence);
- const effectiveMagicDefence=baseMagicDefence+8;
+ const effectiveMagicDefence=playerMagicDefenceLevel(d.magic,d.defence,defenderPrayer.magicDefence,defenderPrayer.defence);
  const rangedDefence=effectiveDefence, magicDefence=effectiveMagicDefence;
  const attackRoll=effectiveAttack*(attackBonus+64),defenceRoll=(ranged?rangedDefence:magicDefence)*(defenceBonus+64);
- const hitChance=attackRoll<=defenceRoll?attackRoll/(2*(defenceRoll+1)):1-(defenceRoll+2)/(2*(attackRoll+1));
+ const hitChance=hitChanceFromRolls(attackRoll,defenceRoll);
  const rules=state.combatRules.onAttack(a.id,d.id,deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17),hitChance,attackRoll,defenceRoll);
  let damage=0;
  if(rules.hit){
    const ammo=AMMUNITION[a.equipment.ammoId??""]; const spell=SPELLS[a.equipment.spellId??""];
    const effectiveRangedStrength=effectiveLevel(a.ranged,attackerPrayer.rangedStrength,style.level);
- const maxHit=ranged?Math.floor(0.5+effectiveRangedStrength*(a.equipment.strengthBonus+(ammo?.rangedStrength??0)+64)/640):Math.floor((spell?.maxHit??0)*(1+(a.equipment.magicDamageBonus??0)+attackerPrayer.magicDamage));
+ const maxHit=ranged?standardMaxHit(effectiveRangedStrength,a.equipment.strengthBonus+(ammo?.rangedStrength??0)):magicMaxHit(spell?.maxHit??0,(a.equipment.magicDamageBonus??0)+attackerPrayer.magicDamage);
    damage=Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53+d.x*31+d.y*17)*(maxHit+1));
  }
  let resourceOk=false;
@@ -218,12 +218,12 @@ function prayerModifiers(p:Player):{attack:number;strength:number;defence:number
   default: return {attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
  }
 }
-function effectiveLevel(base:number,multiplier:number,style:number):number{return Math.floor(base*multiplier)+style+8;}
+const effectiveLevel=effectiveCombatLevel;
 function prayerStageForPlayer(state:GameState,p:Player):void{
  if(!p.prayer)return;
  const effect=PRAYER_DRAIN_EFFECT[p.prayer];
  p.prayerDrainCounter+=effect;
- const resistance=60+2*(p.equipment.prayerBonus??0);
+ const resistance=prayerDrainResistance(p.equipment.prayerBonus??0);
  while(p.prayerDrainCounter>=resistance&&p.prayerPoints>0){p.prayerDrainCounter-=resistance;p.prayerPoints--;}
  if(p.prayerPoints<=0){p.prayerPoints=0;p.prayer=null;p.prayerDrainCounter=0;p.prayerNextDrainTick=null;}
 }
