@@ -36,6 +36,8 @@ let minionSeq = 0;
 let projectileSeq = 0;
 
 export const TICK_MS = 600;
+/** OSRS special energy regenerates 10 percentage points every 30 seconds = 0.2 per 600ms game tick. */
+export const SPECIAL_ENERGY_PER_TICK = 0.2;
 
 export interface PendingDeath {
   readonly victimId: string;
@@ -1731,7 +1733,7 @@ const effectsStage: TickStage<SimulationState> = {
         statusEffects: updated.statusEffects.filter(effect => effect.expiresAtTick > state.tick),
         specEnergy: updated.lastSpecEnergyUseTick === state.tick
           ? updated.specEnergy
-          : Math.min(100, updated.specEnergy + 0.1),
+          : Math.min(100, updated.specEnergy + SPECIAL_ENERGY_PER_TICK),
         gp: updated.gp + gpRewards.passivePerTick
       };
       setPlayer(state, updated);
