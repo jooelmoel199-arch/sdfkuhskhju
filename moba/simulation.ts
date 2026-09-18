@@ -264,8 +264,10 @@ function isGmaulEquipped(player: PlayerEntity): boolean {
 }
 
 function gmaulSpecBarVisible(player: PlayerEntity, currentTick: number): boolean {
-  return isGmaulEquipped(player) &&
-    player.gmaulSpecBarVisibleTick !== undefined &&
+  if (!isGmaulEquipped(player)) return false;
+  // A deserialised/already-equipped Gmaul without an explicit switch timestamp
+  // is already on the combat tab, so its special bar is available.
+  return player.gmaulSpecBarVisibleTick === undefined ||
     player.gmaulSpecBarVisibleTick <= currentTick;
 }
 
