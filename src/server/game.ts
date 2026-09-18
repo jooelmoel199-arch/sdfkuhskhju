@@ -1,6 +1,6 @@
 import { createCombatRules, type CombatRules } from "./combat-rules";
 import { findPath, MAP_HEIGHT, MAP_WIDTH, type Tile } from "./pathfinding";
-import { MELEE_STYLE_BONUS, WEAPONS, weaponAttackBonus, weaponStance, type AttackType, type MeleeAttackType } from "./combat-definitions";
+import { MELEE_STYLE_BONUS, WEAPONS, weaponAttackBonus, weaponStance, type AttackType } from "./combat-definitions";
 
 export type Team = "blue" | "red";
 export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | "burst_of_strength" | "clarity_of_thought" | "superhuman_strength" | "improved_reflexes" | "incredible_reflexes" | "ultimate_strength" | "steel_skin" | null;
