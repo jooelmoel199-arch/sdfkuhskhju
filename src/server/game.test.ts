@@ -306,3 +306,13 @@ assert(magicDefence.players.player.prayer==="mystic_might","mystic might should 
 
 
 console.log("ranged and magic combat queue tests passed");
+
+// Ice Barrage freeze state is applied when the projectile resolves, not when cast.
+const freezeGame=createGame();
+enqueueInput(freezeGame,{type:"item_action",slot:8,action:"equip"});step(freezeGame);
+enqueueInput(freezeGame,{type:"attack",targetId:"opponent"});step(freezeGame);
+assert(freezeGame.players.player.equipment.spellId==="ice_barrage","Ice Barrage should be selectable from the authoritative inventory");
+assert(freezeGame.pendingHits.some(h=>h.attackType==="magic"&&h.freezeTicks===33),"Ice Barrage freeze duration should be snapshotted into the queued hit");
+const freezeBefore=freezeGame.players.opponent.freezeUntilTick;
+step(freezeGame);step(freezeGame);step(freezeGame);
+assert(freezeGame.players.opponent.freezeUntilTick>freezeBefore,"successful Ice Barrage should apply a server-side freeze on impact");
