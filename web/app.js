@@ -478,7 +478,7 @@ addEventListener("keydown", event => {
     event.preventDefault();
     setAttackEnabled(!state.humanControl.attackEnabled);
   }
-  if (key === "p") toggleMeleePrayer();
+  if (key === "p") togglePrayer("protect_from_melee");
   if (key === "f") useConsumable("shark");
   if (key === "c") useConsumable("prayer_potion");
   if (key === "x") useSpecial();
@@ -489,6 +489,8 @@ addEventListener("keydown", event => {
   if (key === "l") investAll("defence");
   if (key === "b") buyBestAffordableUpgrade();
   if (key === "escape") clearAttackTarget();
+  if (key === "m") togglePrayer("protect_from_magic");
+  if (key === "n") togglePrayer("protect_from_missiles");
   if (key === "1") setLane("top");
   if (key === "2") setLane("middle");
   if (key === "3") setLane("bottom");
