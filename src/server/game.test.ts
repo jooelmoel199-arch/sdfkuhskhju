@@ -139,7 +139,7 @@ assert(special.players.player.attackQueuedTick === null, "stop attack must clear
 const styled=createGame();
 enqueueInput(styled,{type:"attack_style",style:"aggressive"});step(styled);
 assert(styled.players.player.attackStyle==="aggressive","attack style should be authoritative");
-enqueueInput(styled,{type:"move",x:12,y:10};step(styled);
+enqueueInput(styled,{type:"move",x:12,y:10});step(styled);
 assert(styled.players.player.x===11 && styled.players.player.y===10,"2D movement should follow a path one tile per tick");
 enqueueInput(styled,{type:"move",x:12,y:10});step(styled);
 assert(Number(styled.players.player.x)===12 && Number(styled.players.player.y)===10,"pathing should continue one tile per tick");
