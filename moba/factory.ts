@@ -1,4 +1,4 @@
-import { createPlayer, equipItem, addInventoryItem, type TowerEntity, type NeutralCampEntity } from "./entities";
+import { createPlayer, equipItem, addInventoryItem, type TowerEntity, type NeutralCampEntity, type PlayerRole } from "./entities";
 import { createAttackTimerState } from "../combat/timers";
 import { shopCatalog } from "./economy";
 import { LANE_Y, LANES, BLUE_TOWER_X, RED_TOWER_X, BLUE_BASE_X, RED_BASE_X, zoneAt, type LaneId } from "./lane";
@@ -17,14 +17,15 @@ export function buildStartingLoadout(
   playerId: string,
   team: "blue" | "red",
   role: StartingRole,
-  laneId: LaneId
+  laneId: LaneId,
+  positionRole: PlayerRole = "middle"
 ) {
   const tile = {
     x: team === "blue" ? BLUE_BASE_X + 2 : RED_BASE_X - 2,
     y: LANE_Y[laneId]
   };
 
-  let player = createPlayer(playerId, team, tile, laneId);
+  let player = createPlayer(playerId, team, tile, laneId, positionRole);
   player = { ...player, zone: zoneAt(tile), gp: 0 };
 
   const loadouts: Record<StartingRole, string[]> = {
@@ -91,13 +92,22 @@ export function makeJungleCamp(id: string, name: string, x: number, y: number, r
   };
 }
 export function createPrototypeState(): SimulationState {
-  const blueTop = buildStartingLoadout("blue-top", "blue", "melee", "top");
-  const blueMid = buildStartingLoadout("blue-1", "blue", "melee", "middle");
-  const blueBottom = buildStartingLoadout("blue-bottom", "blue", "ranged", "bottom");
-  const redTop = buildStartingLoadout("red-top", "red", "melee", "top");
-  const redMid = buildStartingLoadout("red-1", "red", "ranged", "middle");
-  const redBottom = buildStartingLoadout("red-bottom", "red", "ranged", "bottom");
-  const players = [blueTop, blueMid, blueBottom, redTop, redMid, redBottom];
+  const blueTop = buildStartingLoadout("blue-top", "blue", "melee", "top", "top");
+  const blueMid = buildStartingLoadout("blue-1", "blue", "melee", "middle", "middle");
+  const blueBottom = buildStartingLoadout("blue-bottom", "blue", "ranged", "bottom", "bottom");
+  const blueSupport = buildStartingLoadout("blue-support", "blue", "mage", "bottom", "support");
+  const blueJungleBase = buildStartingLoadout("blue-jungle", "blue", "melee", "middle", "jungle");
+  const blueJungle = { ...blueJungleBase, tile: { x: 8, y: 10 }, zone: zoneAt({ x: 8, y: 10 }) };
+  const redTop = buildStartingLoadout("red-top", "red", "melee", "top", "top");
+  const redMid = buildStartingLoadout("red-1", "red", "ranged", "middle", "middle");
+  const redBottom = buildStartingLoadout("red-bottom", "red", "ranged", "bottom", "bottom");
+  const redSupport = buildStartingLoadout("red-support", "red", "mage", "bottom", "support");
+  const redJungleBase = buildStartingLoadout("red-jungle", "red", "melee", "middle", "jungle");
+  const redJungle = { ...redJungleBase, tile: { x: 32, y: 30 }, zone: zoneAt({ x: 32, y: 30 }) };
+  const players = [
+    blueTop, blueMid, blueBottom, blueSupport, blueJungle,
+    redTop, redMid, redBottom, redSupport, redJungle
+  ];
 
   return {
     tick: 0,
