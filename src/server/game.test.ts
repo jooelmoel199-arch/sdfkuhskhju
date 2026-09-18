@@ -27,6 +27,16 @@ enqueueInput(earlyPid, { type: "attack", targetId: "opponent" });
 step(earlyPid);
 assert(earlyPid.events.some(e => e.type === "attack"), "early-PID player should attack on its turn");
 assert(earlyPid.events.some(e => e.type === "hit" || e.type === "miss"), "later-PID defender should process the melee hit on the same tick");
+const latePid = createGame();
+latePid.players.player.pid=2;
+latePid.players.opponent.pid=1;
+latePid.players.player.x=13;
+latePid.players.opponent.x=14;
+enqueueInput(latePid,{type:"attack",targetId:"opponent"});
+step(latePid);
+assert(!latePid.events.some(e=>e.type==="hit"||e.type==="miss"),"higher-PID attacker should incur one processing-order tick");
+step(latePid);
+assert(latePid.events.some(e=>e.type==="hit"||e.type==="miss"),"higher-PID melee hit should resolve on the defender's later processing tick");
 // Protection must be applied exactly once at hit resolution, not when the hit is queued.
 const rawGame = createGame();
 rawGame.players.player.x = 13;
