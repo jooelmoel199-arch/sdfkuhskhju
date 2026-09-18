@@ -8,9 +8,10 @@ function lex(source: string): Token[] {
   let i = 0;
   while (i < source.length) {
     const c = source[i];
-    if (/\\s/.test(c)) { i++; continue; }
+    if (/\s/.test(c)) { i++; continue; }
     if (source.startsWith("//", i)) {
-      const end = source.indexOf("\n", i);
+      const end = source.indexOf("
+", i);
       i = end === -1 ? source.length : end + 1;
       continue;
     }
@@ -24,7 +25,7 @@ function lex(source: string): Token[] {
       tokens.push({ kind: "string", text: out });
       continue;
     }
-    const number = source.slice(i).match(/^-?(?:\\d+\\.?)?\\d+/)?.[0];
+    const number = source.slice(i).match(/^-?(?:\d+\.?)?\d+/)?.[0];
     if (number) { tokens.push({ kind: "number", text: number }); i += number.length; continue; }
     const identifier = source.slice(i).match(/^[A-Za-z_][A-Za-z0-9_]*/)?.[0];
     if (identifier) { tokens.push({ kind: "identifier", text: identifier }); i += identifier.length; continue; }
