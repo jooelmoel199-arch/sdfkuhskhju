@@ -386,7 +386,7 @@ function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerE
   };
 }
 
-function combatLevelsForPlayer(player: PlayerEntity): ReturnType<typeof toCombatLevels> {
+export function combatLevelsForPlayer(player: PlayerEntity): ReturnType<typeof toCombatLevels> {
   const base = toCombatLevels(player.stats);
   const boost = player.combatBoosts;
   return {
