@@ -82,6 +82,8 @@ function updateHud() {
     </div>`;
   }).join("");
 
+  renderActionbar();
+
   const relevant = state.log.slice(-8);
   if (relevant.length && relevant[relevant.length - 1].tick !== lastRenderedLogTick) {
     feedEl.innerHTML = relevant.map(entry => `<div><span class="muted">[${entry.tick}]</span> ${entry.message}</div>`).join("");
@@ -250,7 +252,6 @@ function draw() {
   }
 
   drawMinimap();
-  renderActionbar();
 }
 
 function drawMinimap() {
