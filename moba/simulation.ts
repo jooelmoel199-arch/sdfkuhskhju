@@ -332,16 +332,75 @@ const prayerStage: TickStage<SimulationState> = {
 };
 
 // --- 3. Player combat ---
+function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): void {
+  const ready = state.pendingHits.filter(hit => hit.targetId === targetId && hit.dueTick <= state.tick);
+  if (ready.length === 0) return;
+  state.pendingHits = state.pendingHits.filter(hit => !(hit.targetId === targetId && hit.dueTick <= state.tick));
+
+  for (const hit of ready) {
+    const target = state.players.find(player => player.id === hit.targetId);
+    if (!target || !target.alive) continue;
+    const attacker = state.players.find(player => player.id === hit.attackerId);
+
+    if (!hit.landed) {
+      setPlayer(state, { ...target, lastCombatTick: state.tick });
+      pushCombatEvent(state, { tick: state.tick, attackerId: hit.attackerId, targetId: target.id,
+        style: eventStyle(hit.style), damage: 0, landed: false });
+      log(state, hit.attackerId + " misses " + target.id + " (" + hit.style + " " + hit.attackType + ")");
+      continue;
+    }
+
+    const newHp = Math.max(0, target.currentHp - hit.rawDamage);
+    let resolvedTarget: PlayerEntity = {
+      ...target,
+      currentHp: newHp,
+      lastCombatTick: state.tick,
+      lastDamagedByPlayerId: hit.attackerId
+    };
+
+    if (hit.freezeTicks) {
+      resolvedTarget = {
+        ...resolvedTarget,
+        locks: applyFreeze(resolvedTarget.locks, state.tick, hit.freezeTicks, hit.attackerId)
+      };
+    }
+    if (hit.rawDamage > 0 && resolvedTarget.activePrayers.includes("smite")) {
+      resolvedTarget = {
+        ...resolvedTarget,
+        prayerPoints: Math.max(0, resolvedTarget.prayerPoints - Math.floor(hit.rawDamage * 0.25))
+      };
+    }
+    if (newHp > 0 && newHp <= Math.floor(maxHitpoints(resolvedTarget.stats) * 0.1) &&
+        resolvedTarget.activePrayers.includes("redemption") && resolvedTarget.prayerPoints > 0) {
+      resolvedTarget = {
+        ...resolvedTarget,
+        currentHp: Math.max(newHp, Math.floor(maxHitpoints(resolvedTarget.stats) * 0.25)),
+        prayerPoints: 0,
+        activePrayers: [...compatiblePrayerSet(resolvedTarget.activePrayers.filter(prayer => prayer !== "redemption"))]
+      };
+      log(state, resolvedTarget.id + " triggers Redemption");
+    }
+
+    setPlayer(state, resolvedTarget);
+    pushCombatEvent(state, { tick: state.tick, attackerId: hit.attackerId, targetId: target.id,
+      style: eventStyle(hit.style), damage: hit.rawDamage, landed: true, freezeTicks: hit.freezeTicks });
+    log(state, hit.attackerId + " hits " + target.id + " for " + hit.rawDamage +
+      " (" + hit.style + " " + hit.attackType + ", tick " + hit.dueTick + ")");
+    if (newHp <= 0 && attacker) handlePlayerDeath(state, resolvedTarget, attacker);
+  }
+}
+
 const combatStage: TickStage<SimulationState> = {
   name: "combat",
   run: state => {
     const actors = [...state.players].sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id));
 
     for (const snapshot of actors) {
+      resolvePendingHitsForPlayer(state, snapshot.id);
       const actor = state.players.find(player => player.id === snapshot.id);
       if (!actor) continue;
-      if (state.pvpTest && actor.team === "red") continue;
       if (!actor.alive || !actor.equipment.weapon) continue;
+      if (state.pvpTest && actor.team === "red") continue;
 
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
@@ -586,73 +645,8 @@ const combatStage: TickStage<SimulationState> = {
 const pendingHitStage: TickStage<SimulationState> = {
   name: "pending-hits",
   run: state => {
-    const pending: PendingHit[] = [];
-    for (const hit of state.pendingHits) {
-      if (hit.dueTick > state.tick) {
-        pending.push(hit);
-        continue;
-      }
-      const target = state.players.find(player => player.id === hit.targetId);
-      if (!target || !target.alive) continue;
-      const attacker = state.players.find(player => player.id === hit.attackerId);
-      if (hit.landed) {
-        const newHp = Math.max(0, target.currentHp - hit.rawDamage);
-        let updatedTarget: PlayerEntity = {
-          ...target,
-          currentHp: newHp,
-          lastCombatTick: state.tick,
-          lastDamagedByPlayerId: hit.attackerId
-        };
-        if (hit.freezeTicks) {
-          updatedTarget = {
-            ...updatedTarget,
-            locks: applyFreeze(updatedTarget.locks, state.tick, hit.freezeTicks, hit.attackerId)
-          };
-        }
-        let resolvedTarget = updatedTarget;
-        if (hit.landed && hit.rawDamage > 0 && resolvedTarget.activePrayers.includes("smite")) {
-          resolvedTarget = {
-            ...resolvedTarget,
-            prayerPoints: Math.max(0, resolvedTarget.prayerPoints - Math.floor(hit.rawDamage * 0.25))
-          };
-        }
-        if (newHp > 0 && newHp <= Math.floor(maxHitpoints(resolvedTarget.stats) * 0.1) &&
-            resolvedTarget.activePrayers.includes("redemption") && resolvedTarget.prayerPoints > 0) {
-          resolvedTarget = {
-            ...resolvedTarget,
-            currentHp: Math.max(newHp, Math.floor(maxHitpoints(resolvedTarget.stats) * 0.25)),
-            prayerPoints: 0,
-            activePrayers: [...compatiblePrayerSet(resolvedTarget.activePrayers.filter(prayer => prayer !== "redemption"))]
-          };
-          log(state, resolvedTarget.id + " triggers Redemption");
-        }
-        setPlayer(state, resolvedTarget);
-        pushCombatEvent(state, {
-          tick: state.tick,
-          attackerId: hit.attackerId,
-          targetId: target.id,
-          style: eventStyle(hit.style),
-          damage: hit.rawDamage,
-          landed: true,
-          freezeTicks: hit.freezeTicks
-        });
-        log(state, hit.attackerId + " hits " + target.id + " for " + hit.rawDamage +
-          " (" + hit.style + " " + hit.attackType + ", tick " + hit.dueTick + ")");
-        if (newHp <= 0 && attacker) handlePlayerDeath(state, resolvedTarget, attacker);
-      } else {
-        setPlayer(state, { ...target, lastCombatTick: state.tick });
-        pushCombatEvent(state, {
-          tick: state.tick,
-          attackerId: hit.attackerId,
-          targetId: target.id,
-          style: eventStyle(hit.style),
-          damage: 0,
-          landed: false
-        });
-        log(state, hit.attackerId + " misses " + target.id + " (" + hit.style + ")");
-      }
-    }
-    state.pendingHits = pending;
+    // Player queues are resolved at the beginning of the target's PID turn.
+    // This stage only removes stale projectile visuals.
     state.projectiles = state.projectiles.filter(projectile => projectile.hitTick > state.tick);
   }
 };
