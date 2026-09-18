@@ -44,6 +44,7 @@ export interface SimulationState {
   tick: number;
   blue: PlayerEntity;
   red: PlayerEntity;
+  players: PlayerEntity[];
   minions: MinionEntity[];
   projectiles: ProjectileEntity[];
   towers: TowerEntity[];
@@ -73,17 +74,34 @@ function log(state: SimulationState, message: string): void {
 }
 
 function opponentOf(state: SimulationState, id: string): PlayerEntity {
-  return state.blue.id === id ? state.red : state.blue;
+  const actor = state.players.find(player => player.id === id) ?? state.blue;
+  const humanTargetId = actor.id === state.blue.id ? state.humanControl?.attackTargetId : undefined;
+  const explicit = humanTargetId
+    ? state.players.find(player => player.id === humanTargetId && player.alive && player.team !== actor.team)
+    : undefined;
+  if (explicit) return explicit;
+
+  const enemies = state.players
+    .filter(player => player.alive && player.team !== actor.team)
+    .sort((a, b) => {
+      const aSameLane = a.laneId === actor.laneId ? 0 : 1;
+      const bSameLane = b.laneId === actor.laneId ? 0 : 1;
+      if (aSameLane !== bSameLane) return aSameLane - bSameLane;
+      return Math.hypot(a.tile.x - actor.tile.x, a.tile.y - actor.tile.y) -
+        Math.hypot(b.tile.x - actor.tile.x, b.tile.y - actor.tile.y);
+    });
+  return enemies[0] ?? (actor.team === "blue" ? state.red : state.blue);
 }
 
 function setPlayer(state: SimulationState, player: PlayerEntity): void {
+  state.players = state.players.map(current => current.id === player.id ? player : current);
   if (state.blue.id === player.id) state.blue = player;
-  else state.red = player;
+  if (state.red.id === player.id) state.red = player;
 }
 
 function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerEntity) {
   const ai = decideAction(actor, enemy, state.tick);
-  if (actor.team !== "blue" || !state.humanControl) return ai;
+  if (actor.id !== state.blue.id || !state.humanControl) return ai;
 
   let targetTile: TilePosition | undefined;
   if (state.humanControl.attackTargetId === enemy.id) {
@@ -133,7 +151,7 @@ function clearLaneEngagementForPlayer(state: SimulationState, team: "blue" | "re
 const movementStage: TickStage<SimulationState> = {
   name: "movement",
   run: state => {
-    const actors = [state.blue, state.red].sort((a, b) => a.pid - b.pid);
+    const actors = [...state.players].sort((a, b) => a.pid - b.pid);
 
     for (const actor of actors) {
       if (!actor.alive) continue;
@@ -181,7 +199,7 @@ const movementStage: TickStage<SimulationState> = {
 const prayerStage: TickStage<SimulationState> = {
   name: "prayers",
   run: state => {
-    for (const actor of [state.blue, state.red]) {
+    for (const actor of [...state.players]) {
       if (!actor.alive) continue;
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
@@ -202,7 +220,7 @@ const prayerStage: TickStage<SimulationState> = {
 const combatStage: TickStage<SimulationState> = {
   name: "combat",
   run: state => {
-    const actors = [state.blue, state.red].sort((a, b) => a.pid - b.pid);
+    const actors = [...state.players].sort((a, b) => a.pid - b.pid);
 
     for (const snapshot of actors) {
       const actor = snapshot.id === state.blue.id ? state.blue : state.red;
@@ -346,7 +364,7 @@ const projectileStage: TickStage<SimulationState> = {
         continue;
       }
 
-      const target = [state.blue, state.red].find(player => player.id === projectile.targetId);
+      const target = state.players.find(player => player.id === projectile.targetId);
       if (!target || !target.alive) {
         log(state, projectile.style + " projectile fizzles");
         continue;
@@ -383,7 +401,7 @@ const projectileStage: TickStage<SimulationState> = {
         ? projectile.attackerId + " hits " + target.id + " for " + hit.finalDamage + " (" + projectile.style + " impact)"
         : projectile.attackerId + " misses " + target.id + " (" + projectile.style + " impact)");
 
-      const attacker = [state.blue, state.red].find(player => player.id === projectile.attackerId);
+      const attacker = state.players.find(player => player.id === projectile.attackerId);
       if (newHp <= 0 && attacker) handlePlayerDeath(state, updatedTarget, attacker);
     }
     state.projectiles = pending;
@@ -502,7 +520,7 @@ function respawnPlayer(state: SimulationState, victim: PlayerEntity): void {
 const effectsStage: TickStage<SimulationState> = {
   name: "effects",
   run: state => {
-    for (const actor of [state.blue, state.red]) {
+    for (const actor of [...state.players]) {
       if (!actor.alive) continue;
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
@@ -573,7 +591,7 @@ const towerStage: TickStage<SimulationState> = {
         continue;
       }
 
-      const target = [state.blue, state.red].find(player =>
+      const target = state.players.find(player =>
         player.alive && player.team !== tower.team && player.laneId === tower.laneId &&
         Math.abs(player.tile.x - tower.tile.x) <= tower.attackRange
       );
@@ -723,7 +741,7 @@ function rewardNearestPlayer(state: SimulationState, killerMinion: MinionEntity)
 const lockDecayStage: TickStage<SimulationState> = {
   name: "lock-decay",
   run: state => {
-    for (const actor of [state.blue, state.red]) {
+    for (const actor of [...state.players]) {
       setPlayer(state, { ...actor, locks: tickLocks(actor.locks, state.tick) });
       const consumed = consumeExpiredAttackDelay(actor.attackTimer, state.tick);
       setPlayer(state, { ...actor, attackTimer: consumed.state });
