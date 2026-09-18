@@ -261,6 +261,21 @@ function draw() {
       ctx.lineWidth = 1;
     }
   }
+
+  // Tick-driven projectiles. Simulation owns launch/impact; render interpolates between ticks.
+  const renderTick = state.tick + accumulator / TICK_MS;
+  for (const projectile of state.projectiles) {
+    const span = Math.max(1, projectile.hitTick - projectile.createdTick);
+    const progress = Math.max(0, Math.min(1, (renderTick - projectile.createdTick) / span));
+    const x = projectile.fromTile.x + (projectile.toTile.x - projectile.fromTile.x) * progress;
+    const y = projectile.fromTile.y + (projectile.toTile.y - projectile.fromTile.y) * progress;
+    const p = worldToScreen(simToWorldX(x), simToWorldY(y));
+    ctx.fillStyle = projectile.style === "magic" ? "#c596ff" : "#e2d1a0";
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 5 * camera.zoom, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   for (const player of [state.blue, state.red]) {
     if (!player.alive) continue;
     const p = worldToScreen(simToWorldX(player.tile.x), simToWorldY(player.tile.y));
