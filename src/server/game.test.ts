@@ -42,6 +42,9 @@ step(ranged);
 assert(ranged.players.player.targetId === "opponent", "out-of-range attack retains its target");
 assert(!ranged.events.some(e => e.type === "attack"), "out-of-range attack cannot resolve");
 step(ranged);
+step(ranged);
+assert(ranged.players.player.x === 3, "persistent attack interaction should keep moving toward the target");
+step(ranged);
 assert(ranged.events.some(e => e.type === "attack"), "queued attack resolves once movement reaches range");
 
 // Special attacks consume energy only when the attack actually resolves.
