@@ -1431,20 +1431,44 @@ function handleTowerAttack(
 
 function applyConsumableAction(state: SimulationState, actor: PlayerEntity, itemId: string, combo = false): PlayerEntity {
   const item = findConsumable(itemId);
-  if (!item || inventoryCount(actor, item.id) <= 0 || (!combo && state.tick < actor.eatDelayUntilTick) || (combo && !item.comboFood)) return actor;
+  if (!item || inventoryCount(actor, item.id) <= 0) return actor;
+
+  const isPotion = item.kind === "potion";
+  if (isPotion) {
+    // Non-barbarian potions have their own three-tick consumption timer. They
+    // can be chained with food/karambwan without inheriting the food timer.
+    if (combo || state.tick < actor.potionDelayUntilTick) return actor;
+  } else {
+    if (combo ? !item.comboFood : state.tick < actor.eatDelayUntilTick) return actor;
+  }
+
   const updated = consumeItem(actor, item, state.tick);
-  // OSRS food modifies the attack/skilling timer additively. A 3-tick food
-  // adds three to a live positive cycle; it does not create a cooldown when idle.
-  const currentRemaining = Math.max(0, actor.attackTimer.lastAttackTick +
-    actor.attackTimer.weaponCooldownTicks + actor.attackTimer.additiveAttackDelayTicks - state.tick);
+  const currentRemaining = Math.max(
+    0,
+    actor.attackTimer.lastAttackTick +
+      actor.attackTimer.weaponCooldownTicks +
+      actor.attackTimer.additiveAttackDelayTicks -
+      state.tick
+  );
   const additive = item.attackDelayTicks;
-  const next = {
+
+  const next: PlayerEntity = {
     ...updated,
-    attackTimer: delayAttack(actor.attackTimer, additive, state.tick),
+    // Potions have zero combat attack delay. Food adds only when an attack
+    // cycle is already live, preserving the "eat before attacking" behaviour.
+    attackTimer: isPotion
+      ? actor.attackTimer
+      : delayAttack(actor.attackTimer, additive, state.tick),
     attackDelayUntilTick: 0,
-    eatDelayUntilTick: state.tick + item.eatDelayTicks
+    eatDelayUntilTick: isPotion ? actor.eatDelayUntilTick : state.tick + item.eatDelayTicks,
+    potionDelayUntilTick: isPotion ? state.tick + item.eatDelayTicks : actor.potionDelayUntilTick
   };
-  log(state, actor.id + " eats " + item.name + " (" + additive + "t food delay; " + currentRemaining + "t attack cycle remaining)");
+
+  log(
+    state,
+    actor.id + (isPotion ? " drinks " : " eats ") + item.name +
+      " (" + additive + "t attack delay; " + currentRemaining + "t attack cycle remaining)"
+  );
   return next;
 }
 
