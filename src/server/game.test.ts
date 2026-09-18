@@ -17,6 +17,14 @@ assert(game.events.some(e => e.type === "attack_queued"), "attack should be queu
 step(game);
 assert(game.events.some(e => e.type === "hit" || e.type === "miss"), "queued hit should resolve on the following tick");
 assert(game.players.player.nextAttackTick === 5, "rune scimitar should use a 4-tick cooldown");
+// PID/turn order can make a zero-delay melee hit land during the defender's current turn.
+const earlyPid = createGame();
+earlyPid.players.player.id = "a_player";
+earlyPid.players.opponent.id = "z_opponent";
+enqueueInput(earlyPid, { type: "attack", targetId: "opponent" });
+step(earlyPid);
+assert(earlyPid.events.some(e => e.type === "attack"), "early-PID player should attack on its turn");
+assert(earlyPid.events.some(e => e.type === "hit" || e.type === "miss"), "later-PID defender should process the melee hit on the same tick");
 // Repeated attack clicks during cooldown must not reset the weapon timer.
 enqueueInput(game, { type: "attack", targetId: "opponent" });
 step(game);
