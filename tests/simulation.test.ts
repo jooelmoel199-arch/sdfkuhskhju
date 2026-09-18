@@ -582,33 +582,124 @@ function testGraniteMaulSpecialIgnoresAttackCooldown() {
   state.red = {
     ...state.red,
     tile: { x: 20, y: state.red.tile.y },
-    activePrayers: []
+    activePrayers: [],
+    equipment: { ...state.red.equipment, weapon: undefined }
   };
   state.players = state.players.map(player =>
     player.id === state.blue.id ? state.blue :
     player.id === state.red.id ? state.red : player
   );
   state.humanControl = {
-    attackEnabled: true,
+    attackEnabled: false,
     laneId: "middle",
     attackTargetId: state.red.id,
-    equipItemId: "granite_maul",
-    useSpecial: true
+    equipItemId: "granite_maul"
   };
 
   advanceTick(state);
 
   equal(state.blue.equipment.weapon?.id, "granite_maul", "Granite maul should equip from the queued client input");
+  equal(state.blue.gmaulEquippedTick, 0, "Gmaul should remember the tick on which it was equipped");
+  equal(state.blue.gmaulSpecBarVisibleTick, 1, "switching from a non-spec weapon should reveal the Gmaul spec bar one tick later");
+  equal(state.blue.attackTimer.lastAttackTick, 0, "equipping should not itself start the attack cycle");
+  equal(state.blue.specEnergy, 100, "equipping should not spend special energy");
+
+  // A spec issued while the bar is still hidden must fail rather than being
+  // silently retained as a permanent queued flag.
+  queueClientCommand(state, { kind: "special" }, false);
+  advanceTick(state);
+  equal(state.blue.queuedSpecialAttacks, 0, "Gmaul spec should fail while its special bar is not yet visible");
+
+  // The bar is visible now. Queue and execute a Gmaul special despite the
+  // ordinary seven-tick maul attack cooldown.
+  state.humanControl.attackEnabled = true;
+  queueClientCommand(state, { kind: "special" }, false);
+  advanceTick(state);
+
   equal(state.blue.specEnergy, 50, "one Granite maul special should consume 50% special energy");
   equal(state.blue.attackTimer.lastAttackTick, 0, "Granite maul special should not start the normal 7-tick attack cooldown");
   equal(state.blue.queuedSpecialAttacks, 0, "the instant Granite maul special should consume its queued special command");
-  equal(state.pendingHits.some(hit => hit.attackerId === state.blue.id && hit.targetId === state.red.id), false,
-    "Granite maul impact should be consumed by the target's PID turn");
   ok(
-    state.combatEvents.some(event => event.attackerId === state.blue.id && event.targetId === state.red.id),
-    "Granite maul special should produce a combat event on the target's PID turn"
+    state.combatEvents.some(event =>
+      event.attackerId === state.blue.id &&
+      event.targetId === state.red.id &&
+      event.special === true
+    ),
+    "Granite maul special should produce a marked special combat event on the target's PID turn"
   );
 }
+
+function testGraniteMaulDoubleSpecConsumesTwoQueues() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    equipment: { ...state.blue.equipment, weapon: shopCatalog.find(item => item.id === "granite_maul") },
+    gmaulEquippedTick: 0,
+    gmaulSpecBarVisibleTick: 0,
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 7, additiveAttackDelayTicks: 0 }
+  };
+  state.red = { ...state.red, activePrayers: [], equipment: { ...state.red.equipment, weapon: undefined } };
+  state.players = state.players.map(player =>
+    player.id === state.blue.id ? state.blue :
+    player.id === state.red.id ? state.red : player
+  );
+  state.humanControl = { attackEnabled: true, laneId: "middle", attackTargetId: state.red.id };
+  queueClientCommand(state, { kind: "special" }, false);
+  queueClientCommand(state, { kind: "special" }, false);
+  advanceTick(state);
+
+  equal(state.blue.specEnergy, 0, "two queued Gmaul specials should consume 100 special energy");
+  equal(state.blue.queuedSpecialAttacks, 0, "both queued Gmaul specials should be consumed together");
+  equal(
+    state.combatEvents.filter(event => event.attackerId === state.blue.id && event.special).length,
+    2,
+    "double Gmaul should create two same-tick special impacts"
+  );
+}
+
+function testGraniteMaulSpecialExpiresAfterFiveTicks() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    equipment: { ...state.blue.equipment, weapon: shopCatalog.find(item => item.id === "granite_maul") },
+    gmaulEquippedTick: 0,
+    gmaulSpecBarVisibleTick: 0,
+    queuedSpecialAttacks: 1,
+    queuedSpecialTargetId: state.red.id,
+    queuedSpecialExpiresAtTick: 2
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+
+  advanceTick(state);
+  advanceTick(state);
+  advanceTick(state);
+
+  equal(state.blue.queuedSpecialAttacks, 0, "expired Gmaul special must be removed from the queue");
+  equal(state.blue.queuedSpecialExpiresAtTick, undefined, "expired Gmaul queue must clear its expiry");
+}
+
+function testSwitchingAwayClearsGmaulQueue() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    equipment: { ...state.blue.equipment, weapon: shopCatalog.find(item => item.id === "granite_maul") },
+    gmaulEquippedTick: 0,
+    gmaulSpecBarVisibleTick: 0,
+    queuedSpecialAttacks: 1,
+    queuedSpecialExpiresAtTick: 5
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  queueClientCommand(state, { kind: "equip", itemId: "abyssal_whip" }, false);
+  state.humanControl = { attackEnabled: false, laneId: "middle" };
+  advanceTick(state);
+
+  equal(state.blue.equipment.weapon?.id, "abyssal_whip", "queued weapon swap should execute");
+  equal(state.blue.queuedSpecialAttacks, 0, "switching away from Gmaul should clear its queued special");
+  equal(state.blue.gmaulSpecBarVisibleTick, undefined, "Gmaul spec-bar state should clear when leaving the weapon");
+}
+
+
 
 function testAuthoritativeStageOrder() {
   equal(
@@ -836,6 +927,9 @@ testClientCommandHasOneTickInputLatency();
 testQueuedAttackTargetHasOneTickLatency();
 testQueuedMovementAndAttackPreserveFifo();
 testGraniteMaulSpecialIgnoresAttackCooldown();
+testGraniteMaulDoubleSpecConsumesTwoQueues();
+testGraniteMaulSpecialExpiresAfterFiveTicks();
+testSwitchingAwayClearsGmaulQueue();
 testStandardSpecialQueuesUntilAttackCycleIsReady();
 testGraniteMaulSpecialDoesNotPersistOutOfReach();
 testPidTurnPreventsDeadPlayerAction();
