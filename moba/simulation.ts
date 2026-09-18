@@ -311,16 +311,18 @@ const prayerStage: TickStage<SimulationState> = {
   run: state => {
     for (const actor of [...state.players]) {
       if (!actor.alive) continue;
-      if (state.pvpTest && actor.team === "red") continue;
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
       const requested = decision.activatePrayer as PrayerId | undefined;
-      const toggled = requested && actor.activePrayers.includes(requested)
-        ? actor.activePrayers.filter(prayer => prayer !== requested)
-        : requested
-          ? compatiblePrayerSet([...actor.activePrayers, requested])
-          : actor.activePrayers;
-      const active = toggled;
+      const isHumanToggle = actor.id === state.blue.id && Boolean(state.humanControl?.activatePrayer);
+      // Human prayer commands are explicit toggles. AI prayer decisions are
+      // desired-state decisions: keep the requested overhead on until the AI
+      // changes style, rather than toggling it off every tick.
+      const active = requested
+        ? isHumanToggle && actor.activePrayers.includes(requested)
+          ? actor.activePrayers.filter(prayer => prayer !== requested)
+          : compatiblePrayerSet([...actor.activePrayers, requested])
+        : actor.activePrayers;
       const prayerBonus = equipmentBonuses(actor.equipment).prayer_bonus;
       // OSRS prayer drain is accumulated over discrete game ticks. This also
       // permits one-tick prayer flicking when the same overhead is toggled off
