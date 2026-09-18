@@ -309,6 +309,7 @@ console.log("ranged and magic combat queue tests passed");
 
 // Ice Barrage freeze state is applied when the projectile resolves, not when cast.
 const freezeGame=createGame();
+freezeGame.players.player.magic=99;freezeGame.players.opponent.magic=1;freezeGame.players.opponent.defence=1;
 enqueueInput(freezeGame,{type:"item_action",slot:8,action:"equip"});step(freezeGame);
 enqueueInput(freezeGame,{type:"attack",targetId:"opponent"});step(freezeGame);
 assert(freezeGame.players.player.equipment.spellId==="ice_barrage","Ice Barrage should be selectable from the authoritative inventory");
