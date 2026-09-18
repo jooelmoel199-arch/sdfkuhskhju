@@ -1001,6 +1001,16 @@ const playerTurnStage: TickStage<SimulationState> = {
 
       const afterMovement = state.players.find(actor => actor.id === playerId);
       if (!afterMovement || !afterMovement.alive) continue;
+
+      // The skilling/attack timer is a live countdown. Once the combined
+      // weapon + additive food delay expires, the additive portion is consumed
+      // before interaction. Otherwise it would incorrectly persist into every
+      // later attack cycle.
+      const timerReady = consumeExpiredAttackDelay(afterMovement.attackTimer, state.tick);
+      if (timerReady.state !== afterMovement.attackTimer) {
+        setPlayer(state, { ...afterMovement, attackTimer: timerReady.state });
+      }
+
       combatStage.run(state);
       effectsStage.run(state);
     }
