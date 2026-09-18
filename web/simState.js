@@ -77,6 +77,10 @@ export function equipItem(itemId) {
   state.humanControl.equipItemId = itemId;
 }
 
+export function togglePrayer(prayerId) {
+  state.humanControl.activatePrayer = prayerId;
+}
+
 export function useConsumable(itemId) {
   state.humanControl.consumeItemId = itemId;
 }
