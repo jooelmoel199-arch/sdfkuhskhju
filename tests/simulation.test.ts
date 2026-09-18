@@ -1021,6 +1021,7 @@ function testQueuedHitBeatsPrayerDrain() {
   const state = createPvpTestState();
   state.red = {
     ...state.red,
+    equipment: { ...state.red.equipment, weapon: undefined },
     currentHp: 5,
     prayerPoints: 1,
     activePrayers: ["redemption"],
