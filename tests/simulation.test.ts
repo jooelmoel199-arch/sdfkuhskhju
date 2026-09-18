@@ -1050,6 +1050,39 @@ function testNpcHitQueuesIntoPlayerTurn() {
   equal(state.blue.currentHp, 79, "queued NPC damage should resolve during the player's turn");
 }
 
+function testNpcMagicImpactUsesProjectileDelay() {
+  const state = createPrototypeState();
+  const campIndex = state.jungleCamps.findIndex(camp => camp.id === "river-abyssal");
+  if (campIndex < 0) {
+    // Fall back to the first neutral camp if the fixture naming is changed.
+    campIndex = 0;
+  }
+  const camp = state.jungleCamps[campIndex];
+  const target = state.blue;
+  state.jungleCamps[campIndex] = {
+    ...camp,
+    style: "magic",
+    attackRange: 8,
+    tile: { x: 20, y: 20 },
+    aggroTargetId: target.id,
+    attackTimer: { lastAttackTick: -10, weaponCooldownTicks: 5, additiveAttackDelayTicks: 0 }
+  };
+  state.blue = {
+    ...state.blue,
+    tile: { x: 16, y: 20 },
+    activePrayers: [],
+    equipment: { ...state.blue.equipment, weapon: undefined }
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.humanControl = { attackEnabled: false, laneId: "middle" };
+
+  advanceTick(state);
+
+  const queued = state.pendingHits.find(hit => hit.attackerId === camp.id && hit.targetId === state.blue.id);
+  ok(queued, "NPC magic should enqueue a player impact");
+  equal(queued.dueTick - queued.createdTick, 3, "four-square NPC magic should use the three-tick projectile travel time");
+}
+
 function testPlayerRangedNpcImpactUsesProjectileDelay() {
   const state = createPrototypeState();
   const targetTower = state.towers.find(tower => tower.team === "red" && tower.laneId === "middle")!;
@@ -1291,6 +1324,7 @@ testFoodDelayExpiresAfterOneAttackCycle();
 testNpcHitQueuesIntoPlayerTurn();
 testPlayerNpcImpactWaitsForNpcTurn();
 testPlayerRangedNpcImpactUsesProjectileDelay();
+testNpcMagicImpactUsesProjectileDelay();
 testQueuedHitUsesImpactPrayer();
 testLethalHitQueuesDeathForNextTick();
 testQueuedHitBeatsPrayerDrain();
