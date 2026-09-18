@@ -154,6 +154,10 @@ enqueueInput(xpGame, { type: "attack", targetId: "opponent" });
 step(xpGame);
 const xpHit = xpGame.events.find(e => e.type === "hit");
 assert(xpHit !== undefined && (xpGame.players.player.xp.attack + xpGame.players.player.xp.hitpoints) > 0, "resolved melee damage should award combat xp");
+if(xpHit){
+  assert(xpGame.players.player.xp.attack === (xpHit.damage??0)*4, "accurate melee should award 4 combat XP per damage");
+  assert(xpGame.players.player.xp.hitpoints === (xpHit.damage??0)*4/3, "melee hitpoints XP should be 4/3 per damage");
+}
 
 const boosted = createGame();
 boosted.players.player.x = 13;
