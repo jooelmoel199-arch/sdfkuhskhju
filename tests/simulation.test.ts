@@ -60,7 +60,13 @@ function testProjectileDelay() {
   })();
 
   advanceTick(state);
-  equal(state.projectiles.length, 1, "ranged attack should create a projectile");
+  if (state.projectiles.length !== 1) {
+    throw new Error(
+      "ranged attack should create a projectile; blue=" + JSON.stringify(state.blue.tile) +
+      " red=" + JSON.stringify(state.red.tile) +
+      " gate context logs=" + state.log.slice(-12).map(entry => "[" + entry.tick + "] " + entry.message).join(" | ")
+    );
+  }
   equal(state.projectiles[0].hitTick, state.tick + 1, "projectile should land two ticks from launch time");
 }
 
