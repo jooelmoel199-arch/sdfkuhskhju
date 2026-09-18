@@ -1,7 +1,7 @@
 import {
   state, stepSimulation, setMoveTarget, stopMovement, setLane, setAttackTarget, clearAttackTarget,
   setAttackEnabled, toggleMeleePrayer, resetSimulation, maxHitpoints, TICK_MS,
-  useConsumable, investAll, useSpecial, buyBestAffordableUpgrade, buyConsumables, cycleAttackType
+  useConsumable, equipItem, investAll, useSpecial, buyBestAffordableUpgrade, buyConsumables, cycleAttackType
 } from "./simState.js";
 import { levelOf } from "../moba/stats.ts";
 import { accountLevelFromXp } from "../moba/xp.ts";
@@ -103,13 +103,22 @@ function renderAccountPanel() {
     return '<div class="slot"><b>' + slot.toUpperCase() + '</b>' + (item ? item.name : "Empty") + '</div>';
   }).join("");
   const inventory = player.inventory
-    .map(entry => '<span>' + entry.id.replaceAll("_", " ") + ' x' + entry.quantity + '</span>')
+    .map(entry => {
+      const item = state.blue.inventory.find(candidate => candidate.id === entry.id);
+      const isGear = state.blue.equipment[entry.id] !== undefined;
+      return '<button class="invItem" data-equip="' + entry.id + '">' + entry.id.replaceAll("_", " ") + ' x' + entry.quantity + '</button>';
+    })
     .join("");
   document.querySelector("#account").innerHTML =
     '<div>Account level <b>' + accountLevelFromXp(player.stats.xp) + '</b> · Unallocated XP <b>' + Math.floor(player.stats.unallocatedXp) + '</b></div>' +
     '<div class="account-grid">' + equipment + '</div>' +
     '<div class="inv-row" style="margin-top:7px">' + (inventory || "Inventory empty") + '</div>';
 }
+
+document.querySelector("#account").addEventListener("click", event => {
+  const button = event.target.closest("[data-equip]");
+  if (button) equipItem(button.dataset.equip);
+});
 
 function drawHpBar(x, y, width, hp, maxHp, fill) {
   ctx.fillStyle = "rgba(0,0,0,.75)";
