@@ -298,7 +298,8 @@ const combatStage: TickStage<SimulationState> = {
         weapon: {
           style: weapon.style ?? "slash",
           cooldownTicks: weapon.cooldownTicks ?? 4,
-          attackRange: weapon.attackRange ?? 1
+          attackRange: weapon.attackRange ?? 1,
+          attackType
         },
         extraAttackDelayUntilTick: actor.attackDelayUntilTick
       });
