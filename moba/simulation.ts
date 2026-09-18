@@ -822,24 +822,8 @@ const effectsStage: TickStage<SimulationState> = {
       const decision = decisionFor(state, actor, enemy);
       let updated = actor;
 
-      if (decision.equipItemId) {
-        updated = equipOwnedItem(updated, decision.equipItemId);
-      }
-
-      if (decision.eatItemId) {
-        const item = findConsumable(decision.eatItemId);
-        if (item && inventoryCount(updated, item.id) > 0 && state.tick >= updated.eatDelayUntilTick) {
-          const weaponReadyTick = updated.attackTimer.lastAttackTick + updated.attackTimer.weaponCooldownTicks + updated.attackTimer.additiveAttackDelayTicks;
-          const remainingAttackDelay = Math.max(0, weaponReadyTick - state.tick);
-          const actionDelay = remainingAttackDelay > 0 ? remainingAttackDelay + item.attackDelayTicks : 0;
-          updated = consumeItem(updated, item, state.tick);
-          updated = {
-            ...updated,
-            attackDelayUntilTick: Math.max(updated.attackDelayUntilTick, state.tick + actionDelay),
-            eatDelayUntilTick: state.tick + 3
-          };
-        }
-      }
+      // Equipment and food are consumed by the combat stage so each human input
+      // has one authoritative tick and cannot be applied twice in one frame.
 
       if (decision.investStat) {
         updated = { ...updated, stats: investXp(updated.stats, decision.investStat, updated.stats.unallocatedXp) };
