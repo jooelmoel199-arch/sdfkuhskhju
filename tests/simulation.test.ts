@@ -21,7 +21,7 @@ function testPrototypeShape() {
   equal(state.players.length, 10, "prototype should have five players per team");
   deepEqualSet(new Set(state.players.map(player => player.role)), new Set(["top", "middle", "bottom", "support", "jungle"]), "roster should cover all five MOBA positions");
   equal(state.towers.length, 6, "prototype should have two towers per lane");
-  equal(state.jungleCamps.length, 4, "prototype should have four neutral camps");
+  equal(state.jungleCamps.length, 5, "prototype should have four jungle camps plus one river boss");
   equal(state.tick, 0, "simulation starts at tick zero");
 }
 
