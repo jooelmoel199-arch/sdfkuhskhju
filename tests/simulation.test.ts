@@ -57,6 +57,28 @@ function testHumanPrayerInputIsOneShot() {
   ok(state.blue.activePrayers.includes("protect_from_melee"), "prayer should remain active until another explicit toggle");
 }
 
+function testQueuedHitResolvesOnTargetTurn() {
+  const state = createPvpTestState();
+  state.pendingHits.push({
+    id: "test-hit",
+    dueTick: 0,
+    attackerId: state.blue.id,
+    targetId: state.red.id,
+    attackerPid: state.blue.pid,
+    targetPid: state.red.pid,
+    style: "slash",
+    attackType: "aggressive",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 99,
+    createdTick: 0
+  });
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+  advanceTick(state);
+  equal(state.red.alive, false, "queued hit should kill before the target's combat turn");
+  equal(state.red.kills, 0, "dead target must not retaliate after its queued death");
+}
+
 function testGearSwapCanAttackSameTick() {
   const state = createPvpTestState();
   state.blue = {
@@ -212,6 +234,7 @@ function testCampRespawnSchedule() {
 testPrototypeShape();
 testPvpTestLane();
 testHumanPrayerInputIsOneShot();
+testQueuedHitResolvesOnTargetTurn();
 testGearSwapCanAttackSameTick();
 testFoodAddsToCombatTimer();
 testKarambwanCombo();
