@@ -5,6 +5,8 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 const game = createGame();
+game.players.player.x=13; game.players.opponent.x=14;
+game.players.player.pid=2; game.players.opponent.pid=1;
 
 // Inputs are not applied until a simulation tick.
 enqueueInput(game, { type: "attack", targetId: "opponent" });
