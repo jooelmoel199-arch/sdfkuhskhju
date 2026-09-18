@@ -427,6 +427,83 @@ function testAuthoritativeStageOrder() {
   );
 }
 
+
+function testFoodDelayExpiresAfterOneAttackCycle() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 4, additiveAttackDelayTicks: 3 }
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+  for (let i = 0; i < 7; i += 1) advanceTick(state);
+  equal(state.blue.attackTimer.additiveAttackDelayTicks, 0,
+    "expired food delay must be consumed instead of persisting into future attack cycles");
+}
+
+function testNpcHitQueuesIntoPlayerTurn() {
+  const state = createPvpTestState();
+  state.blue = { ...state.blue, currentHp: 99, activePrayers: [] };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.pendingHits.push({
+    id: "npc-queue-test",
+    dueTick: 0,
+    attackerId: "tower-test",
+    targetId: state.blue.id,
+    attackerPid: -1,
+    targetPid: state.blue.pid,
+    style: "crush",
+    attackType: "accurate",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 20,
+    createdTick: 0
+  });
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+  advanceTick(state);
+  equal(state.blue.currentHp, 79, "queued NPC damage should resolve during the player's turn");
+}
+
+function testPlayerNpcImpactWaitsForNpcTurn() {
+  const state = createPvpTestState();
+  const tower = state.towers[0];
+  state.pendingNpcHits.push({
+    id: "player-npc-queue-test",
+    dueTick: 0,
+    attackerId: state.blue.id,
+    targetId: tower.id,
+    attackerPid: state.blue.pid,
+    targetPid: -1,
+    style: "slash",
+    attackType: "aggressive",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 20,
+    createdTick: 0
+  });
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+  // PVP fixtures have no towers, so use the prototype fixture for an actual NPC.
+  const prototype = createPrototypeState();
+  const targetTower = prototype.towers.find(candidate => candidate.team === "red" && candidate.laneId === "middle")!;
+  prototype.pendingNpcHits.push({
+    id: "player-npc-queue-test",
+    dueTick: 0,
+    attackerId: prototype.blue.id,
+    targetId: targetTower.id,
+    attackerPid: prototype.blue.pid,
+    targetPid: -1,
+    style: "slash",
+    attackType: "aggressive",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 20,
+    createdTick: 0
+  });
+  const before = targetTower.currentHp;
+  advanceTick(prototype);
+  equal(targetTower.currentHp, before - 20, "player->NPC queued damage should resolve on the NPC turn");
+}
+
 function testFoodAndPrayerCanPrecedeImpact() {
   const state = createPvpTestState();
   state.blue = { ...state.blue, currentHp: 60 };
@@ -521,6 +598,9 @@ testPvPDummyProvidesIncomingPressure();
 testMissedFreezeDoesNotApply();
 testDragonClawsExposeRawDamageForImpactPrayer();
 testFoodAndPrayerCanPrecedeImpact();
+testFoodDelayExpiresAfterOneAttackCycle();
+testNpcHitQueuesIntoPlayerTurn();
+testPlayerNpcImpactWaitsForNpcTurn();
 testQueuedHitUsesImpactPrayer();
 testRedemptionSavesLethalHit();
 testCampRespawnSchedule();
