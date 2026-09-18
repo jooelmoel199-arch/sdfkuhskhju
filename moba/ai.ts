@@ -60,7 +60,7 @@ export function decideAction(self: PlayerEntity, enemy: PlayerEntity, currentTic
     buyItemId = affordable.sort((a, b) => b.cost - a.cost)[0]?.id;
   }
 
-  const attackType: AttackType = weapon?.style === "ranged" ? "rapid_ranged" : weapon?.style === "magic" ? "accurate" : "aggressive";
+  const attackType: AttackType = weapon?.attackTypes?.[0] ?? "accurate";
   return { moveDelta, attackStyle, attackType, activatePrayer, eatItemId, useSpecial, investStat, buyItemId };
 }
 
