@@ -15,7 +15,6 @@ const tickEl = document.querySelector("#tick");
 const timeEl = document.querySelector("#time");
 const playersEl = document.querySelector("#players");
 const feedEl = document.querySelector("#feed");
-const actionbarEl = document.querySelector("#actionbar");
 
 const WORLD = { w: 3600, h: 2400 };
 const CAMERA_LANE_Y = { top: 350, middle: 1200, bottom: 2050 };
@@ -83,7 +82,6 @@ function updateHud() {
   }).join("");
 
   renderAccountPanel();
-  renderActionbar();
 
   const relevant = state.log.slice(-8);
   if (relevant.length && relevant[relevant.length - 1].tick !== lastRenderedLogTick) {
@@ -112,25 +110,6 @@ function renderAccountPanel() {
     '<div class="account-grid">' + equipment + '</div>' +
     '<div class="inv-row" style="margin-top:7px">' + (inventory || "Inventory empty") + '</div>';
 }
-
-function renderActionbar() {
-  actionbarEl.innerHTML = 
-    '<div class="actionGroup">' +
-    '<button class="actionButton" data-action="food"><span class="key">F</span>SHARK<span class="count">' + inventoryCount("shark") + '</span></button>' +
-    '<button class="actionButton" data-action="prayer"><span class="key">C</span>PRAYER POT<span class="count">' + inventoryCount("prayer_potion") + '</span></button>' +
-    '<button class="actionButton" data-action="spec"><span class="key">X</span>SPEC<span class="count">' + Math.floor(state.blue.specEnergy) + '%</span></button>' +
-    '</div><div class="divider"></div>' +
-    '<div class="actionGroup">' +
-    '<button class="actionButton" data-action="attack"><span class="key">Q</span>ATTACK ' + (state.humanControl.attackEnabled ? 'ON' : 'OFF') + '</button>' +
-    '<button class="actionButton" data-action="style"><span class="key">T</span>' + state.blue.attackType.toUpperCase() + '</button>' +
-    '<button class="actionButton" data-action="prayer-toggle"><span class="key">P</span>PROTECT</button>' +
-    '<button class="actionButton" data-action="upgrade"><span class="key">J</span>+ATTACK</button>' +
-    '<button class="actionButton" data-action="upgrade-str"><span class="key">K</span>+STRENGTH</button>' +
-    '<button class="actionButton" data-action="upgrade-def"><span class="key">L</span>+DEFENCE</button>' +
-    '<button class="actionButton" data-action="buy"><span class="key">B</span>BUY AT BASE</button><button class="actionButton" data-action="restock"><span class="key">V</span>RESTOCK</button>' +
-    '</div>';
-}
-
 
 function drawHpBar(x, y, width, hp, maxHp, fill) {
   ctx.fillStyle = "rgba(0,0,0,.75)";
