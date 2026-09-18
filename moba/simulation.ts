@@ -273,6 +273,21 @@ const combatStage: TickStage<SimulationState> = {
 
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
+
+      if (actor.id === state.blue.id && state.humanControl?.consumeItemId) {
+        const updated = applyConsumableAction(state, actor, state.humanControl.consumeItemId);
+        setPlayer(state, updated);
+        if (updated !== actor) continue;
+      }
+
+      if (actor.id === state.blue.id && state.humanControl?.equipItemId) {
+        const equipped = equipOwnedItem(actor, state.humanControl.equipItemId);
+        if (equipped !== actor) {
+          setPlayer(state, equipped);
+          continue;
+        }
+      }
+
       if (!decision.attackStyle) continue;
 
       const targetCamp = actor.team === "blue" && state.humanControl?.attackTargetId
