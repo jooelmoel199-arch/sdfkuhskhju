@@ -164,3 +164,27 @@ export function makeStrongCommand(
       return { ...base, kind: "stop-movement" };
   }
 }
+
+export function commandPriorityForInput(input: PlayerCommandInput): CommandPriority {
+  switch (input.kind) {
+    case "move":
+      return "weak";
+    case "stop-movement":
+      return "strong";
+    default:
+      return "strong";
+  }
+}
+
+export function makeClientCommand(
+  input: PlayerCommandInput,
+  sequence: number,
+  issuedTick: number,
+  executeTick = issuedTick
+): PlayerCommand {
+  const command = makeStrongCommand(input, sequence, issuedTick, executeTick);
+  const priority = commandPriorityForInput(input);
+  return priority === "strong"
+    ? command
+    : { ...command, priority };
+}
