@@ -7,7 +7,8 @@
   "scripts": {
     "sim": "tsx src/index.ts",
     "runescript": "tsx src/runescript/prototype.ts",
-    "server": "tsx src/server/index.ts"
+    "server": "tsx src/server/index.ts",
+    "test": "tsx src/server/game.test.ts"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
