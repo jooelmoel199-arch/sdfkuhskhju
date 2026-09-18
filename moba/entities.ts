@@ -46,7 +46,7 @@ export interface PlayerEntity {
   readonly team: Team;
   readonly laneId: LaneId;
   readonly role: PlayerRole;
-  readonly pid: number; // deterministic per-tick processing order
+  readonly pid: number; // stable entity identity; PvP processing priority is maintained by SimulationState
   tile: TilePosition;
   zone: ZoneKind;
   currentHp: number;
