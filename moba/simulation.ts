@@ -37,6 +37,13 @@ let projectileSeq = 0;
 
 export const TICK_MS = 600;
 
+export interface PendingDeath {
+  readonly victimId: string;
+  readonly dueTick: number;
+  readonly killerId?: string;
+  readonly sourceId?: string;
+}
+
 export interface CombatEvent {
   readonly tick: number;
   readonly attackerId: string;
@@ -64,6 +71,7 @@ export interface SimulationState {
   /** Monotonic per-simulation insertion order for queue FIFO semantics. */
   pendingHitSequence: number;
   pendingNpcHits: PendingHit[];
+  pendingDeaths: PendingDeath[];
   /** Client commands are delivered on the following server tick and consumed FIFO, up to ten per tick. */
   clientCommands: Record<string, PlayerCommand[]>;
   nextClientCommandSequence: number;
@@ -147,6 +155,37 @@ function resolvePendingNpcHits(state: SimulationState, targetId: string): Pendin
   const consumed = new Set(ready.map(hit => hit.id));
   state.pendingNpcHits = state.pendingNpcHits.filter(hit => !consumed.has(hit.id));
   return ready;
+}
+
+function schedulePlayerDeath(
+  state: SimulationState,
+  victimId: string,
+  killerId?: string,
+  sourceId?: string
+): void {
+  if (state.pendingDeaths.some(death => death.victimId === victimId)) return;
+  state.pendingDeaths.push({
+    victimId,
+    dueTick: state.tick + 1,
+    killerId,
+    sourceId
+  });
+}
+
+function resolvePendingDeathForPlayer(state: SimulationState, targetId: string): void {
+  const deaths = state.pendingDeaths
+    .filter(death => death.victimId === targetId && death.dueTick <= state.tick)
+    .sort((a, b) => a.dueTick - b.dueTick);
+  if (deaths.length === 0) return;
+  state.pendingDeaths = state.pendingDeaths.filter(death => !(death.victimId === targetId && death.dueTick <= state.tick));
+  const death = deaths[0];
+  const victim = state.players.find(player => player.id === targetId && player.alive);
+  if (!victim || victim.currentHp > 0) return;
+  const killer = death.killerId
+    ? state.players.find(player => player.id === death.killerId && player.alive)
+    : undefined;
+  if (killer) handlePlayerDeath(state, victim, killer);
+  else handleEnvironmentalDeath(state, victim, death.sourceId ?? "queued damage");
 }
 
 export function queueClientCommand(
@@ -548,8 +587,13 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
     log(state, hit.attackerId + " hits " + target.id + " for " + impactDamage +
       " (" + hit.style + " " + hit.attackType + ", tick " + hit.dueTick + ")");
     if (resolvedTarget.currentHp <= 0) {
-      if (attacker) handlePlayerDeath(state, resolvedTarget, attacker);
-      else handleEnvironmentalDeath(state, resolvedTarget, hit.attackerId);
+      schedulePlayerDeath(
+        state,
+        resolvedTarget.id,
+        attacker?.id,
+        attacker ? undefined : hit.attackerId
+      );
+      log(state, resolvedTarget.id + " queues death for tick " + (state.tick + 1));
     }
   }
 }
@@ -1252,10 +1296,11 @@ const playerTurnStage: TickStage<SimulationState> = {
       const current = state.players.find(actor => actor.id === playerId);
       if (!current || !current.alive) continue;
       resolvePendingHitsForPlayer(state, playerId);
+      resolvePendingDeathForPlayer(state, playerId);
       prayerDrainStage.run(state);
 
       const afterHit = state.players.find(actor => actor.id === playerId);
-      if (!afterHit || !afterHit.alive) continue;
+      if (!afterHit || !afterHit.alive || afterHit.currentHp <= 0) continue;
       movementStage.run(state);
 
       const afterMovement = state.players.find(actor => actor.id === playerId);
