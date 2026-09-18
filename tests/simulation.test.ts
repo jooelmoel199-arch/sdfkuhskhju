@@ -697,6 +697,7 @@ function testGraniteMaulSpecialIgnoresAttackCooldown() {
   equal(state.blue.specEnergy, 50, "target click should release one Gmaul Quick Smash");
   equal(state.blue.attackTimer.lastAttackTick, 0, "Gmaul special should not start the normal 7-tick cycle");
   equal(state.blue.specialActive, false, "Gmaul should deactivate after firing");
+  advanceTick(state);
   ok(
     state.combatEvents.some(event =>
       event.attackerId === state.blue.id &&
