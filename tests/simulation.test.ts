@@ -1052,7 +1052,7 @@ function testNpcHitQueuesIntoPlayerTurn() {
 
 function testNpcMagicImpactUsesProjectileDelay() {
   const state = createPrototypeState();
-  const campIndex = state.jungleCamps.findIndex(camp => camp.id === "river-abyssal");
+  let campIndex = state.jungleCamps.findIndex(camp => camp.id === "river-abyssal");
   if (campIndex < 0) {
     // Fall back to the first neutral camp if the fixture naming is changed.
     campIndex = 0;
