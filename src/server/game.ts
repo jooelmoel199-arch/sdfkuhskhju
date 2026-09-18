@@ -144,7 +144,7 @@ function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
  const hitChance=attackRoll<=defenceRoll?attackRoll/(2*(defenceRoll+1)):1-(defenceRoll+2)/(2*(attackRoll+1));
  const rules=state.combatRules.onAttack(a.id,d.id,deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17),hitChance,attackRoll,defenceRoll);
  const effectiveStrength=effectiveLevel(a.strength,attackerPrayer.strength,bonus.strength);
- const baseMaxHit=Math.max(1,Math.floor((effectiveStrength*(weapon.strengthBonus+64)+320)/640));
+ const baseMaxHit=Math.max(0,Math.floor((effectiveStrength*(weapon.strengthBonus+64)/640)+1));
  const maxHit=special?Math.max(1,Math.floor(baseMaxHit*a.equipment.specialMultiplier)):baseMaxHit;
  const damage=rules.hit?Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1)):0;
  a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=a.nextAttackTick;
@@ -168,7 +168,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  let damage=0;
  if(rules.hit){
    const ammo=AMMUNITION[a.equipment.ammoId??""]; const spell=SPELLS[a.equipment.spellId??""];
-   const maxHit=ranged?Math.max(1,Math.floor((effectiveLevel(a.ranged,attackerPrayer.rangedStrength,style.strength)*(a.equipment.strengthBonus+(ammo?.rangedStrength??0)+64)+320)/640)):(spell?.maxHit??0);
+   const maxHit=ranged?Math.max(0,Math.floor((effectiveLevel(a.ranged,attackerPrayer.rangedStrength,style.strength)*(a.equipment.strengthBonus+(ammo?.rangedStrength??0)+64)/640)+1)):(spell?.maxHit??0);
    damage=Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53+d.x*31+d.y*17)*(maxHit+1));
  }
  let resourceOk=false;
