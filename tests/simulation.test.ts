@@ -179,18 +179,18 @@ function testWaveCadence() {
 }
 
 function testProjectileDelay() {
-  const state = createPrototypeState();
+  const state = createPvpTestState();
   const rangedWeapon = shopCatalog.find(item => item.id === "magic_shortbow");
   ok(rangedWeapon, "magic shortbow should exist in shop");
   state.blue = {
     ...state.blue,
-    tile: { x: 10, y: 10 },
-    zone: "river",
+    tile: { x: 10, y: 20 },
+    zone: "lane",
     equipment: { ...state.blue.equipment, weapon: { ...rangedWeapon, attackRange: 8 } },
     attackType: "rapid_ranged"
   };
   state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
-  state.players = state.players.map(player => player.id === state.red.id ? { ...player, tile: { x: 20, y: 10 }, zone: "river" } : player);
+  state.players = state.players.map(player => player.id === state.red.id ? { ...player, tile: { x: 20, y: 20 }, zone: "lane" } : player);
   state.red = state.players.find(player => player.id === state.red.id)!;
   state.humanControl = {
     attackEnabled: true,
