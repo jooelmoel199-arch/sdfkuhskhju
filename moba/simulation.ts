@@ -71,6 +71,8 @@ export interface SimulationState {
   combatEvents: CombatEvent[];
   log: SimulationLogEntry[];
   rng: () => number;
+  /** Player currently executing the authoritative PID turn. */
+  playerTurnId?: string;
   humanControl?: {
     moveTargetX?: number;
     moveTargetY?: number;
@@ -220,8 +222,8 @@ const clientInputStage: TickStage<SimulationState> = {
   name: "client-input",
   run: state => {
     if (!state.humanControl) return;
-    const actor = state.players.find(player => player.id === state.blue.id);
-    if (!actor || !actor.alive) return;
+    const actor = state.players.find(player => player.id === (state.playerTurnId ?? state.blue.id));
+    if (!actor || !actor.alive || actor.id !== state.blue.id) return;
 
     if (state.humanControl.equipItemId) {
       const equipped = equipOwnedItem(actor, state.humanControl.equipItemId);
@@ -259,10 +261,11 @@ const queuedHitTurnStage: TickStage<SimulationState> = {
 const movementStage: TickStage<SimulationState> = {
   name: "movement",
   run: state => {
-    refreshPid(state);
-    const actors = [...state.players].sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id));
+    const actorIds = state.playerTurnId ? [state.playerTurnId] : [...state.players].sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id)).map(player => player.id);
 
-    for (const actor of actors) {
+    for (const actorId of actorIds) {
+      const actor = state.players.find(player => player.id === actorId);
+      if (!actor) continue;
       if (!actor.alive) continue;
 
       const enemy = opponentOf(state, actor.id);
@@ -309,7 +312,10 @@ const movementStage: TickStage<SimulationState> = {
 const prayerStage: TickStage<SimulationState> = {
   name: "prayers",
   run: state => {
-    for (const actor of [...state.players]) {
+    const actors = state.playerTurnId
+      ? state.players.filter(player => player.id === state.playerTurnId)
+      : [...state.players];
+    for (const actor of actors) {
       if (!actor.alive) continue;
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
@@ -414,7 +420,9 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
 const combatStage: TickStage<SimulationState> = {
   name: "combat",
   run: state => {
-    const actors = [...state.players].sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id));
+    const actors = state.playerTurnId
+      ? state.players.filter(player => player.id === state.playerTurnId)
+      : [...state.players].sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id));
 
     for (const snapshot of actors) {
       const actor = state.players.find(player => player.id === snapshot.id);
@@ -921,7 +929,10 @@ function respawnPlayer(state: SimulationState, victim: PlayerEntity): void {
 const effectsStage: TickStage<SimulationState> = {
   name: "effects",
   run: state => {
-    for (const actor of [...state.players]) {
+    const actors = state.playerTurnId
+      ? state.players.filter(player => player.id === state.playerTurnId)
+      : [...state.players];
+    for (const actor of actors) {
       if (!actor.alive) continue;
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
@@ -965,6 +976,43 @@ const effectsStage: TickStage<SimulationState> = {
       };
       setPlayer(state, updated);
     }
+  }
+};
+
+// --- Authoritative OSRS-style player turns ---
+// A player turn is deliberately ordered: client input -> prayer state ->
+// queued impacts -> movement -> attack/combat interaction -> per-player effects.
+// The PID order is refreshed once per simulation tick, then remains fixed for
+// every player turn in that tick. This is the important distinction from the
+// previous globally-staged movement/combat loop: a player that is killed by a
+// queued hit never reaches its own combat action later in the same tick.
+const playerTurnStage: TickStage<SimulationState> = {
+  name: "player-turns",
+  run: state => {
+    refreshPid(state);
+    const orderedIds = [...state.pidOrder].filter(id => state.players.some(player => player.id === id));
+    for (const playerId of orderedIds) {
+      const player = state.players.find(player => player.id === playerId);
+      if (!player || !player.alive) continue;
+      state.playerTurnId = playerId;
+
+      clientInputStage.run(state);
+      prayerStage.run(state);
+
+      const current = state.players.find(actor => actor.id === playerId);
+      if (!current || !current.alive) continue;
+      resolvePendingHitsForPlayer(state, playerId);
+
+      const afterHit = state.players.find(actor => actor.id === playerId);
+      if (!afterHit || !afterHit.alive) continue;
+      movementStage.run(state);
+
+      const afterMovement = state.players.find(actor => actor.id === playerId);
+      if (!afterMovement || !afterMovement.alive) continue;
+      combatStage.run(state);
+      effectsStage.run(state);
+    }
+    delete state.playerTurnId;
   }
 };
 
@@ -1224,12 +1272,7 @@ const respawnStage: TickStage<SimulationState> = {
 };
 
 export const tickRunner = createTickStageRunner<SimulationState>([
-  clientInputStage,
-  prayerStage,
-  queuedHitTurnStage,
-  movementStage,
-  combatStage,
-  effectsStage,
+  playerTurnStage,
   pendingHitStage,
   towerStage,
   minionStage,
