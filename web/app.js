@@ -69,7 +69,7 @@ function updateHud() {
   const seconds = Math.floor(state.tick * TICK_MS / 1000);
   timeEl.textContent = String(Math.floor(seconds / 60)).padStart(2, "0") + ":" + String(seconds % 60).padStart(2, "0");
 
-  playersEl.innerHTML = [state.blue, state.red].map(player => {
+  playersEl.innerHTML = state.players.map(player => {
     const hp = maxHitpoints(player.stats);
     const weapon = player.equipment.weapon?.name ?? "Unarmed";
     const status = !player.alive ? "RESPAWNING" :
@@ -248,8 +248,8 @@ function draw() {
     }
   }
   if (state.humanControl?.attackTargetId) {
-    const targetPlayer = state.humanControl.attackTargetId === state.red.id ? state.red : undefined;
-    const targetCamp = state.jungleCamps.find(camp => camp.id === state.humanControl.attackTargetId && camp.alive);
+    const targetPlayer = state.players.find(player => player.id === state.humanControl?.attackTargetId && player.alive);
+    const targetCamp = state.jungleCamps.find(camp => camp.id === state.humanControl?.attackTargetId && camp.alive);
     const targetTile = targetPlayer?.tile ?? targetCamp?.tile;
     if (targetTile) {
       const target = worldToScreen(simToWorldX(targetTile.x), simToWorldY(targetTile.y));
@@ -330,11 +330,11 @@ function drawMinimap() {
     mini.fillRect(x - 2, y - 2, 4, 4);
   }
 
-  for (const player of [state.blue, state.red]) {
+  for (const player of state.players) {
     if (!player.alive) continue;
     mini.fillStyle = player.team === "blue" ? "#4da2ff" : "#ff5d5d";
     mini.beginPath();
-    mini.arc((player.tile.x / 40) * 180 + 3, miniLaneY[player.laneId], 4, 0, Math.PI * 2);
+    mini.arc((player.tile.x / 40) * 180 + 3, (player.tile.y / 40) * 85 + 18, 3.5, 0, Math.PI * 2);
     mini.fill();
   }
 }
@@ -369,18 +369,19 @@ canvas.addEventListener("click", event => {
   const simX = worldToSimX(world.x);
   const simY = worldToSimY(world.y);
   if (simX >= 1 && simX <= 39 && simY >= -2 && simY <= 42) {
-    const enemy = state.red;
-    const enemyPos = worldToScreen(simToWorldX(enemy.tile.x), simToWorldY(enemy.tile.y));
-    const clickedEnemy = enemy.alive && Math.hypot(event.clientX - enemyPos.x, event.clientY - enemyPos.y) <= 34;
+    const clickedEnemy = state.players
+      .filter(player => player.team !== state.blue.team && player.alive)
+      .map(player => ({ player, pos: worldToScreen(simToWorldX(player.tile.x), simToWorldY(player.tile.y)) }))
+      .find(entry => Math.hypot(event.clientX - entry.pos.x, event.clientY - entry.pos.y) <= 34);
     const clickedCamp = state.jungleCamps
       .filter(camp => camp.alive)
       .map(camp => ({ camp, pos: worldToScreen(simToWorldX(camp.tile.x), simToWorldY(camp.tile.y)) }))
       .find(entry => Math.hypot(event.clientX - entry.pos.x, event.clientY - entry.pos.y) <= 28);
 
     if (clickedEnemy) {
-      setAttackTarget(enemy.id);
-      state.humanControl.moveTargetX = enemy.tile.x;
-      state.humanControl.moveTargetY = enemy.tile.y;
+      setAttackTarget(clickedEnemy.player.id);
+      state.humanControl.moveTargetX = clickedEnemy.player.tile.x;
+      state.humanControl.moveTargetY = clickedEnemy.player.tile.y;
     } else if (clickedCamp) {
       setAttackTarget(clickedCamp.camp.id);
       state.humanControl.moveTargetX = clickedCamp.camp.tile.x;
