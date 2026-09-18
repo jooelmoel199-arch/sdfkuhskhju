@@ -418,7 +418,10 @@ const combatStage: TickStage<SimulationState> = {
       const actor = state.players.find(player => player.id === snapshot.id);
       if (!actor) continue;
       if (!actor.alive || !actor.equipment.weapon) continue;
-      if (state.pvpTest && actor.team === "red") continue;
+      // The PvP test dummy is intentionally active: it supplies incoming
+      // attacks so prayer switching, eating, PID trades and freezes can be
+      // exercised without needing a second human client. Its decisions remain
+      // AI-controlled and it cannot consume the human command stream.
 
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
