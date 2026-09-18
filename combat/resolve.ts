@@ -75,3 +75,52 @@ export function rollAttack(input: HitRollInput): HitResult {
 
   return { hitChance: chance, landed, maxHit: max, rawDamage: raw, finalDamage };
 }
+
+export interface ClawSpecialResult {
+  readonly landed: boolean;
+  readonly damages: readonly number[];
+  readonly firstSuccessfulStrike: number;
+}
+
+export function rollDragonClawsSpecial(input: HitRollInput): ClawSpecialResult {
+  const rng = input.rng ?? Math.random;
+  const attack =
+    attackRoll(input.attackerLevels, input.attackerBonuses, "slash", input.attackType, input.attackBoostMultiplier ?? 1);
+  const defence =
+    defenceRoll(input.defenderLevels, input.defenderBonuses, "slash", input.attackType, input.defenceBoostMultiplier ?? 1, 1);
+  const chance = hitChance(attack, defence);
+
+  let firstSuccessfulStrike = -1;
+  for (let strike = 0; strike < 4; strike += 1) {
+    if (firstSuccessfulStrike >= 0 || rng() < chance) {
+      firstSuccessfulStrike = firstSuccessfulStrike >= 0 ? firstSuccessfulStrike : strike;
+      break;
+    }
+  }
+
+  if (firstSuccessfulStrike < 0) {
+    // OSRS claws can still produce a tiny 0/2 result after four failed accuracy rolls.
+    const fallback = rng() < 0.5 ? 0 : 2;
+    return { landed: fallback > 0, damages: fallback ? [fallback, 0, 0, 0] : [0, 0, 0, 0], firstSuccessfulStrike: -1 };
+  }
+
+  const ordinaryMax = Math.max(1, maxDamage({
+    ...input,
+    style: "slash",
+    damageMultiplier: 1
+  }));
+
+  const multiplier = [1, 0.75, 0.5, 0.25][firstSuccessfulStrike];
+  const totalMax = Math.max(1, Math.floor(ordinaryMax * multiplier));
+  const totalMin = firstSuccessfulStrike === 0 ? 1 : 0;
+  const total = totalMin + Math.floor(rng() * Math.max(1, totalMax - totalMin + 1));
+  const hits = Math.max(1, firstSuccessfulStrike + 1);
+  const damages = Array.from({ length: 4 }, (_, index) => {
+    if (index >= hits) return 0;
+    const base = Math.floor(total / hits);
+    const remainder = total % hits;
+    return base + (index < remainder ? 1 : 0);
+  });
+
+  return { landed: true, damages, firstSuccessfulStrike };
+}
