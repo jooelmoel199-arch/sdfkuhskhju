@@ -163,16 +163,18 @@ function draw() {
     ctx.fillRect(p.x, p.y, r[2] * camera.zoom, r[3] * camera.zoom);
   }
 
-  const river = worldToScreen(0, 925);
   ctx.fillStyle = "#315d7a";
-  ctx.fillRect(river.x, river.y, WORLD.w * camera.zoom, 550 * camera.zoom);
-  ctx.strokeStyle = "rgba(165,205,218,.18)";
-  for (let y = 970; y < 1450; y += 42) {
-    const p = worldToScreen(0, y);
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-    ctx.lineTo(bottomRight.x, p.y);
-    ctx.stroke();
+  for (const [top, height] of [[690, 170], [1540, 170]]) {
+    const river = worldToScreen(0, top);
+    ctx.fillRect(river.x, river.y, WORLD.w * camera.zoom, height * camera.zoom);
+    ctx.strokeStyle = "rgba(165,205,218,.18)";
+    for (let y = top + 25; y < top + height; y += 42) {
+      const p = worldToScreen(0, y);
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.lineTo(bottomRight.x, p.y);
+      ctx.stroke();
+    }
   }
 
   for (const lane of LANES) {
