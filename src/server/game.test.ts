@@ -144,6 +144,17 @@ step(prayed);
 assert(prayed.players.player.prayerPoints===prayerBefore-1,"active prayer should drain server-side");
 console.log("server combat queue tests passed");
 
+const xpGame = createGame();
+xpGame.players.player.x = 13;
+xpGame.players.opponent.x = 14;
+xpGame.players.player.attack = 1000;
+xpGame.players.player.strength = 1000;
+xpGame.players.opponent.defence = 1;
+enqueueInput(xpGame, { type: "attack", targetId: "opponent" });
+step(xpGame);
+const xpHit = xpGame.events.find(e => e.type === "hit");
+assert(xpHit !== undefined && (xpGame.players.player.xp.attack + xpGame.players.player.xp.hitpoints) > 0, "resolved melee damage should award combat xp");
+
 const boosted = createGame();
 boosted.players.player.x = 13;
 boosted.players.opponent.x = 14;
