@@ -496,6 +496,7 @@ function testQueuedMovementAndAttackPreserveFifo() {
   queueClientCommand(state, { kind: "move", x: 18, y: state.blue.tile.y });
 
   advanceTick(state);
+  advanceTick(state);
   equal(state.humanControl?.attackTargetId, state.red.id, "queued attack selection should execute in sequence");
   equal(state.humanControl?.moveTargetX, 18, "queued movement should execute after the target command in FIFO order");
 }
@@ -559,6 +560,7 @@ function testGraniteMaulSpecialDoesNotPersistOutOfReach() {
   );
   state.humanControl = { attackEnabled: true, laneId: "middle", attackTargetId: state.red.id };
   queueClientCommand(state, { kind: "special" });
+  advanceTick(state);
   advanceTick(state);
   equal(state.blue.queuedSpecialAttacks, 0, "an out-of-range Granite maul command should not remain as a stale prequeue");
 }
