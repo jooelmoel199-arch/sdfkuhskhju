@@ -82,9 +82,9 @@ function nearestMeleeTile(from:Tile,target:Tile):Tile {
   return best;
 }
 function resolveAttack(state:GameState,a:Player):void{
- if(!a.targetId||a.attackQueuedTick===null||state.tick<a.nextAttackTick)return;
+ if(!a.targetId||a.attackQueuedTick===null||state.tick<a.attackQueuedTick)return;
  const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingSpecial=false;a.specialQueued=false;return;}
- if(!inMeleeRange(a,d)){setDestination(a.x===d.x&&a.y===d.y?{x:a.x,y:a.y}:{x:a.x,y:a.y},nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y}).x,nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y}).y);return;}
+ if(!inMeleeRange(a,d)){const goal=nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y});setDestination(a,goal.x,goal.y);return;}
  const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
  const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+8;
  const attackRoll=effectiveAttack*(a.equipment.attackBonus+64), defenceRoll=effectiveDefence*(64+styleBonus[d.attackStyle].defence*4);
@@ -94,7 +94,7 @@ function resolveAttack(state:GameState,a:Player):void{
  const baseMaxHit=Math.max(1,Math.floor(((a.strength+bonus.strength+8)*(a.equipment.strengthBonus+64))/640));
  const maxHit=special?Math.max(1,Math.floor(baseMaxHit*a.equipment.specialMultiplier)):baseMaxHit;
  const damage=rules.hit?Math.min(d.hp,Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1))):0;
- a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=null;a.hitQueuedTick=state.tick+1;
+ a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=state.tick+a.equipment.attackSpeed;a.hitQueuedTick=state.tick+1;
  if(special){a.inventory.specialEnergy-=a.equipment.specialCost;event(state,{tick:state.tick,type:"special",attacker:a.id,defender:d.id,special:true});}
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,special});
  a.pendingHitDamage=damage;a.pendingHitRoll=attackRoll;a.pendingDefenceRoll=defenceRoll;a.pendingSpecial=special;
@@ -103,7 +103,7 @@ function resolveAttack(state:GameState,a:Player):void{
 function movementStage(state:GameState):void{
  for(const p of Object.values(state.players)){
    if(p.hp<=0)continue;
-   if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&!inMeleeRange(p,t))setDestination(p,t.x,t.y);}
+   if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&!inMeleeRange(p,t)){const goal=nearestMeleeTile({x:p.x,y:p.y},{x:t.x,y:t.y});setDestination(p,goal.x,goal.y);}}
    if(p.path.length){const next=p.path.shift()!;p.x=next.x;p.y=next.y;}
  }
 }
