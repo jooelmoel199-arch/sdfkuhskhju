@@ -83,12 +83,29 @@ function updateHud() {
 
   renderAccountPanel();
 
+  // Hitsplats are driven by simulation ticks, then rendered smoothly by the client.
+  for (const event of state.combatEvents ?? []) {
+    const target = state.players.find(player => player.id === event.targetId);
+    if (!target || !target.alive) continue;
+    const age = renderTick - event.tick;
+    if (age < 0 || age > 2.5) continue;
+    const p = worldToScreen(simToWorldX(target.tile.x), simToWorldY(target.tile.y) - 1.2);
+    const lift = age * 34 * camera.zoom;
+    ctx.globalAlpha = Math.max(0, 1 - age / 2.5);
+    ctx.fillStyle = event.landed ? "#fff" : "#aaa";
+    ctx.font = "900 " + Math.max(14, 18 * camera.zoom) + "px ui-monospace,monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(event.landed ? String(event.damage) : "0", p.x, p.y - lift);
+    ctx.globalAlpha = 1;
+  }
+
   if (state.matchResult) {
     document.title = state.matchResult === "blue" ? "RS MOBA Prototype · Victory" : "RS MOBA Prototype · Defeat";
   } else {
     document.title = "RS MOBA Prototype";
   }
 
+  renderCombatHud();
   const relevant = state.log.slice(-8);
   if (relevant.length && relevant[relevant.length - 1].tick !== lastRenderedLogTick) {
     feedEl.innerHTML = relevant.map(entry => `<div><span class="muted">[${entry.tick}]</span> ${entry.message}</div>`).join("");
@@ -125,6 +142,27 @@ document.querySelector("#account").addEventListener("click", event => {
   const button = event.target.closest("[data-equip]");
   if (button) equipItem(button.dataset.equip);
 });
+
+function renderCombatHud() {
+  const player = state.blue;
+  const target = state.players.find(p => p.id === state.humanControl?.attackTargetId);
+  const weapon = player.equipment.weapon;
+  const cooldown = weapon ? Math.max(0, weapon.cooldownTicks ?? 4) : 0;
+  const readyTick = player.attackTimer.lastAttackTick + player.attackTimer.weaponCooldownTicks + player.attackTimer.additiveAttackDelayTicks;
+  const remaining = Math.max(0, readyTick - state.tick);
+  const freeze = Math.max(0, player.locks.freezeUntilTick - state.tick + 1);
+  const prayer = player.activePrayers.length ? player.activePrayers[0].replaceAll("_", " ").toUpperCase() : "OFF";
+  const targetHp = target ? Math.max(0, target.currentHp) + "/" + maxHitpoints(target.stats) : "NO TARGET";
+  const el = document.querySelector("#combatStatus");
+  if (el) {
+    el.innerHTML =
+      '<b>' + (weapon?.name ?? "Unarmed") + '</b> · ' + player.attackType.toUpperCase() +
+      ' · CD <b>' + remaining + '</b>t · SPEC <b>' + player.specEnergy + '%</b><br>' +
+      'HP <b>' + player.currentHp + '/' + maxHitpoints(player.stats) + '</b> · PRAYER <b>' + player.prayerPoints + '/' + maxHitpoints(player.stats) + '</b> · ' +
+      '<span class="prayer">' + prayer + '</span><br>' +
+      'TARGET HP <b>' + targetHp + '</b>' + (freeze ? ' · FROZEN ' + freeze + 't' : '');
+  }
+}
 
 function drawHpBar(x, y, width, hp, maxHp, fill) {
   ctx.fillStyle = "rgba(0,0,0,.75)";
