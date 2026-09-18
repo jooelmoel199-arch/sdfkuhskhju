@@ -1,5 +1,6 @@
 import { createCombatRules, type CombatRules } from "./combat-rules";
 import { findPath, MAP_HEIGHT, MAP_WIDTH, type Tile } from "./pathfinding";
+import { MELEE_STYLE_BONUS, WEAPONS, weaponAttackBonus, type AttackType } from "./combat-definitions";
 
 export type Team = "blue" | "red";
 export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | null;
@@ -18,10 +19,9 @@ export type InputCommand =
   | { type: "stop_attack" };
 
 export interface Inventory { slots:Array<ItemStack|null>; food: number; specialEnergy: number; coins: number; }
-export type AttackType = "melee" | "ranged" | "magic";
 export interface Equipment {
   weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number;
-  specialCost: number; specialMultiplier: number;
+  specialCost: number; specialMultiplier: number; defenceBonus: number;
 }
 export interface Player {
   id:string; name:string; team:Team; x:number; y:number; destinationX:number; destinationY:number;
@@ -38,11 +38,11 @@ export interface CombatEvent {
 export interface QueuedInput { sequence:number; receivedTick:number; command:InputCommand; }
 export interface GameState { tick:number; nextInputSequence:number; players:Record<string,Player>; pendingInputs:QueuedInput[]; events:CombatEvent[]; readonly combatRules:CombatRules; }
 
-const styleBonus={accurate:{attack:3,strength:0,defence:0},aggressive:{attack:0,strength:3,defence:0},defensive:{attack:0,strength:0,defence:3},controlled:{attack:1,strength:1,defence:1}} as const;
+const styleBonus=MELEE_STYLE_BONUS;
 
 function makePlayer(id:string,name:string,team:Team,x:number,y:number):Player{
   return {id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
-    attack:75,strength:75,defence:70,equipment:{weapon:"rune_scimitar",attackType:"melee",attackRange:1,attackSpeed:4,attackBonus:45,strengthBonus:44,specialCost:50,specialMultiplier:1.25},
+    attack:75,strength:75,defence:70,equipment:{...WEAPONS.rune_scimitar, defenceBonus:0},
     inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},null,null,null,null,null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,pendingHitDamage:0,pendingHitSucceeded:false,pendingHitRoll:0,pendingDefenceRoll:0,pendingHitTargetId:null,pendingAttackType:"melee",pendingSpecial:false,specialQueued:false,path:[]};
 }
 
@@ -63,7 +63,7 @@ function processInput(state:GameState,command:InputCommand):void{
   case "move":setDestination(p,command.x,command.y);p.targetId=null;p.attackQueuedTick=null;p.specialQueued=false;event(state,{tick:state.tick,type:"move",attacker:p.id,x:p.destinationX,y:p.destinationY});return;
   case "attack_style":p.attackStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,style:p.attackStyle});return;
   case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
-  case "item_action":{const stack=p.inventory.slots[command.slot];if(!stack||stack.quantity<=0)return;if(command.action==="eat"&&stack.id==="lobster"&&p.hp<p.maxHp){stack.quantity--;p.inventory.food=Math.max(0,p.inventory.food-1);p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});if(stack.quantity===0)p.inventory.slots[command.slot]=null;return;}if(command.action==="equip"&&stack.id==="rune_scimitar"){p.equipment.weapon="rune_scimitar";p.equipment.attackType="melee";p.equipment.attackRange=1;p.equipment.attackSpeed=4;p.equipment.attackBonus=45;p.equipment.strengthBonus=44;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped rune scimitar"});return;}return;}
+  case "item_action":{const stack=p.inventory.slots[command.slot];if(!stack||stack.quantity<=0)return;if(command.action==="eat"&&stack.id==="lobster"&&p.hp<p.maxHp){stack.quantity--;p.inventory.food=Math.max(0,p.inventory.food-1);p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});if(stack.quantity===0)p.inventory.slots[command.slot]=null;return;}if(command.action==="equip"&&stack.id==="rune_scimitar"){Object.assign(p.equipment, WEAPONS.rune_scimitar);event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped rune scimitar"});return;}return;}
   case "eat":{const slot=p.inventory.slots.findIndex(v=>v?.id==="lobster");if(slot>=0)processInput(state,{type:"item_action",slot,action:"eat"});return;}
   case "special":if(p.targetId&&p.inventory.specialEnergy>=p.equipment.specialCost&&p.attackQueuedTick!==null){p.specialQueued=true;event(state,{tick:state.tick,type:"special_queued",attacker:p.id,defender:p.targetId,special:true});}return;
  }
@@ -88,7 +88,8 @@ function resolveAttack(state:GameState,a:Player):void{
  if(!inMeleeRange(a,d)){const goal=nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y});setDestination(a,goal.x,goal.y);return;}
  const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
  const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+8;
- const attackRoll=effectiveAttack*(a.equipment.attackBonus+64), defenceRoll=effectiveDefence*(64+styleBonus[d.attackStyle].defence*4);
+ const attackBonus=weaponAttackBonus(WEAPONS[a.equipment.weapon] ?? WEAPONS.rune_scimitar, a.attackStyle);
+ const attackRoll=effectiveAttack*(attackBonus+64), defenceRoll=effectiveDefence*(d.equipment.defenceBonus+64);
  const hitChance=attackRoll<=defenceRoll
    ? attackRoll/(2*(defenceRoll+1))
    : 1-(defenceRoll+2)/(2*(attackRoll+1));
@@ -132,6 +133,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    const succeeded=a.pendingHitSucceeded;
    a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingHitSucceeded=false;a.pendingHitTargetId=null;a.pendingAttackType=null;a.pendingSpecial=false;
    if(p.hp<=0)continue;
+   // Protection is evaluated on the defender turn, so prayer flicks affect the queued hit.
    const protectedByPrayer=(attackType==="melee"&&p.prayer==="protect_melee");
    const damage=protectedByPrayer?Math.floor(rawDamage*0.6):rawDamage;
    if(damage>0)p.hp=Math.max(0,p.hp-damage);
