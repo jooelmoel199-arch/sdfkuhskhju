@@ -26,7 +26,7 @@ export type InputCommand =
 
 export interface Inventory { slots:Array<ItemStack|null>; food: number; specialEnergy: number; coins: number; }
 export interface CombatXp { attack:number; strength:number; defence:number; ranged:number; magic:number; hitpoints:number; }
-export interface PendingHit { sourceTick:number; resolveTick:number; sequence:number; attackerId:string; defenderId:string; attackType:AttackType; attackStyle:AttackStyle; attackRoll:number; defenceRoll:number; hitChance:number; succeeded:boolean; rawDamage:number; special:boolean; baseXp:number; delivery:"melee"|"projectile"|"spell"; }
+export interface PendingHit { sourceTick:number; resolveTick:number; sequence:number; attackerId:string; defenderId:string; attackType:AttackType; attackStyle:AttackStyle; attackRoll:number; defenceRoll:number; hitChance:number; succeeded:boolean; rawDamage:number; special:boolean; baseXp:number; delivery:"melee"|"projectile"|"spell"; freezeTicks:number; }
 export interface Equipment {
   weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number; magicAttackBonus?: number; magicDamageBonus?: number; prayerBonus?: number;
   specialCost: number; specialMultiplier: number; defenceBonus: number; defenceStab: number; defenceSlash: number; defenceCrush: number;
@@ -181,7 +181,7 @@ function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
  const hitTick=a.pid<d.pid?state.tick:state.tick+1;a.hitQueuedTick=hitTick;
  if(special){a.inventory.specialEnergy-=a.equipment.specialCost;event(state,{tick:state.tick,type:"special",attacker:a.id,defender:d.id,special:true});}
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,special,attackType:"melee"});
- state.pendingHits.push({sourceTick:state.tick,resolveTick:hitTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:"melee",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special,baseXp:0,delivery:"melee"});
+ state.pendingHits.push({sourceTick:state.tick,resolveTick:hitTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:"melee",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special,baseXp:0,delivery:"melee",freezeTicks:0});
 }
 function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const ranged=a.equipment.attackType==="ranged", style=ranged?rangedStyleBonuses(a.rangedStyle):magicStyleBonuses(a.magicStyle);
@@ -216,7 +216,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
   event(state,{tick:state.tick,type:ranged?"projectile":"spell",attacker:a.id,defender:d.id,x:d.x,y:d.y,sourceX:a.x,sourceY:a.y,reason:ranged?(a.equipment.ammoId??"projectile"):(a.equipment.spellId??"spell"),resolveTick:travelTick,attackType:ranged?"ranged":"magic"});
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,attackType:ranged?"ranged":"magic"});
  a.hitQueuedTick=travelTick;
- state.pendingHits.push({sourceTick:state.tick,resolveTick:travelTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:ranged?"ranged":"magic",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special:false,baseXp:ranged?0:(SPELLS[a.equipment.spellId??""]?.baseXp??0),delivery:ranged?"projectile":"spell"});
+ state.pendingHits.push({sourceTick:state.tick,resolveTick:travelTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:ranged?"ranged":"magic",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special:false,baseXp:ranged?0:(SPELLS[a.equipment.spellId??""]?.baseXp??0),delivery:ranged?"projectile":"spell",freezeTicks:ranged?0:(SPELLS[a.equipment.spellId??""]?.freezeTicks??0)});
 }
 function resolveAttack(state:GameState,a:Player):void{
  if(!a.targetId||a.attackQueuedTick===null||state.tick<a.attackQueuedTick)return;
@@ -267,7 +267,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    const a=state.players[hit.attackerId];
    if(!a)continue;
    const rawDamage=hit.rawDamage;
-   const spell=hit.attackType==="magic"?SPELLS[state.players[hit.attackerId]?.equipment.spellId??""]:undefined;
+   
    const attackRoll=hit.attackRoll;
    const defenceRoll=hit.defenceRoll;
    const special=hit.special;
@@ -281,7 +281,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    const damage=protectedByPrayer?Math.min(rawDamage,Math.floor(rawDamage*0.6)):rawDamage;
    if(damage>0)p.hp=Math.max(0,p.hp-damage);
    awardCombatXp(a,damage,attackType,hit.baseXp);
-   if(attackType==="magic"&&succeeded&&spell?.freezeTicks)p.freezeUntilTick=Math.max(p.freezeUntilTick,state.tick+spell.freezeTicks);
+   if(attackType==="magic"&&succeeded&&hit.freezeTicks>0)p.freezeUntilTick=Math.max(p.freezeUntilTick,state.tick+hit.freezeTicks);
    event(state,{tick:state.tick,type:succeeded?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special,attackType,reason:hit.delivery});
    if(p.hp<=0){
      p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;
