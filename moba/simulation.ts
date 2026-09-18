@@ -3,7 +3,7 @@ import { isFrozen, tickLocks } from "../entity/locks";
 import { consumeExpiredAttackDelay, createAttackTimerState } from "../combat/timers";
 import { dispatchAttack } from "../combat/attackGate";
 import { rollAttack } from "../combat/resolve";
-import { compatiblePrayerSet, aggregatePrayerBoosts, type PrayerId } from "../prayer/prayers";
+import { compatiblePrayerSet, aggregatePrayerBoosts, prayerDefinitions, type PrayerId } from "../prayer/prayers";
 import type { PlayerEntity, MinionEntity, TowerEntity, NeutralCampEntity, ProjectileEntity } from "./entities";
 import { consumeItem, equipItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
@@ -206,12 +206,20 @@ const prayerStage: TickStage<SimulationState> = {
       const decision = decisionFor(state, actor, enemy);
       const requested = decision.activatePrayer as PrayerId | undefined;
       const active = requested ? compatiblePrayerSet([...actor.activePrayers, requested]) : actor.activePrayers;
-      const drain = active.length;
-      const prayerPoints = Math.max(0, actor.prayerPoints - drain);
+      const prayerBonus = equipmentBonuses(actor.equipment).prayer_bonus;
+      const drainEffect = active.reduce((sum, prayer) => sum + (prayerDefinitions[prayer]?.drain ?? 0), 0);
+      const drainResistance = Math.max(60, 60 + 2 * prayerBonus);
+      let drainAccumulator = actor.prayerDrainAccumulator + drainEffect;
+      let prayerPoints = actor.prayerPoints;
+      while (drainAccumulator >= drainResistance && prayerPoints > 0) {
+        drainAccumulator -= drainResistance;
+        prayerPoints -= 1;
+      }
       setPlayer(state, {
         ...actor,
         activePrayers: prayerPoints > 0 ? [...active] : [],
-        prayerPoints
+        prayerPoints,
+        prayerDrainAccumulator: prayerPoints > 0 ? drainAccumulator : 0
       });
     }
   }
@@ -314,7 +322,7 @@ const combatStage: TickStage<SimulationState> = {
           damageMultiplier: special?.damageMultiplier ?? 1,
           accuracyMultiplier: special?.accuracyMultiplier ?? 1,
           createdTick: state.tick,
-          hitTick: state.tick + 2,
+          hitTick: state.tick + projectileHitDelay(attackStyle, actor.tile, currentEnemy.tile),
           fromTile: actor.tile,
           toTile: currentEnemy.tile
         });
@@ -411,6 +419,12 @@ const projectileStage: TickStage<SimulationState> = {
     state.projectiles = pending;
   }
 };
+function projectileHitDelay(style: "ranged" | "magic", from: TilePosition, to: TilePosition): number {
+  const distance = Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y));
+  if (style === "ranged") return 2 + Math.floor((3 + distance) / 6);
+  return 3 + Math.floor((distance + 1) / 3);
+}
+
 function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: NeutralCampEntity, attackType: PlayerEntity["attackType"]): void {
   const weapon = actor.equipment.weapon;
   if (!weapon) return;
