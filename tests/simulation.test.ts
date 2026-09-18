@@ -567,6 +567,7 @@ function testClientCommandQueueIsFifoAndCapped() {
 
 function testTargetMemoryExpiresAfterFiveTicks() {
   const state = createPvpTestState();
+  state.humanControl = { attackEnabled: false, laneId: "middle" };
   queueClientCommand(state, { kind: "attack-target", targetId: state.red.id });
 
   advanceTick(state);
