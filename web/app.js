@@ -82,6 +82,7 @@ function updateHud() {
     </div>`;
   }).join("");
 
+  renderAccountPanel();
   renderActionbar();
 
   const relevant = state.log.slice(-8);
@@ -94,6 +95,22 @@ function updateHud() {
 
 function inventoryCount(id) {
   return state.blue.inventory.find(entry => entry.id === id)?.quantity ?? 0;
+}
+
+function renderAccountPanel() {
+  const player = state.blue;
+  const slots = ["weapon", "shield", "head", "body", "legs", "amulet", "ring", "cape"];
+  const equipment = slots.map(slot => {
+    const item = player.equipment[slot];
+    return '<div class="slot"><b>' + slot.toUpperCase() + '</b>' + (item ? item.name : "Empty") + '</div>';
+  }).join("");
+  const inventory = player.inventory
+    .map(entry => '<span>' + entry.id.replaceAll("_", " ") + ' x' + entry.quantity + '</span>')
+    .join("");
+  document.querySelector("#account").innerHTML =
+    '<div>Account level <b>' + accountLevelFromXp(player.stats.xp) + '</b> · Unallocated XP <b>' + Math.floor(player.stats.unallocatedXp) + '</b></div>' +
+    '<div class="account-grid">' + equipment + '</div>' +
+    '<div class="inv-row" style="margin-top:7px">' + (inventory || "Inventory empty") + '</div>';
 }
 
 function renderActionbar() {
