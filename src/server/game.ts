@@ -115,6 +115,12 @@ function inAttackRange(a:Player,b:Player):boolean{return combatDistance(a,b)>0&&
 function projectileHitDelay(attackType:AttackType,distance:number):number{
  const d=Math.max(1,Math.min(15,distance));
  if(attackType==="melee")return 0;
+ if(attackType==="ranged"){if(d<=2)return 1;if(d<=8)return 2;return 3;}
+ return Math.floor((d+1)/3)+1;
+}
+function projectileHitDelay(attackType:AttackType,distance:number):number{
+ const d=Math.max(1,Math.min(15,distance));
+ if(attackType==="melee")return 0;
  if(attackType==="ranged"){
    if(d<=2)return 1;
    if(d<=8)return 2;
@@ -177,7 +183,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  let resourceOk=false;
  if(ranged) resourceOk=consumeResource(a,a.equipment.ammoId??"bronze_arrow",1);
  else { const fire=a.inventory.slots.find(v=>v?.id==="fire_rune"),air=a.inventory.slots.find(v=>v?.id==="air_rune"); if(fire&&air&&fire.quantity>=1&&air.quantity>=3){consumeResource(a,"fire_rune",1);consumeResource(a,"air_rune",3);resourceOk=true;} }
- if(!resourceOk)return;
+ if(!resourceOk){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.specialQueued=false;event(state,{tick:state.tick,type:"attack_cancelled",attacker:a.id,defender:d.id,reason:ranged?"out_of_ammo":"missing_runes"});return;}
  const attackSpeed=ranged?(a.rangedStyle==="rapid"?Math.max(1,a.equipment.attackSpeed-1):a.rangedStyle==="longrange"?a.equipment.attackSpeed+1:a.equipment.attackSpeed):a.equipment.attackSpeed;
  a.nextAttackTick=state.tick+attackSpeed;a.attackQueuedTick=a.nextAttackTick;
  const travelTick=state.tick+1;
