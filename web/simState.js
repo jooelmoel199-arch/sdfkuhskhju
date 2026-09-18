@@ -1,5 +1,5 @@
 import { createPrototypeState, createPvpTestState } from "../moba/factory.ts";
-import { advanceTick, TICK_MS } from "../moba/simulation.ts";
+import { advanceTick, queueClientCommand, TICK_MS } from "../moba/simulation.ts";
 import { maxHitpoints } from "../moba/stats.ts";
 import { LANE_Y, zoneAt } from "../moba/lane.ts";
 import { shopCatalog } from "../moba/economy.ts";
@@ -69,24 +69,22 @@ export function setAttackEnabled(enabled) {
 }
 
 export function toggleMeleePrayer() {
-  // Prayer toggles are authoritative one-shot commands. The simulation decides
-  // whether this request activates or deactivates the overhead from current state.
-  state.humanControl.activatePrayer = "protect_from_melee";
+  queueClientCommand(state, { kind: "prayer", prayerId: "protect_from_melee" });
 }
 
 export function equipItem(itemId) {
-  state.humanControl.equipItemId = itemId;
+  queueClientCommand(state, { kind: "equip", itemId });
 }
 
 export function togglePrayer(prayerId) {
-  state.humanControl.activatePrayer = prayerId;
+  queueClientCommand(state, { kind: "prayer", prayerId });
 }
 
 export function useConsumable(itemId) {
-  state.humanControl.consumeItemId = itemId;
+  queueClientCommand(state, { kind: "eat", itemId });
 }
 export function useComboFood(itemId) {
-  state.humanControl.comboConsumableId = itemId;
+  queueClientCommand(state, { kind: "eat", itemId, combo: true });
 }
 
 export function investAll(stat) {
@@ -94,7 +92,7 @@ export function investAll(stat) {
 }
 
 export function useSpecial() {
-  state.humanControl.useSpecial = true;
+  queueClientCommand(state, { kind: "special", targetId: state.humanControl.attackTargetId });
 }
 
 export function buyBestAffordableUpgrade() {
