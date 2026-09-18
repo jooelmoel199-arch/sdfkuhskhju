@@ -24,7 +24,7 @@ export type InputCommand =
 
 export interface Inventory { slots:Array<ItemStack|null>; food: number; specialEnergy: number; coins: number; }
 export interface CombatXp { attack:number; strength:number; defence:number; ranged:number; magic:number; hitpoints:number; }
-export interface PendingHit { sourceTick:number; resolveTick:number; sequence:number; attackerId:string; defenderId:string; attackType:AttackType; attackStyle:AttackStyle; attackRoll:number; defenceRoll:number; hitChance:number; succeeded:boolean; rawDamage:number; special:boolean; }
+export interface PendingHit { sourceTick:number; resolveTick:number; sequence:number; attackerId:string; defenderId:string; attackType:AttackType; attackStyle:AttackStyle; attackRoll:number; defenceRoll:number; hitChance:number; succeeded:boolean; rawDamage:number; special:boolean; delivery:"melee"|"projectile"|"spell"; }
 export interface Equipment {
   weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number;
   specialCost: number; specialMultiplier: number; defenceBonus: number; defenceStab: number; defenceSlash: number; defenceCrush: number;
@@ -43,7 +43,7 @@ export interface CombatEvent {
   special?:boolean; hitChance?:number; x?:number; y?:number; prayer?:Prayer; style?:AttackStyle; reason?:string;
 }
 export interface QueuedInput { sequence:number; receivedTick:number; command:InputCommand; }
-export interface GameState { tick:number; nextInputSequence:number; nextCombatSequence:number; players:Record<string,Player>; pendingInputs:QueuedInput[]; events:CombatEvent[]; readonly combatRules:CombatRules; }
+export interface GameState { tick:number; nextInputSequence:number; nextCombatSequence:number; players:Record<string,Player>; pendingInputs:QueuedInput[]; pendingHits:PendingHit[]; events:CombatEvent[]; readonly combatRules:CombatRules; }
 
 const styleBonus=MELEE_STYLE_BONUS;
 
@@ -67,7 +67,7 @@ export function createGame():GameState{
     g.inventory.specialEnergy=0; g.targetId="player"; g.attackStyle="aggressive";
     g.attackQueuedTick=0;
   }
-  return {tick:0,nextInputSequence:1,nextCombatSequence:1,pendingInputs:[],events:[],players,combatRules:createCombatRules()};
+  return {tick:0,nextInputSequence:1,nextCombatSequence:1,pendingInputs:[],pendingHits:[],events:[],players,combatRules:createCombatRules()};
 }
 export function enqueueInput(state:GameState,command:InputCommand):void{state.pendingInputs.push({sequence:state.nextInputSequence++,receivedTick:state.tick,command});}
 function event(state:GameState,e:CombatEvent):void{state.events.push(e);if(state.events.length>300)state.events.splice(0,state.events.length-300);}
@@ -146,7 +146,7 @@ function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
  const hitTick=a.id.localeCompare(d.id)<0?state.tick:state.tick+1;a.hitQueuedTick=hitTick;
  if(special){a.inventory.specialEnergy-=a.equipment.specialCost;event(state,{tick:state.tick,type:"special",attacker:a.id,defender:d.id,special:true});}
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,special});
- a.pendingHit={sourceTick:state.tick,resolveTick:hitTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:"melee",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special};
+ state.pendingHits.push({sourceTick:state.tick,resolveTick:hitTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:"melee",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special,delivery:"melee"});
 }
 function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const ranged=a.equipment.attackType==="ranged", style=ranged?rangedStyleBonuses(a.rangedStyle):magicStyleBonuses(a.magicStyle);
@@ -172,7 +172,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  event(state,{tick:state.tick,type:ranged?"projectile":"spell",attacker:a.id,defender:d.id,x:d.x,y:d.y,reason:ranged?"arrow":"fire_strike"});
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance});
  a.hitQueuedTick=travelTick;
- a.pendingHit={sourceTick:state.tick,resolveTick:travelTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:ranged?"ranged":"magic",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special:false};
+ state.pendingHits.push({sourceTick:state.tick,resolveTick:travelTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:ranged?"ranged":"magic",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special:false,delivery:ranged?"projectile":"spell"});
 }
 function resolveAttack(state:GameState,a:Player):void{
  if(!a.targetId||a.attackQueuedTick===null||state.tick<a.attackQueuedTick)return;
@@ -217,11 +217,12 @@ function awardMeleeXp(a:Player, damage:number):void{
  a.xp.hitpoints+=units/3;
 }
 function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
- const incoming=Object.values(state.players)
-   .filter(a=>a.id!==p.id&&a.pendingHit?.resolveTick===state.tick&&a.pendingHit.defenderId===p.id)
-   .sort((a,b)=>(a.pendingHit!.sequence-b.pendingHit!.sequence)||a.id.localeCompare(b.id));
- for(const a of incoming){
-   const hit=a.pendingHit!;
+ const incoming=state.pendingHits
+   .filter(hit=>hit.resolveTick===state.tick&&hit.defenderId===p.id)
+   .sort((a,b)=>a.sequence-b.sequence);
+ for(const hit of incoming){
+   const a=state.players[hit.attackerId];
+   if(!a)continue;
    const rawDamage=hit.rawDamage;
    const attackRoll=hit.attackRoll;
    const defenceRoll=hit.defenceRoll;
@@ -242,6 +243,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
      break;
    }
  }
+ state.pendingHits=state.pendingHits.filter(hit=>hit.resolveTick>state.tick);
 }
 export function step(state:GameState):void{
  state.tick++;
