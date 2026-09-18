@@ -13,7 +13,7 @@ function deepEqualSet(actual: Set<unknown>, expected: Set<unknown>, message: str
 }
 
 import { createPrototypeState, createPvpTestState } from "../moba/factory";
-import { advanceTick } from "../moba/simulation";
+import { advanceTick, tickRunner } from "../moba/simulation";
 import { shopCatalog } from "../moba/economy";
 import { distanceHitDelay, meleeHitTick, projectileHitTick } from "../combat/pendingHits";
 import { rollDragonClawsSpecial } from "../combat/resolve";
@@ -420,7 +420,6 @@ function testFoodBeforeReadyAttackDoesNotCreateCooldown() {
 }
 
 function testAuthoritativeStageOrder() {
-  const { tickRunner } = require("../moba/simulation") as typeof import("../moba/simulation");
   equal(
     tickRunner.stageNames.join(">"),
     "npc-turns>player-turns>pending-hits>lock-decay>respawns",
