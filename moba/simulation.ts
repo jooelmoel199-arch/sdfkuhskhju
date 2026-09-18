@@ -67,7 +67,7 @@ export interface SimulationState {
     attackTargetId?: string;
     consumeItemId?: string;
     equipItemId?: string;
-    investStat?: "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints";
+investStat?: "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints" | "prayer";
     buyItemId?: string;
     useSpecial?: boolean;
     buyConsumableId?: string;
@@ -231,8 +231,16 @@ const prayerStage: TickStage<SimulationState> = {
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
       const requested = decision.activatePrayer as PrayerId | undefined;
-      const active = requested ? compatiblePrayerSet([...actor.activePrayers, requested]) : actor.activePrayers;
+      const toggled = requested && actor.activePrayers.includes(requested)
+        ? actor.activePrayers.filter(prayer => prayer !== requested)
+        : requested
+          ? compatiblePrayerSet([...actor.activePrayers, requested])
+          : actor.activePrayers;
+      const active = toggled;
       const prayerBonus = equipmentBonuses(actor.equipment).prayer_bonus;
+      // OSRS prayer drain is accumulated over discrete game ticks. This also
+      // permits one-tick prayer flicking when the same overhead is toggled off
+      // before another drain tick is accumulated.
       const drainEffect = active.reduce((sum, prayer) => sum + (prayerDefinitions[prayer]?.drain ?? 0), 0);
       const drainResistance = Math.max(60, 60 + 2 * prayerBonus);
       let drainAccumulator = actor.prayerDrainAccumulator + drainEffect;
@@ -244,6 +252,7 @@ const prayerStage: TickStage<SimulationState> = {
       setPlayer(state, {
         ...actor,
         activePrayers: prayerPoints > 0 ? [...active] : [],
+        lastPrayerToggleTick: requested ? state.tick : actor.lastPrayerToggleTick,
         prayerPoints,
         prayerDrainAccumulator: prayerPoints > 0 ? drainAccumulator : 0
       });
