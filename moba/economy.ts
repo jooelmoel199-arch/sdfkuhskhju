@@ -64,7 +64,11 @@ export interface ConsumableDef {
   readonly attackDelayTicks: number;
   readonly eatDelayTicks: number;
   readonly comboFood?: boolean;
-  readonly boostStat?: { readonly style: CombatStyle | "prayer"; readonly amount: number; readonly durationTicks: number };
+  readonly boostStats?: readonly {
+    readonly stat: "attack" | "strength" | "defence" | "ranged" | "magic";
+    readonly flat: number;
+    readonly percent: number;
+  }[];
 }
 
 export const consumableCatalog: readonly ConsumableDef[] = [
@@ -73,9 +77,9 @@ export const consumableCatalog: readonly ConsumableDef[] = [
   { id: "karambwan", name: "Karambwan", kind: "food", cost: 70, healAmount: 18, attackDelayTicks: 2, eatDelayTicks: 3, comboFood: true },
   { id: "prayer_potion", name: "Prayer potion", kind: "potion", cost: 80, restorePrayer: 24, attackDelayTicks: 0, eatDelayTicks: 3 },
   { id: "super_restore", name: "Super restore", kind: "potion", cost: 110, restorePrayer: 25, attackDelayTicks: 0, eatDelayTicks: 3 },
-  { id: "super_combat_potion", name: "Super combat potion", kind: "potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, boostStat: { style: "slash", amount: 0.19, durationTicks: 500 } },
-  { id: "ranging_potion", name: "Ranging potion", kind: "potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, boostStat: { style: "ranged", amount: 0.15, durationTicks: 500 } },
-  { id: "magic_potion", name: "Magic potion", kind: "potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, boostStat: { style: "magic", amount: 0.15, durationTicks: 500 } }
+  { id: "super_combat_potion", name: "Super combat potion", kind: "potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, boostStats: [{ stat: "attack", flat: 5, percent: 0.15 }, { stat: "strength", flat: 5, percent: 0.15 }, { stat: "defence", flat: 5, percent: 0.15 }] },
+  { id: "ranging_potion", name: "Ranging potion", kind: "potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, boostStats: [{ stat: "ranged", flat: 4, percent: 0.10 }] },
+  { id: "magic_potion", name: "Magic potion", kind: "potion", cost: 100, attackDelayTicks: 0, eatDelayTicks: 3, boostStats: [{ stat: "magic", flat: 4, percent: 0 }] }
 ];
 
 /** GP income sources, tunable independently of combat balance. */
