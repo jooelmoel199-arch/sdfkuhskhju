@@ -94,6 +94,14 @@ export function useSpecial() {
   state.humanControl.useSpecial = true;
 }
 
+export function buyBestAffordableUpgrade() {
+  const affordable = shopCatalog
+    .filter(item => item.cost <= state.blue.gp && !state.blue.equipment[item.slot])
+    .sort((a, b) => b.cost - a.cost);
+  const item = affordable[0];
+  if (item && state.blue.zone === "base") state.humanControl.buyItemId = item.id;
+}
+
 export function setLane(laneId) {
   state.humanControl.laneId = laneId;
   state.blue = {
