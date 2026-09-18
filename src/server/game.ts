@@ -139,7 +139,7 @@ function awardCombatXp(a:Player,damage:number,attackType:AttackType,baseXp=0):vo
  if(damage<=0)return;
  if(attackType==="melee"){switch(a.attackStyle){case "accurate":a.xp.attack+=damage*4;break;case "aggressive":a.xp.strength+=damage*4;break;case "defensive":a.xp.defence+=damage*4;break;case "controlled":a.xp.attack+=damage*4/3;a.xp.strength+=damage*4/3;a.xp.defence+=damage*4/3;break;}}
  else if(attackType==="ranged"){if(a.rangedStyle==="longrange"){a.xp.ranged+=damage*2;a.xp.defence+=damage*2;}else a.xp.ranged+=damage*4;}
- else {a.xp.magic+=(a.magicStyle==="defensive"?damage*4/3:damage*2);if(a.magicStyle==="defensive")a.xp.defence+=damage*4/3;}
+ else {a.xp.magic+=(a.magicStyle==="defensive"?damage*4/3:damage*2);if(a.magicStyle==="defensive")a.xp.defence+=damage;}
  a.xp.hitpoints+=damage*4/3;
 }
 function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
