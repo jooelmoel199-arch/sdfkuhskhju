@@ -658,7 +658,7 @@ const minionStage: TickStage<SimulationState> = {
         .sort((a, b) => a.dist - b.dist);
       const nearestMinion = enemyMinions[0];
 
-      const enemyPlayers = [state.blue, state.red]
+      const enemyPlayers = state.players
         .filter(player => player.alive && player.team !== minion.team && player.laneId === minion.laneId)
         .map(player => ({ player, dist: Math.abs(player.tile.x - minion.tile.x) }))
         .sort((a, b) => a.dist - b.dist);
@@ -724,7 +724,7 @@ const minionStage: TickStage<SimulationState> = {
 
 
 function rewardNearestPlayer(state: SimulationState, killerMinion: MinionEntity): void {
-  const candidates = [state.blue, state.red]
+  const candidates = state.players
     .filter(player => player.alive && player.team === killerMinion.team && player.laneId === killerMinion.laneId)
     .sort((a, b) => Math.abs(a.tile.x - killerMinion.tile.x) - Math.abs(b.tile.x - killerMinion.tile.x));
   const nearest = candidates[0];
@@ -766,11 +766,11 @@ const jungleStage: TickStage<SimulationState> = {
       }
 
       let target = camp.aggroTargetId
-        ? [state.blue, state.red].find(player => player.id === camp.aggroTargetId && player.alive)
+        ? state.players.find(player => player.id === camp.aggroTargetId && player.alive)
         : undefined;
 
       if (!target) {
-        target = [state.blue, state.red]
+        target = state.players
           .filter(player => player.alive && Math.hypot(player.tile.x - camp.tile.x, player.tile.y - camp.tile.y) <= camp.attackRange + 2)
           .sort((a, b) =>
             Math.hypot(a.tile.x - camp.tile.x, a.tile.y - camp.tile.y) -
@@ -806,7 +806,7 @@ const jungleStage: TickStage<SimulationState> = {
 const respawnStage: TickStage<SimulationState> = {
   name: "respawns",
   run: state => {
-    for (const actor of [state.blue, state.red]) {
+    for (const actor of [...state.players]) {
       if (actor.alive || actor.respawnAtTick === undefined || state.tick < actor.respawnAtTick) continue;
       const tile = { x: actor.team === "blue" ? BLUE_BASE_X : RED_BASE_X, y: LANE_Y[actor.laneId] };
       setPlayer(state, {
