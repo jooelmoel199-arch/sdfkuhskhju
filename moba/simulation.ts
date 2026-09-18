@@ -268,17 +268,18 @@ function gmaulSpecBarVisible(player: PlayerEntity, currentTick: number): boolean
     player.gmaulSpecBarVisibleTick <= currentTick;
 }
 
-function expireQueuedSpecialIfNeeded(player: PlayerEntity, currentTick: number): PlayerEntity {
-  if (player.queuedSpecialAttacks <= 0) return player;
-  if (player.queuedSpecialExpiresAtTick === undefined || currentTick < player.queuedSpecialExpiresAtTick) {
+function expireGmaulPreload(player: PlayerEntity, currentTick: number): PlayerEntity {
+  if (!player.gmaulPreloaded) return player;
+  if (player.gmaulPreloadExpiresAtTick === undefined || currentTick < player.gmaulPreloadExpiresAtTick) {
     return player;
   }
   return {
     ...player,
     queuedSpecialAttacks: 0,
     queuedSpecialTargetId: undefined,
-    queuedSpecialExpiresAtTick: undefined,
-    gmaulPreloaded: false
+    gmaulPreloadExpiresAtTick: undefined,
+    gmaulPreloaded: false,
+    specialActive: false
   };
 }
 
@@ -294,7 +295,8 @@ function applyEquipGmaulTiming(
       ...playerAfter,
       queuedSpecialAttacks: wasGmaul ? 0 : playerAfter.queuedSpecialAttacks,
       queuedSpecialTargetId: wasGmaul ? undefined : playerAfter.queuedSpecialTargetId,
-      queuedSpecialExpiresAtTick: wasGmaul ? undefined : playerAfter.queuedSpecialExpiresAtTick,
+      gmaulPreloadExpiresAtTick: wasGmaul ? undefined : playerAfter.gmaulPreloadExpiresAtTick,
+      specialActive: wasGmaul ? false : playerAfter.specialActive,
       gmaulEquippedTick: undefined,
       gmaulSpecBarVisibleTick: undefined,
       gmaulPreloaded: false
@@ -306,7 +308,8 @@ function applyEquipGmaulTiming(
     ...playerAfter,
     queuedSpecialAttacks: 0,
     queuedSpecialTargetId: undefined,
-    queuedSpecialExpiresAtTick: undefined,
+    gmaulPreloadExpiresAtTick: undefined,
+    specialActive: false,
     gmaulEquippedTick: currentTick,
     gmaulSpecBarVisibleTick: previousWeaponHadVisibleSpecBar ? currentTick : currentTick + 1,
     gmaulPreloaded: false
@@ -399,7 +402,7 @@ const clientInputStage: TickStage<SimulationState> = {
       const queue = state.clientCommands[actor.id] ?? [];
       const drained = drainPlayerCommands(queue, state.tick, 10);
       state.clientCommands[actor.id] = drained.queue;
-      let current = expireQueuedSpecialIfNeeded(actor, state.tick);
+      let current = expireGmaulPreload(actor, state.tick);
 
       for (const command of drained.commands) {
         switch (command.kind) {
@@ -434,21 +437,67 @@ const clientInputStage: TickStage<SimulationState> = {
                 log(state, current.id + " fails Granite maul special: not enough energy");
                 break;
               }
+
+              const targetId =
+                command.targetId ??
+                current.queuedSpecialTargetId ??
+                state.humanControl?.attackTargetId ??
+                current.lastCombatTargetId;
+              const target = targetId
+                ? state.players.find(player => player.id === targetId && player.alive && player.team !== current.team)
+                : undefined;
+              const adjacent =
+                target !== undefined &&
+                canMeleeReachThisTick({
+                  attacker: current.tile,
+                  defender: target.tile,
+                  attackerFrozen: isFrozen(current.locks, state.tick),
+                  attackRange: 1
+                }).canReach;
+
+              if (current.gmaulPreloaded) {
+                // The third bar click releases the two-hit preload. Do not let
+                // energy permit a phantom third hit from the click itself.
+                current = {
+                  ...current,
+                  queuedSpecialAttacks: adjacent ? Math.min(2, Math.floor(current.specEnergy / 50)) : current.queuedSpecialAttacks,
+                  queuedSpecialTargetId: targetId,
+                  specialActive: adjacent,
+                  gmaulPreloaded: false,
+                  gmaulPreloadExpiresAtTick: undefined
+                };
+                log(state, current.id + (adjacent ? " releases double Granite maul special" : " releases Granite maul preload without a reachable target"));
+                break;
+              }
+
+              if (current.specialActive) {
+                // Second click toggles the bar off and arms the modern double-spec
+                // preload. This window lasts three server ticks.
+                current = {
+                  ...current,
+                  specialActive: false,
+                  gmaulPreloaded: true,
+                  gmaulPreloadExpiresAtTick: state.tick + 3
+                };
+                log(state, current.id + " arms Granite maul double-spec preload");
+                break;
+              }
+
+              // First click activates the special bar. If a valid target is in
+              // melee reach, combat immediately consumes one special this turn.
               current = {
                 ...current,
-                queuedSpecialAttacks: current.queuedSpecialAttacks + 1,
-                queuedSpecialTargetId: command.targetId,
-                queuedSpecialExpiresAtTick: state.tick + 5,
-                gmaulPreloaded: false
+                specialActive: true,
+                queuedSpecialTargetId: targetId
               };
-              log(state, current.id + " queues Granite maul special");
               break;
             }
 
             current = {
               ...current,
               queuedSpecialAttacks: current.queuedSpecialAttacks + 1,
-              queuedSpecialTargetId: command.targetId
+              queuedSpecialTargetId: command.targetId,
+              specialActive: true
             };
             break;
           }
@@ -684,14 +733,14 @@ function handleGraniteMaulSpecial(
 ): boolean {
   if (actor.equipment.weapon?.id !== "granite_maul" || actor.queuedSpecialAttacks <= 0) return false;
   if (
-    actor.queuedSpecialExpiresAtTick !== undefined &&
-    state.tick >= actor.queuedSpecialExpiresAtTick
+    actor.gmaulPreloadExpiresAtTick !== undefined &&
+    state.tick >= actor.gmaulPreloadExpiresAtTick
   ) {
     setPlayer(state, {
       ...actor,
       queuedSpecialAttacks: 0,
       queuedSpecialTargetId: undefined,
-      queuedSpecialExpiresAtTick: undefined,
+      gmaulPreloadExpiresAtTick: undefined,
       gmaulPreloaded: false
     });
     log(state, actor.id + " Granite maul special queue expires");
@@ -712,7 +761,7 @@ function handleGraniteMaulSpecial(
       ...actor,
       queuedSpecialAttacks: 0,
       queuedSpecialTargetId: undefined,
-      queuedSpecialExpiresAtTick: undefined,
+      gmaulPreloadExpiresAtTick: undefined,
       gmaulPreloaded: false
     });
     log(state, actor.id + " fails Granite maul special: target not melee-reachable");
@@ -726,7 +775,7 @@ function handleGraniteMaulSpecial(
       ...actor,
       queuedSpecialAttacks: 0,
       queuedSpecialTargetId: undefined,
-      queuedSpecialExpiresAtTick: undefined,
+      gmaulPreloadExpiresAtTick: undefined,
       gmaulPreloaded: false
     });
     log(state, actor.id + " fails Granite maul special: not enough energy");
@@ -791,8 +840,8 @@ function handleGraniteMaulSpecial(
     lastSpecEnergyUseTick: state.tick,
     queuedSpecialAttacks: Math.max(0, actor.queuedSpecialAttacks - hitsQueued),
     queuedSpecialTargetId: actor.queuedSpecialAttacks - hitsQueued > 0 ? target.id : undefined,
-    queuedSpecialExpiresAtTick: actor.queuedSpecialAttacks - hitsQueued > 0
-      ? actor.queuedSpecialExpiresAtTick
+    gmaulPreloadExpiresAtTick: actor.queuedSpecialAttacks - hitsQueued > 0
+      ? actor.gmaulPreloadExpiresAtTick
       : undefined,
     gmaulPreloaded: false,
     lastCombatTick: state.tick,
@@ -1330,7 +1379,7 @@ function respawnPlayer(state: SimulationState, victim: PlayerEntity): void {
     zone: "base",
     queuedSpecialAttacks: 0,
     queuedSpecialTargetId: undefined,
-    queuedSpecialExpiresAtTick: undefined,
+    gmaulPreloadExpiresAtTick: undefined,
     gmaulEquippedTick: undefined,
     gmaulSpecBarVisibleTick: undefined,
     gmaulPreloaded: false,
