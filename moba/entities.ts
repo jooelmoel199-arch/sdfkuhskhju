@@ -13,6 +13,7 @@ import type { ShopItem, ConsumableDef } from "./economy";
 
 export type Team = "blue" | "red";
 export type ZoneKind = "lane" | "river" | "jungle" | "base";
+export type PlayerRole = "top" | "jungle" | "middle" | "bottom" | "support";
 
 export interface StatusEffect {
   readonly style: CombatStyle | "prayer";
@@ -43,6 +44,7 @@ export interface PlayerEntity {
   readonly kind: "player";
   readonly team: Team;
   readonly laneId: LaneId;
+  readonly role: PlayerRole;
   readonly pid: number; // deterministic per-tick processing order
   tile: TilePosition;
   zone: ZoneKind;
@@ -143,13 +145,20 @@ export function nextPid(): number {
   return pidCounter;
 }
 
-export function createPlayer(id: string, team: Team, spawnTile: TilePosition, laneId: LaneId = "middle"): PlayerEntity {
+export function createPlayer(
+  id: string,
+  team: Team,
+  spawnTile: TilePosition,
+  laneId: LaneId = "middle",
+  role: PlayerRole = "middle"
+): PlayerEntity {
   const stats = createStatBlock();
   return {
     id,
     kind: "player",
     team,
     laneId,
+    role,
     pid: nextPid(),
     tile: spawnTile,
     zone: "base",
