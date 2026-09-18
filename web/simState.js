@@ -93,6 +93,10 @@ export function useSpecial() {
   queueClientCommand(state, { kind: "special" });
 }
 
+export function castVengeance() {
+  queueClientCommand(state, { kind: "vengeance" });
+}
+
 export function buyBestAffordableUpgrade() {
   const affordable = state.blue.zone === "base"
     ? shopCatalog
