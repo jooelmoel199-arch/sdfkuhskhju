@@ -84,7 +84,7 @@ function setDestination(p:Player,x:number,y:number){const t=clampTile(x,y);p.des
 function processInput(state:GameState,command:InputCommand):void{
  const p=state.players.player;if(!p||p.hp<=0)return;
  switch(command.type){
-  case "attack":{const target=state.players[command.targetId];if(!target||target.hp<=0||target.team===p.team)return;p.targetId=target.id;setDestination(p,target.x,target.y);p.attackQueuedTick=Math.max(state.tick,p.nextAttackTick);p.specialQueued=false;event(state,{tick:state.tick,type:"attack_queued",attacker:p.id,defender:target.id});return;}
+  case "attack":{const target=state.players[command.targetId];if(!target||target.hp<=0||target.team===p.team)return;p.targetId=target.id;if(p.equipment.attackType==="melee")setDestination(p,target.x,target.y);else{p.path=[];p.destinationX=p.x;p.destinationY=p.y;}p.attackQueuedTick=Math.max(state.tick,p.nextAttackTick);p.specialQueued=false;event(state,{tick:state.tick,type:"attack_queued",attacker:p.id,defender:target.id});return;}
   case "stop_attack":p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.specialQueued=false;p.path=[];state.pendingHits=state.pendingHits.filter(hit=>hit.attackerId!==p.id);event(state,{tick:state.tick,type:"attack_cancelled",attacker:p.id});return;
   case "move":setDestination(p,command.x,command.y);p.targetId=null;p.attackQueuedTick=null;p.specialQueued=false;event(state,{tick:state.tick,type:"move",attacker:p.id,x:p.destinationX,y:p.destinationY});return;
   case "attack_style":p.attackStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,style:p.attackStyle});return;
