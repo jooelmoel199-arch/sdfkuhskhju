@@ -244,20 +244,7 @@ const clientInputStage: TickStage<SimulationState> = {
   }
 };
 
-// --- 1. Target-turn queued-hit resolution ---
-const queuedHitTurnStage: TickStage<SimulationState> = {
-  name: "queued-hit-turns",
-  run: state => {
-    const actors = [...state.players]
-      .sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id));
-    for (const actor of actors) {
-      if (!actor.alive) continue;
-      resolvePendingHitsForPlayer(state, actor.id);
-    }
-  }
-};
-
-// --- 2. Movement / target lane routing ---
+// --- Player-turn substage: movement / target lane routing ---
 const movementStage: TickStage<SimulationState> = {
   name: "movement",
   run: state => {
@@ -308,7 +295,7 @@ const movementStage: TickStage<SimulationState> = {
   }
 };
 
-// --- 2. Prayer changes ---
+// --- Player-turn substage: prayer changes ---
 const prayerStage: TickStage<SimulationState> = {
   name: "prayers",
   run: state => {
@@ -352,7 +339,7 @@ const prayerStage: TickStage<SimulationState> = {
   }
 };
 
-// --- 3. Player combat ---
+// --- Player-turn substage: combat / queued impacts ---
 function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): void {
   const ready = state.pendingHits.filter(hit => hit.targetId === targetId && hit.dueTick <= state.tick);
   if (ready.length === 0) return;
