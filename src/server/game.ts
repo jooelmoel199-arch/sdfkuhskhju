@@ -89,8 +89,8 @@ function resolveAttack(state:GameState,a:Player):void{
  const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+8;
  const attackRoll=effectiveAttack*(a.equipment.attackBonus+64), defenceRoll=effectiveDefence*(64+styleBonus[d.attackStyle].defence*4);
  const rules=state.combatRules.onAttack(a.id,d.id,attackRoll,defenceRoll);
- // OSRS-style player combat separates the attack turn from the hit evaluation.
- // We record the attack now and resolve its queued hit on the following tick.
+ // OSRS-style player combat separates the attack turn from hit evaluation.
+ // Melee has no projectile travel time; defender turn order determines whether the hit lands this tick or next.
  const baseMaxHit=Math.max(1,Math.floor(((a.strength+bonus.strength+8)*(a.equipment.strengthBonus+64))/640));
  const maxHit=special?Math.max(1,Math.floor(baseMaxHit*a.equipment.specialMultiplier)):baseMaxHit;
  const damage=rules.hit?Math.min(d.hp,Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1))):0;
