@@ -52,7 +52,11 @@ export function decideAction(self: PlayerEntity, enemy: PlayerEntity, currentTic
 
   let buyItemId: string | undefined;
   if (self.gp > 0 && self.tile.x <= 2) {
-    const affordable = shopCatalog.filter((item) => item.cost <= self.gp && !self.equipment[item.slot]);
+    const affordable = shopCatalog.filter(item => {
+      if (item.cost > self.gp) return false;
+      const current = self.equipment[item.slot];
+      return !current || item.cost > current.cost;
+    });
     buyItemId = affordable.sort((a, b) => b.cost - a.cost)[0]?.id;
   }
 
