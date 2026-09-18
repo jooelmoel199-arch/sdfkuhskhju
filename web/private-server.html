@@ -1,0 +1,16 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Local OSRS Server Prototype</title>
+<style>body{font-family:system-ui;background:#111;color:#eee;max-width:900px;margin:30px auto}button{padding:10px 16px;margin:4px}.bar{height:18px;background:#333;margin:8px 0}.hp{height:100%;background:#c33}.row{border:1px solid #444;padding:12px;margin:8px 0}</style>
+</head><body>
+<h1>Local OSRS Private Server Prototype</h1><p>Authoritative 600 ms server tick. This is the client shell; combat state lives on the server.</p>
+<div id="state">Connecting...</div>
+<button onclick="tick()">Advance server tick</button>
+<button onclick="attack()">Attack</button>
+<pre id="events"></pre>
+<script>
+async function state(){const r=await fetch('/state');return r.json()}
+function render(s){document.getElementById('state').innerHTML=Object.values(s.players).map(p=>'<div class="row"><b>'+p.id+'</b> '+p.weapon+' | tile '+p.x+' | HP '+p.hp+'/'+p.maxHp+'<div class="bar"><div class="hp" style="width:'+100*p.hp/p.maxHp+'%"></div></div></div>').join('');document.getElementById('events').textContent=s.events.join('\n')}
+async function tick(){render(await (await fetch('/tick',{method:'POST'})).json())}
+async function attack(){await fetch('/tick',{method:'POST'});render(await state())}
+state().then(render);setInterval(()=>state().then(render),600);
+</script></body></html>
