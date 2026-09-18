@@ -1,5 +1,5 @@
 import {
-  state, stepSimulation, setMoveTarget, stopMovement, setLane,
+  state, stepSimulation, setMoveTarget, stopMovement, setLane, setAttackTarget, clearAttackTarget,
   setAttackEnabled, toggleMeleePrayer, resetSimulation, maxHitpoints, TICK_MS
 } from "./simState.js";
 import { levelOf } from "../moba/stats.ts";
@@ -192,6 +192,16 @@ function draw() {
       minion.team === "blue" ? "#71a8df" : "#df7474");
   }
 
+  if (state.humanControl?.attackTargetId === state.red.id && state.red.alive) {
+    const target = worldToScreen(simToWorldX(state.red.tile.x), laneToWorldY(state.red.laneId));
+    ctx.strokeStyle = "rgba(255,232,130,.95)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(target.x, target.y, 36 * camera.zoom, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+  }
+
   for (const player of [state.blue, state.red]) {
     if (!player.alive) continue;
     const p = worldToScreen(simToWorldX(player.tile.x), laneToWorldY(player.laneId));
@@ -278,8 +288,17 @@ canvas.addEventListener("click", event => {
   const lane = worldToLane(world.y);
   const simX = worldToSimX(world.x);
   if (simX >= 2 && simX <= 38) {
-    setLane(lane);
-    setMoveTarget(simX);
+    const enemy = state.red;
+    const enemyPos = worldToScreen(simToWorldX(enemy.tile.x), laneToWorldY(enemy.laneId));
+    if (enemy.alive && Math.hypot(event.clientX - enemyPos.x, event.clientY - enemyPos.y) <= 34) {
+      setLane(enemy.laneId);
+      setAttackTarget(enemy.id);
+      state.humanControl.moveTargetX = enemy.tile.x;
+    } else {
+      setLane(lane);
+      clearAttackTarget();
+      setMoveTarget(simX);
+    }
   }
 });
 
@@ -330,6 +349,7 @@ addEventListener("keydown", event => {
     setAttackEnabled(!state.humanControl.attackEnabled);
   }
   if (key === "p") toggleMeleePrayer();
+  if (key === "escape") clearAttackTarget();
   if (key === "1") setLane("top");
   if (key === "2") setLane("middle");
   if (key === "3") setLane("bottom");
