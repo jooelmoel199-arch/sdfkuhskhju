@@ -78,6 +78,9 @@ export function rollAttack(input: HitRollInput): HitResult {
 
 export interface ClawSpecialResult {
   readonly landed: boolean;
+  /** Raw pre-prayer damage for each hitsplat. Prayer is resolved at impact. */
+  readonly rawDamages: readonly number[];
+  /** Convenience view retained for callers/tests that want launch-time prayer math. */
   readonly damages: readonly number[];
   readonly firstSuccessfulStrike: number;
 }
@@ -154,7 +157,8 @@ export function rollDragonClawsSpecial(input: HitRollInput): ClawSpecialResult {
   }));
 
   return {
-    landed: protectedDamages.some(damage => damage > 0),
+    landed: damages.some(damage => damage > 0),
+    rawDamages: damages,
     damages: protectedDamages,
     firstSuccessfulStrike
   };
