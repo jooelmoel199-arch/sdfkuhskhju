@@ -1,4 +1,4 @@
-import { createPlayer, equipItem, addInventoryItem, type PlayerEntity, type TowerEntity, type NeutralCampEntity, type PlayerRole } from "./entities";
+import { createPlayer, equipItem, addInventoryItem, nextNpcId, type PlayerEntity, type TowerEntity, type NeutralCampEntity, type PlayerRole } from "./entities";
 import { createAttackTimerState } from "../combat/timers";
 import { shopCatalog } from "./economy";
 import { xpForLevel } from "./xp";
@@ -63,6 +63,7 @@ export function makeTower(
   return {
     id,
     kind: "tower",
+    npcId: nextNpcId(),
     team,
     laneId,
     tile: { x, y: LANE_Y[laneId] },
@@ -92,6 +93,7 @@ export function makeJungleCamp(
   return {
     id,
     kind: "neutral_camp",
+    npcId: nextNpcId(),
     name,
     tile: { x, y },
     currentHp: maxHp,
