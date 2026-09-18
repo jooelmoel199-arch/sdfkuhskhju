@@ -77,7 +77,7 @@ function updateHud() {
       player.team === "blue" && state.humanControl?.moveTargetX !== undefined ? "MOVING" : "READY";
     return `<div class="playerRow ${player.team}">
       <b>${player.id}</b> <span class="muted">${player.role.toUpperCase()} · ${player.laneId.toUpperCase()} · ${status}</span><br>
-      HP ${player.currentHp}/${hp} · GP ${player.gp} · K/D ${player.kills}/${player.deaths}<br>
+      HP ${player.currentHp}/${hp} · GP ${player.gp} · K/D ${player.kills}/${player.deaths} · ${state.teamBuffs[player.team] && state.teamBuffs[player.team].expiresAtTick > state.tick ? state.teamBuffs[player.team].name : "No buff"}<br>
       <span class="muted">ACC ${accountLevelFromXp(player.stats.xp)} · XP ${Math.floor(player.stats.unallocatedXp)} · Atk ${levelOf(player.stats, "attack")} Str ${levelOf(player.stats, "strength")} Def ${levelOf(player.stats, "defence")} · ${weapon}</span>
     </div>`;
   }).join("");
