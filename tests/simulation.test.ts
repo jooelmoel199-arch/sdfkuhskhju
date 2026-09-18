@@ -112,7 +112,7 @@ function testDragonClawsSpecial() {
 function testCampRespawnSchedule() {
   const state = createPrototypeState();
   const camp = state.jungleCamps[0];
-  state.jungleCamps[0] = { ...camp, alive: false, currentHp: 0, respawnAtTick: 2 };
+  state.jungleCamps[0] = { ...camp, alive: false, currentHp: 0, respawnAtTick: 1 };
   advanceTick(state);
   equal(state.jungleCamps[0].alive, false, "camp should remain dead before respawn tick");
   advanceTick(state);
