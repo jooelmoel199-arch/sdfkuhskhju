@@ -7,7 +7,7 @@ import type { PrayerId } from "../prayer/prayers";
 import type { LaneId } from "./lane";
 import type { StatBlock } from "./stats";
 import { createStatBlock, maxHitpoints } from "./stats";
-import type { BonusTable, CombatStyle } from "../combat/formulas";
+import type { BonusTable, CombatLevels, CombatStyle } from "../combat/formulas";
 import { emptyEquipmentBonuses } from "./economy";
 import type { ShopItem, ConsumableDef } from "./economy";
 
