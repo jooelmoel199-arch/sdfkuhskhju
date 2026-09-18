@@ -3,7 +3,7 @@ import {
   setAttackEnabled, resetSimulation, maxHitpoints, TICK_MS, togglePrayer,
   useConsumable, equipItem, investAll, useSpecial, buyBestAffordableUpgrade, buyConsumables, cycleAttackType
 } from "./simState.js";
-import { levelOf } from "../moba/stats.ts";
+import { levelOf, maxPrayerPoints } from "../moba/stats.ts";
 import { accountLevelFromXp } from "../moba/xp.ts";
 import { LANE_Y, LANES } from "../moba/lane.ts";
 
@@ -158,7 +158,7 @@ function renderCombatHud() {
     el.innerHTML =
       '<b>' + (weapon?.name ?? "Unarmed") + '</b> · ' + player.attackType.toUpperCase() +
       ' · CD <b>' + remaining + '</b>t · SPEC <b>' + player.specEnergy + '%</b><br>' +
-      'HP <b>' + player.currentHp + '/' + maxHitpoints(player.stats) + '</b> · PRAYER <b>' + player.prayerPoints + '/' + player.stats.xp.prayer + '</b> · ' +
+      'HP <b>' + player.currentHp + '/' + maxHitpoints(player.stats) + '</b> · PRAYER <b>' + player.prayerPoints + '/' + maxPrayerPoints(player.stats) + '</b> · ' +
       '<span class="prayer">' + prayer + '</span><br>' +
       'TARGET HP <b>' + targetHp + '</b>' + (freeze ? ' · FROZEN ' + freeze + 't' : '');
   }
