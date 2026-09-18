@@ -28,6 +28,8 @@ const keys = new Set();
 let last = performance.now();
 let accumulator = 0;
 let dragging = false;
+let movedDuringDrag = false;
+let suppressNextClick = false;
 let lastMouse = { x: 0, y: 0 };
 let lastRenderedLogTick = -1;
 
@@ -285,7 +287,7 @@ function frame(now) {
 }
 
 canvas.addEventListener("click", event => {
-  if (dragging) return;
+  if (suppressNextClick) { suppressNextClick = false; return; }
   const world = screenToWorld(event.clientX, event.clientY);
   const simX = worldToSimX(world.x);
   if (simX >= 2 && simX <= 38) setMoveTarget(simX);
@@ -297,16 +299,22 @@ canvas.addEventListener("contextmenu", event => {
 });
 
 canvas.addEventListener("mousedown", event => {
-  dragging = false;
+  dragging = true;
+  movedDuringDrag = false;
   lastMouse = { x: event.clientX, y: event.clientY };
   canvas.classList.add("dragging");
 });
-addEventListener("mouseup", () => canvas.classList.remove("dragging"));
+addEventListener("mouseup", () => {
+  if (dragging && movedDuringDrag) suppressNextClick = true;
+  dragging = false;
+  canvas.classList.remove("dragging");
+});
 addEventListener("mousemove", event => {
   const dx = event.clientX - lastMouse.x;
   const dy = event.clientY - lastMouse.y;
-  if (Math.abs(dx) + Math.abs(dy) > 4) dragging = true;
   if (!dragging) return;
+  if (Math.abs(dx) + Math.abs(dy) > 4) movedDuringDrag = true;
+  if (!movedDuringDrag) return;
   camera.x -= dx / camera.zoom;
   camera.y -= dy / camera.zoom;
   lastMouse = { x: event.clientX, y: event.clientY };
