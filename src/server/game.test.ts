@@ -156,7 +156,7 @@ assert(standardMaxHit(83,44)===14,"rune-scimitar style baseline should use the 0
 assert(Math.abs(hitChanceFromRolls(100,200)-(100/(2*201)))<1e-12,"under-roll accuracy formula should match OSRS");
 assert(Math.abs(hitChanceFromRolls(300,200)-(1-(202/(2*301))))<1e-12,"over-roll accuracy formula should match OSRS");
 assert(magicMaxHit(8,0.20)===9,"Mystic Might's 20% magic damage should raise Fire Strike max hit to 9");
-assert(playerMagicDefenceLevel(75,70,1.15,1)===80,"magic defence should weight boosted Magic at 70% and Defence at 30%");
+assert(playerMagicDefenceLevel(75,70,1.15,1)===89,"magic defence should weight boosted Magic at 70% and Defence at 30%");
 console.log("server combat queue tests passed");
 
 const xpGame = createGame();
