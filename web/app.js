@@ -471,12 +471,10 @@ canvas.addEventListener("click", event => {
 
     if (clickedEnemy) {
       setAttackTarget(clickedEnemy.player.id);
-      state.humanControl.moveTargetX = clickedEnemy.player.tile.x;
-      state.humanControl.moveTargetY = clickedEnemy.player.tile.y;
+      setMoveTarget(clickedEnemy.player.tile.x, clickedEnemy.player.tile.y);
     } else if (clickedCamp) {
       setAttackTarget(clickedCamp.camp.id);
-      state.humanControl.moveTargetX = clickedCamp.camp.tile.x;
-      state.humanControl.moveTargetY = clickedCamp.camp.tile.y;
+      setMoveTarget(clickedCamp.camp.tile.x, clickedCamp.camp.tile.y);
     } else if (clickedTower) {
       setAttackTarget(clickedTower.tower.id);
       setLane(clickedTower.tower.laneId);
