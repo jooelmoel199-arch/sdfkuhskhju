@@ -715,13 +715,17 @@ function applyConsumableAction(state: SimulationState, actor: PlayerEntity, item
   const item = findConsumable(itemId);
   if (!item || inventoryCount(actor, item.id) <= 0 || state.tick < actor.eatDelayUntilTick) return actor;
   const updated = consumeItem(actor, item, state.tick);
-  const attackDelay = item.id === "karambwan" ? 2 : item.attackDelayTicks;
+  // OSRS food modifies the attack/skilling timer additively. A 3-tick food
+  // adds three to a live positive cycle; it does not create a cooldown when idle.
+  const currentRemaining = Math.max(0, actor.attackTimer.lastAttackTick +
+    actor.attackTimer.weaponCooldownTicks + actor.attackTimer.additiveAttackDelayTicks - state.tick);
+  const additive = item.attackDelayTicks;
   const next = {
     ...updated,
-    attackDelayUntilTick: Math.max(updated.attackDelayUntilTick, state.tick + attackDelay),
-    eatDelayUntilTick: state.tick + 3
+    attackDelayUntilTick: Math.max(updated.attackDelayUntilTick, state.tick + additive),
+    eatDelayUntilTick: state.tick + item.eatDelayTicks
   };
-  log(state, actor.id + " eats " + item.name);
+  log(state, actor.id + " eats " + item.name + " (" + additive + "t food delay; " + currentRemaining + "t attack cycle remaining)");
   return next;
 }
 
