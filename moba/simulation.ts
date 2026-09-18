@@ -308,7 +308,13 @@ const combatStage: TickStage<SimulationState> = {
       if (actor.id === state.blue.id && state.humanControl?.consumeItemId) {
         const updated = applyConsumableAction(state, actor, state.humanControl.consumeItemId);
         setPlayer(state, updated);
-        if (updated !== actor) continue;
+        if (updated !== actor) {
+          if (state.humanControl?.comboConsumableId) {
+            const combo = applyConsumableAction(state, updated, state.humanControl.comboConsumableId);
+            setPlayer(state, combo);
+          }
+          continue;
+        }
       }
 
       if (actor.id === state.blue.id && state.humanControl?.equipItemId) {
@@ -1190,6 +1196,7 @@ export function advanceTick(state: SimulationState): void {
   if (state.humanControl) {
     delete state.humanControl.activatePrayer;
     delete state.humanControl.consumeItemId;
+    delete state.humanControl.comboConsumableId;
     delete state.humanControl.equipItemId;
     delete state.humanControl.investStat;
     delete state.humanControl.buyItemId;
