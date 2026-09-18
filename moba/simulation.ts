@@ -3,7 +3,7 @@ import { isFrozen, tickLocks } from "../entity/locks";
 import { consumeExpiredAttackDelay, createAttackTimerState } from "../combat/timers";
 import { dispatchAttack } from "../combat/attackGate";
 import { rollAttack } from "../combat/resolve";
-import { compatiblePrayerSet, type PrayerId } from "../prayer/prayers";
+import { compatiblePrayerSet, aggregatePrayerBoosts, type PrayerId } from "../prayer/prayers";
 import type { PlayerEntity, MinionEntity, TowerEntity } from "./entities";
 import { consumeItem, equipItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
@@ -93,6 +93,7 @@ function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerE
     ...ai,
     moveDelta: moveDelta as -1 | 0 | 1,
     attackStyle,
+    attackType: actor.team === "blue" ? actor.attackType : ai.attackType,
     activatePrayer: state.humanControl.activatePrayer,
     eatItemId: state.humanControl.consumeItemId,
     useSpecial: Boolean(state.humanControl.useSpecial),
@@ -236,14 +237,32 @@ const combatStage: TickStage<SimulationState> = {
       }
 
       const special = decision.useSpecial ? weapon.special : undefined;
+      const prayerBoosts = aggregatePrayerBoosts(actor.activePrayers);
+      const targetPrayerBoosts = aggregatePrayerBoosts(currentEnemy.activePrayers);
+      const statusBoost = (style: PlayerEntity["equipment"]["weapon"] extends infer _ ? string : never) => {
+        const matching = currentEnemy.statusEffects;
+        return matching;
+      };
+      const attackStyle = weapon.style ?? "slash";
+      const attackType = decision.attackType;
+      const relevantStatusBoost = actor.statusEffects
+        .filter(effect => effect.style === attackStyle || (attackStyle !== "magic" && attackStyle !== "ranged" && effect.style === "slash"))
+        .reduce((sum, effect) => sum + effect.amount, 0);
+      const attackBoostMultiplier = 1 + (attackStyle === "magic" ? prayerBoosts.magic : attackStyle === "ranged" ? prayerBoosts.rangedAttack : prayerBoosts.attack) + relevantStatusBoost;
+      const strengthBoostMultiplier = 1 + (attackStyle === "magic" ? 0 : attackStyle === "ranged" ? prayerBoosts.rangedStrength : prayerBoosts.strength) + relevantStatusBoost;
+      const defenceBoostMultiplier = 1 + targetPrayerBoosts.defence;
       const hit = rollAttack({
-        style: weapon.style ?? "slash",
+        style: attackStyle,
+        attackType,
         attackerLevels: toCombatLevels(actor.stats),
         defenderLevels: toCombatLevels(enemy.stats),
         attackerBonuses: equipmentBonuses(actor.equipment),
         defenderBonuses: equipmentBonuses(enemy.equipment),
         defenderPrayers: enemy.activePrayers,
         attackerIsPlayer: true,
+        attackBoostMultiplier,
+        strengthBoostMultiplier,
+        defenceBoostMultiplier,
         accuracyMultiplier: special?.accuracyMultiplier,
         damageMultiplier: special?.damageMultiplier,
         rng: state.rng
@@ -251,6 +270,7 @@ const combatStage: TickStage<SimulationState> = {
 
       const attackerAfterAttack: PlayerEntity = {
         ...actor,
+        attackType,
         attackTimer: gateResult.attackTimer,
         lastCombatTick: state.tick,
         specEnergy: special ? Math.max(0, actor.specEnergy - special.energyCost) : actor.specEnergy
