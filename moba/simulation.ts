@@ -330,7 +330,9 @@ const combatStage: TickStage<SimulationState> = {
         ? actor.id + " hits " + currentEnemy.id + " for " + hit.finalDamage + " (" + attackStyle + " " + attackType + (special ? " SPEC" : "") + ")"
         : actor.id + " misses " + currentEnemy.id + " (" + attackStyle + " " + attackType + (special ? " SPEC" : "") + ")");
 
-      if (newHp <= 0) handlePlayerDeath(state, updatedEnemy, attackerAfterAttack);  }
+      if (newHp <= 0) handlePlayerDeath(state, updatedEnemy, attackerAfterAttack);
+    }
+  }
 };
 
 
