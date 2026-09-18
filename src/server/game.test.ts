@@ -21,8 +21,6 @@ assert(game.events.some(e => e.type === "hit" || e.type === "miss"), "queued hit
 assert(game.players.player.nextAttackTick === 5, "rune scimitar should use a 4-tick cooldown");
 // PID/turn order can make a zero-delay melee hit land during the defender's current turn.
 const earlyPid = createGame();
-earlyPid.players.player.id = "a_player";
-earlyPid.players.opponent.id = "z_opponent";
 earlyPid.players.player.x = 13;
 earlyPid.players.opponent.x = 14;
 enqueueInput(earlyPid, { type: "attack", targetId: "opponent" });
@@ -65,8 +63,6 @@ assert(prayerHit !== undefined, "protected high-accuracy melee attack should sti
 assert((prayerHit.damage ?? 0) === Math.floor((rawHit?.damage ?? 0) * 0.6), "protection prayer should reduce queued melee damage by 40% exactly once");
 
 const protectedGame = createGame();
-protectedGame.players.player.id = "z_player";
-protectedGame.players.opponent.id = "a_opponent";
 protectedGame.players.player.x = 13;
 protectedGame.players.opponent.x = 14;
 enqueueInput(protectedGame, { type: "attack", targetId: "opponent" });
