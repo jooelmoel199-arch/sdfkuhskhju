@@ -78,6 +78,7 @@ export interface SimulationState {
     activatePrayer?: PrayerId;
     laneId: LaneId;
     attackTargetId?: string;
+    spellId?: "ice_rush" | "ice_burst" | "ice_blitz" | "ice_barrage";
     consumeItemId?: string;
     comboConsumableId?: string;
     equipItemId?: string;
@@ -87,6 +88,15 @@ investStat?: "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints
     buyConsumableId?: string;
     buyConsumableQuantity?: number;
   };
+}
+
+function spellProfile(id: SimulationState["humanControl"] extends infer _ ? NonNullable<SimulationState["humanControl"]>["spellId"] : never) {
+  switch (id) {
+    case "ice_rush": return { maxHit: 20, freezeTicks: 16, aoeRadius: 0 };
+    case "ice_burst": return { maxHit: 22, freezeTicks: 20, aoeRadius: 1 };
+    case "ice_blitz": return { maxHit: 26, freezeTicks: 26, aoeRadius: 1 };
+    default: return { maxHit: 30, freezeTicks: 32, aoeRadius: 1 };
+  }
 }
 
 function eventStyle(style: string): CombatEvent["style"] {
@@ -439,7 +449,7 @@ const combatStage: TickStage<SimulationState> = {
         defenceBoostMultiplier,
         accuracyMultiplier: special?.accuracyMultiplier,
         damageMultiplier: special?.damageMultiplier,
-        maxMagicDamage: weapon.spell?.maxHit,
+        maxMagicDamage: attackStyle === "magic" ? spellProfile(state.humanControl?.spellId).maxHit : weapon.spell?.maxHit,
         rng: state.rng
       });
 
