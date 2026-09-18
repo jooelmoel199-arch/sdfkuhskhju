@@ -69,7 +69,7 @@ function processInput(state:GameState,command:InputCommand):void{
  }
 }
 function deterministicRoll(seed:number):number{const x=Math.sin(seed*12.9898)*43758.5453;return x-Math.floor(x);}
-function inMeleeRange(a:Player,b:Player):boolean{return Math.abs(a.x-b.x)+Math.abs(a.y-b.y)===a.equipment.attackRange;}
+function inMeleeRange(a:Player,b:Player):boolean{return Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<=a.equipment.attackRange;}
 function nearestMeleeTile(from:Tile,target:Tile):Tile {
   const candidates:Tile[]=[
     {x:target.x-1,y:target.y},{x:target.x+1,y:target.y},
