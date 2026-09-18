@@ -1,6 +1,6 @@
 import { createCombatRules, type CombatRules } from "./combat-rules";
 import { findPath, MAP_HEIGHT, MAP_WIDTH, type Tile } from "./pathfinding";
-import { MELEE_STYLE_BONUS, WEAPONS, weaponAttackBonus, weaponStance, type AttackType } from "./combat-definitions";
+import { AMMUNITION, MELEE_STYLE_BONUS, SPELLS, WEAPONS, weaponAttackBonus, weaponStance, type AttackType } from "./combat-definitions";
 
 export type Team = "blue" | "red";
 export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | "eagle_eye" | "mystic_might" | "burst_of_strength" | "clarity_of_thought" | "superhuman_strength" | "improved_reflexes" | "incredible_reflexes" | "ultimate_strength" | "steel_skin" | null;
@@ -158,7 +158,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const attackerPrayer=prayerModifiers(a),defenderPrayer=prayerModifiers(d);
  const effectiveAttack=effectiveLevel(ranged?a.ranged:a.magic,ranged?attackerPrayer.rangedAttack:attackerPrayer.magicAttack,style.attack);
  const effectiveDefence=effectiveLevel(d.defence,defenderPrayer.defence,styleBonus[d.attackStyle].defence+style.defence);
- const attackBonus=a.equipment.attackBonus, defenceBonus=d.equipment.defenceBonus;
+ const attackBonus=ranged?a.equipment.attackBonus+(a.equipment.magicAttackBonus??0):a.equipment.magicAttackBonus??0, defenceBonus=d.equipment.defenceBonus;
  const baseMagicDefence=Math.floor(d.magic*0.7+d.defence*0.3);
  const effectiveMagicDefence=effectiveLevel(baseMagicDefence,defenderPrayer.magicDefence,styleBonus[d.attackStyle].defence+style.defence);
  const rangedDefence=effectiveDefence, magicDefence=effectiveMagicDefence;
@@ -167,7 +167,8 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const rules=state.combatRules.onAttack(a.id,d.id,deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17),hitChance,attackRoll,defenceRoll);
  let damage=0;
  if(rules.hit){
-   const maxHit=ranged?Math.max(1,Math.floor((effectiveLevel(a.ranged,attackerPrayer.rangedStrength,style.strength)*(a.equipment.strengthBonus+64)+320)/640)):8;
+   const ammo=AMMUNITION[a.equipment.ammoId??""]; const spell=SPELLS[a.equipment.spellId??""];
+   const maxHit=ranged?Math.max(1,Math.floor((effectiveLevel(a.ranged,attackerPrayer.rangedStrength,style.strength)*(a.equipment.strengthBonus+(ammo?.rangedStrength??0)+64)+320)/640)):(spell?.maxHit??0);
    damage=Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53+d.x*31+d.y*17)*(maxHit+1));
  }
  let resourceOk=false;
