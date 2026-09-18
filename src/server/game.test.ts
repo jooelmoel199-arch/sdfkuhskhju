@@ -255,6 +255,7 @@ assert(magicGame.events.filter(e=>e.type==="hit"||e.type==="miss").length===0,"m
 step(magicGame);
 assert(magicGame.events.some(e=>e.type==="hit"||e.type==="miss"),"spell should resolve at its arrival tick");
 assert(magicGame.pendingHits.length===0,"resolved spell should leave the combat queue");
+assert(magicGame.players.player.xp.magic>=11.5,"Fire Strike should award its base Magic XP when resolved");
 assert(magicSpell.reason==="fire_strike","spell delivery should identify its definition");
 const rapid=createGame();
 rapid.players.player.x=10;rapid.players.opponent.x=14;
