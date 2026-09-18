@@ -6,7 +6,7 @@ import { meleeHitTick, projectileHitTick, type PendingHit } from "../combat/pend
 import { rollAttack } from "../combat/resolve";
 import { compatiblePrayerSet, aggregatePrayerBoosts, prayerDefinitions, type PrayerId } from "../prayer/prayers";
 import type { PlayerEntity, MinionEntity, TowerEntity, NeutralCampEntity, ProjectileEntity } from "./entities";
-import { consumeItem, equipItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
+import { consumeItem, equipItem, equipOwnedItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
 import { gpRewards, xpRewards, shopCatalog } from "./economy";
 import { decideAction, findConsumable } from "./ai";
@@ -62,6 +62,7 @@ export interface SimulationState {
     laneId: LaneId;
     attackTargetId?: string;
     consumeItemId?: string;
+    equipItemId?: string;
     investStat?: "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints";
     buyItemId?: string;
     useSpecial?: boolean;
@@ -146,7 +147,8 @@ function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerE
     investStat: state.humanControl.investStat,
     buyItemId: state.humanControl.buyItemId,
     buyConsumableId: state.humanControl.buyConsumableId,
-    buyConsumableQuantity: state.humanControl.buyConsumableQuantity
+    buyConsumableQuantity: state.humanControl.buyConsumableQuantity,
+    equipItemId: state.humanControl.equipItemId
   };
 }
 
@@ -611,6 +613,10 @@ const effectsStage: TickStage<SimulationState> = {
       const decision = decisionFor(state, actor, enemy);
       let updated = actor;
 
+      if (decision.equipItemId) {
+        updated = equipOwnedItem(updated, decision.equipItemId);
+      }
+
       if (decision.eatItemId) {
         const item = findConsumable(decision.eatItemId);
         if (item && inventoryCount(updated, item.id) > 0 && state.tick >= updated.eatDelayUntilTick) {
@@ -931,6 +937,7 @@ export function advanceTick(state: SimulationState): void {
   tickRunner.run(state);
   if (state.humanControl) {
     delete state.humanControl.consumeItemId;
+    delete state.humanControl.equipItemId;
     delete state.humanControl.investStat;
     delete state.humanControl.buyItemId;
     delete state.humanControl.useSpecial;
