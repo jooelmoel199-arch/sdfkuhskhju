@@ -88,7 +88,8 @@ function resolveAttack(state:GameState,a:Player):void{
  if(!inMeleeRange(a,d)){const goal=nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y});setDestination(a,goal.x,goal.y);return;}
  const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
  const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+styleBonus[d.attackStyle].defence+8;
- const attackBonus=weaponAttackBonus(WEAPONS[a.equipment.weapon] ?? WEAPONS.rune_scimitar, a.attackStyle);
+ const weapon=WEAPONS[a.equipment.weapon] ?? WEAPONS.rune_scimitar;
+ const attackBonus=weaponAttackBonus(weapon, a.attackStyle);
  const attackRoll=effectiveAttack*(attackBonus+64), defenceRoll=effectiveDefence*(d.equipment.defenceBonus+64);
  const hitChance=attackRoll<=defenceRoll
    ? attackRoll/(2*(defenceRoll+1))
@@ -96,12 +97,9 @@ function resolveAttack(state:GameState,a:Player):void{
  const accuracyRoll=deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17);
  const rules=state.combatRules.onAttack(a.id,d.id,accuracyRoll,hitChance,attackRoll,defenceRoll);
  // OSRS max-hit formula: floor((effective strength * (strength bonus + 64) + 320) / 640).
- const baseMaxHit=Math.max(1,Math.floor(((a.strength+bonus.strength+8)*(a.equipment.strengthBonus+64)+320)/640));
+ const baseMaxHit=Math.max(1,Math.floor(((a.strength+bonus.strength+8)*(weapon.strengthBonus+64)+320)/640));
  const maxHit=special?Math.max(1,Math.floor(baseMaxHit*a.equipment.specialMultiplier)):baseMaxHit;
  let damage=rules.hit?Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1)):0;
- // Protection prayers reduce incoming PvP damage rather than turning the hit into an
- // automatic zero. The prayer is evaluated against the attack type at hit creation.
- if(damage>0&&d.prayer==="protect_melee")damage=Math.floor(damage*0.6);
  a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=state.tick+a.equipment.attackSpeed;
  // Standard melee has no projectile travel delay; PvP processing order can add one tick.
  // If the defender has already taken their turn, the queued hit waits for their next turn.
@@ -109,7 +107,7 @@ function resolveAttack(state:GameState,a:Player):void{
  a.hitQueuedTick=hitTick;
  if(special){a.inventory.specialEnergy-=a.equipment.specialCost;event(state,{tick:state.tick,type:"special",attacker:a.id,defender:d.id,special:true});}
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,special});
- a.pendingHitDamage=damage;a.pendingHitSucceeded=rules.hit;a.pendingHitRoll=attackRoll;a.pendingDefenceRoll=defenceRoll;a.pendingHitTargetId=d.id;a.pendingAttackType=a.equipment.attackType;a.pendingSpecial=special;
+ a.pendingHitDamage=damage;a.pendingHitSucceeded=rules.hit;a.pendingHitRoll=attackRoll;a.pendingDefenceRoll=defenceRoll;a.pendingHitTargetId=d.id;a.pendingAttackType=weapon.attackType;a.pendingSpecial=special;
 }
 function movementStageForPlayer(state:GameState,p:Player):void{
  if(p.hp<=0)return;
