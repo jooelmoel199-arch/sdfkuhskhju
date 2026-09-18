@@ -684,6 +684,35 @@ function testFoodAndPrayerCanPrecedeImpact() {
   ok(state.blue.attackTimer.additiveAttackDelayTicks >= 3, "food should still delay the next attack cycle");
 }
 
+function testLethalHitQueuesDeathForNextTick() {
+  const state = createPvpTestState();
+  state.red = { ...state.red, currentHp: 5, activePrayers: [], prayerPoints: 0 };
+  state.players = state.players.map(player => player.id === state.red.id ? state.red : player);
+  state.pendingHits.push({
+    id: "queued-death-test",
+    dueTick: 0,
+    attackerId: state.blue.id,
+    targetId: state.red.id,
+    attackerPid: state.blue.pid,
+    targetPid: state.red.pid,
+    style: "slash",
+    attackType: "aggressive",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 20,
+    createdTick: 0
+  });
+  state.humanControl = { attackEnabled: true, laneId: "middle", attackTargetId: state.red.id };
+  advanceTick(state);
+  equal(state.red.alive, true, "lethal hitsplat should queue death rather than immediately remove the player");
+  equal(state.red.currentHp, 0, "lethal hitsplat should leave the victim at zero HP while death is queued");
+  equal(state.pendingDeaths.length, 1, "a lethal hitsplat should create a next-tick death command");
+
+  advanceTick(state);
+  equal(state.red.alive, false, "queued death should resolve on the following tick");
+  equal(state.red.deaths, 1, "queued death should increment the death count once");
+}
+
 function testQueuedHitBeatsPrayerDrain() {
   const state = createPvpTestState();
   state.red = {
@@ -788,6 +817,7 @@ testFoodDelayExpiresAfterOneAttackCycle();
 testNpcHitQueuesIntoPlayerTurn();
 testPlayerNpcImpactWaitsForNpcTurn();
 testQueuedHitUsesImpactPrayer();
+testLethalHitQueuesDeathForNextTick();
 testQueuedHitBeatsPrayerDrain();
 testRedemptionSavesLethalHit();
 testCampRespawnSchedule();
