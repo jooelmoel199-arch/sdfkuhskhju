@@ -6,6 +6,7 @@ import type { TilePosition } from "../world/movement";
 import type { PrayerId } from "../prayer/prayers";
 import type { LaneId } from "./lane";
 import type { PendingHit } from "../combat/pendingHits";
+import type { PlayerCommand } from "../combat/commandQueue";
 import type { StatBlock } from "./stats";
 import { createStatBlock, maxHitpoints, maxPrayerPoints } from "./stats";
 import type { BonusTable, CombatLevels, CombatStyle } from "../combat/formulas";
@@ -65,6 +66,10 @@ export interface PlayerEntity {
   statusEffects: StatusEffect[];
   attackDelayUntilTick: number; // from eating, blocks attacking but not the underlying weapon cooldown
   eatDelayUntilTick: number; // consumable action delay, separate from attack-cycle delay
+  /** Discrete client commands waiting to be consumed by the combat interaction. */
+  queuedSpecialAttacks: number;
+  queuedSpecialTargetId?: string;
+  lastCombatTargetId?: string;
   lastPrayerToggleTick: number;
   lastCombatTick: number; // for PJ/engagement timer + assist windows
   lastDamagedByPlayerId?: string;
@@ -182,6 +187,9 @@ export function createPlayer(
     statusEffects: [],
     attackDelayUntilTick: 0,
     eatDelayUntilTick: 0,
+    queuedSpecialAttacks: 0,
+    queuedSpecialTargetId: undefined,
+    lastCombatTargetId: undefined,
     lastPrayerToggleTick: -1000,
     lastCombatTick: -1000,
     alive: true,
