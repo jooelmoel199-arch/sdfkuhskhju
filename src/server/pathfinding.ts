@@ -25,8 +25,14 @@ export function findPath(start:Tile, goal:Tile):Tile[] {
   const seen=new Set<string>([key(start)]);
   for(let i=0;i<queue.length;i++){
     const cur=queue[i];
-    const nexts=[{x:cur.x+1,y:cur.y},{x:cur.x-1,y:cur.y},{x:cur.x,y:cur.y+1},{x:cur.x,y:cur.y-1}];
+    const nexts=[
+      {x:cur.x+1,y:cur.y},{x:cur.x-1,y:cur.y},{x:cur.x,y:cur.y+1},{x:cur.x,y:cur.y-1},
+      {x:cur.x+1,y:cur.y+1},{x:cur.x+1,y:cur.y-1},{x:cur.x-1,y:cur.y+1},{x:cur.x-1,y:cur.y-1}
+    ];
     for(const next of nexts){
+      const diagonal=next.x!==cur.x&&next.y!==cur.y;
+      // Do not cut through a blocked corner when walking diagonally.
+      if(diagonal&&(!isWalkable(next.x,cur.y)||!isWalkable(cur.x,next.y))) continue;
       const nk=key(next); if(seen.has(nk)||!isWalkable(next.x,next.y)) continue;
       seen.add(nk); came.set(nk,key(cur));
       if(next.x===goal.x&&next.y===goal.y){
