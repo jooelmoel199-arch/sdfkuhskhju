@@ -52,6 +52,7 @@ export interface SimulationState {
   jungleCamps: NeutralCampEntity[];
   engagedAttackerTeamByLane: Partial<Record<LaneId, "blue" | "red">>;
   teamBuffs: Partial<Record<"blue" | "red", { name: string; expiresAtTick: number; damageMultiplier: number }>>;
+  matchResult?: "blue" | "red";
   log: SimulationLogEntry[];
   rng: () => number;
   humanControl?: {
@@ -266,6 +267,19 @@ const combatStage: TickStage<SimulationState> = {
 
       if (targetCamp) {
         handleCampAttack(state, actor, targetCamp, decision.attackType);
+        continue;
+      }
+
+      const targetTower = actor.team === "blue" && state.humanControl?.attackTargetId
+        ? state.towers.find(tower =>
+            tower.id === state.humanControl?.attackTargetId &&
+            tower.alive &&
+            tower.team !== actor.team &&
+            tower.laneId === actor.laneId
+          )
+        : undefined;
+      if (targetTower) {
+        handleTowerAttack(state, actor, targetTower, decision.attackType);
         continue;
       }
 
@@ -538,6 +552,87 @@ const pendingHitStage: TickStage<SimulationState> = {
     state.projectiles = state.projectiles.filter(projectile => projectile.hitTick > state.tick);
   }
 };
+
+function handleTowerAttack(
+  state: SimulationState,
+  actor: PlayerEntity,
+  tower: SimulationState["towers"][number],
+  attackType: PlayerEntity["attackType"]
+): void {
+  const weapon = actor.equipment.weapon;
+  if (!weapon) return;
+
+  const gateResult = dispatchAttack({
+    currentTick: state.tick,
+    attackerTile: actor.tile,
+    defenderTile: tower.tile,
+    attackerFrozen: isFrozen(actor.locks, state.tick),
+    locks: actor.locks,
+    attackTimer: actor.attackTimer,
+    weapon: {
+      style: weapon.style ?? "slash",
+      cooldownTicks: weapon.cooldownTicks ?? 4,
+      attackRange: weapon.attackRange ?? 1,
+      attackType
+    },
+    extraAttackDelayUntilTick: actor.attackDelayUntilTick
+  });
+  if (!gateResult.gate.canAttack) {
+    setPlayer(state, { ...actor, attackTimer: gateResult.attackTimer });
+    return;
+  }
+
+  const style = weapon.style ?? "slash";
+  const prayerBoosts = aggregatePrayerBoosts(actor.activePrayers);
+  const attackBoostMultiplier =
+    1 + (style === "magic" ? prayerBoosts.magic : style === "ranged" ? prayerBoosts.rangedAttack : prayerBoosts.attack);
+  const strengthBoostMultiplier =
+    1 + (style === "magic" ? 0 : style === "ranged" ? prayerBoosts.rangedStrength : prayerBoosts.strength);
+
+  // Towers are MOBA structures rather than RuneScape NPCs. They use a fixed
+  // defensive profile while player attack timing/damage remains the combat model.
+  const towerLevels = { attack: 60, strength: 60, defence: 70, ranged: 60, magic: 60 };
+  const hit = rollAttack({
+    style,
+    attackType,
+    attackerLevels: toCombatLevels(actor.stats),
+    defenderLevels: towerLevels,
+    attackerBonuses: equipmentBonuses(actor.equipment),
+    defenderBonuses: { ...equipmentBonuses(actor.equipment), slash_defence_bonus: 40, stab_defence_bonus: 40, crush_defence_bonus: 40 },
+    defenderPrayers: [],
+    attackerIsPlayer: true,
+    attackBoostMultiplier,
+    strengthBoostMultiplier,
+    maxMagicDamage: weapon.spell?.maxHit,
+    rng: state.rng
+  });
+
+  setPlayer(state, {
+    ...actor,
+    attackType,
+    attackTimer: gateResult.attackTimer,
+    lastCombatTick: state.tick
+  });
+
+  if (!hit.landed) {
+    log(state, actor.id + " misses " + tower.id);
+    return;
+  }
+
+  tower.currentHp = Math.max(0, tower.currentHp - hit.finalDamage);
+  log(state, actor.id + " hits " + tower.id + " for " + hit.finalDamage);
+
+  if (tower.currentHp <= 0) {
+    tower.alive = false;
+    log(state, tower.id + " falls");
+    const enemyTeam = tower.team;
+    const remaining = state.towers.some(other => other.alive && other.team === enemyTeam);
+    if (!remaining) {
+      state.matchResult = actor.team;
+      log(state, actor.team + " wins the prototype match");
+    }
+  }
+}
 
 function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: NeutralCampEntity, attackType: PlayerEntity["attackType"]): void {
   const weapon = actor.equipment.weapon;
@@ -1010,6 +1105,7 @@ export const tickRunner = createTickStageRunner<SimulationState>([
 ]);
 
 export function advanceTick(state: SimulationState): void {
+  if (state.matchResult) return;
   tickRunner.run(state);
   if (state.humanControl) {
     delete state.humanControl.consumeItemId;
