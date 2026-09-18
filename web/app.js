@@ -1,6 +1,7 @@
 import {
   state, stepSimulation, setMoveTarget, stopMovement, setLane, setAttackTarget, clearAttackTarget,
-  setAttackEnabled, toggleMeleePrayer, resetSimulation, maxHitpoints, TICK_MS
+  setAttackEnabled, toggleMeleePrayer, resetSimulation, maxHitpoints, TICK_MS,
+  useConsumable, investAll, useSpecial, buyBestAffordableUpgrade
 } from "./simState.js";
 import { levelOf } from "../moba/stats.ts";
 import { LANE_Y, LANES } from "../moba/lane.ts";
@@ -13,6 +14,7 @@ const tickEl = document.querySelector("#tick");
 const timeEl = document.querySelector("#time");
 const playersEl = document.querySelector("#players");
 const feedEl = document.querySelector("#feed");
+const actionbarEl = document.querySelector("#actionbar");
 
 const WORLD = { w: 3600, h: 2400 };
 const CAMERA_LANE_Y = { top: 350, middle: 1200, bottom: 2050 };
@@ -83,7 +85,28 @@ function updateHud() {
   }
 }
 
-function drawHpBar(x, y, width, hp, maxHp, fill) {
+
+function inventoryCount(id) {
+  return state.blue.inventory.find(entry => entry.id === id)?.quantity ?? 0;
+}
+
+function renderActionbar() {
+  actionbarEl.innerHTML = \
+    '<div class="actionGroup">' +
+    '<button class="actionButton" data-action="food"><span class="key">F</span>SHARK<span class="count">' + inventoryCount("shark") + '</span></button>' +
+    '<button class="actionButton" data-action="prayer"><span class="key">C</span>PRAYER POT<span class="count">' + inventoryCount("prayer_potion") + '</span></button>' +
+    '<button class="actionButton" data-action="spec"><span class="key">X</span>SPEC<span class="count">' + Math.floor(state.blue.specEnergy) + '%</span></button>' +
+    '</div><div class="divider"></div>' +
+    '<div class="actionGroup">' +
+    '<button class="actionButton" data-action="attack"><span class="key">Q</span>ATTACK ' + (state.humanControl.attackEnabled ? 'ON' : 'OFF') + '</button>' +
+    '<button class="actionButton" data-action="prayer-toggle"><span class="key">P</span>PROTECT</button>' +
+    '<button class="actionButton" data-action="upgrade"><span class="key">A</span>+ATTACK</button>' +
+    '<button class="actionButton" data-action="upgrade-str"><span class="key">S</span>+STRENGTH</button>' +
+    '<button class="actionButton" data-action="upgrade-def"><span class="key">D</span>+DEFENCE</button>' +
+    '<button class="actionButton" data-action="buy"><span class="key">B</span>BUY AT BASE</button>' +
+    '</div>';
+}
+\nfunction drawHpBar(x, y, width, hp, maxHp, fill) {
   ctx.fillStyle = "rgba(0,0,0,.75)";
   ctx.fillRect(x - width / 2, y, width, 6);
   ctx.fillStyle = fill;
@@ -223,6 +246,7 @@ function draw() {
   }
 
   drawMinimap();
+  renderActionbar();
 }
 
 function drawMinimap() {
@@ -340,6 +364,21 @@ canvas.addEventListener("wheel", event => {
   camera.y += before.y - after.y;
 }, { passive: false });
 
+actionbarEl.addEventListener("click", event => {
+  const button = event.target.closest("[data-action]");
+  if (!button) return;
+  const action = button.dataset.action;
+  if (action === "food") useConsumable("shark");
+  if (action === "prayer") useConsumable("prayer_potion");
+  if (action === "spec") useSpecial();
+  if (action === "attack") setAttackEnabled(!state.humanControl.attackEnabled);
+  if (action === "prayer-toggle") toggleMeleePrayer();
+  if (action === "upgrade") investAll("attack");
+  if (action === "upgrade-str") investAll("strength");
+  if (action === "upgrade-def") investAll("defence");
+  if (action === "buy") buyBestAffordableUpgrade();
+});
+
 addEventListener("keydown", event => {
   const key = event.key.toLowerCase();
   keys.add(key);
@@ -349,6 +388,14 @@ addEventListener("keydown", event => {
     setAttackEnabled(!state.humanControl.attackEnabled);
   }
   if (key === "p") toggleMeleePrayer();
+  if (key === "f") useConsumable("shark");
+  if (key === "c") useConsumable("prayer_potion");
+  if (key === "x") useSpecial();
+  if (key === "q") setAttackEnabled(!state.humanControl.attackEnabled);
+  if (key === "a") investAll("attack");
+  if (key === "s") investAll("strength");
+  if (key === "d") investAll("defence");
+  if (key === "b") buyBestAffordableUpgrade();
   if (key === "escape") clearAttackTarget();
   if (key === "1") setLane("top");
   if (key === "2") setLane("middle");
