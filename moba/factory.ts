@@ -91,10 +91,19 @@ export function makeJungleCamp(id: string, name: string, x: number, y: number, r
   };
 }
 export function createPrototypeState(): SimulationState {
+  const blueTop = buildStartingLoadout("blue-top", "blue", "melee", "top");
+  const blueMid = buildStartingLoadout("blue-1", "blue", "melee", "middle");
+  const blueBottom = buildStartingLoadout("blue-bottom", "blue", "ranged", "bottom");
+  const redTop = buildStartingLoadout("red-top", "red", "melee", "top");
+  const redMid = buildStartingLoadout("red-1", "red", "ranged", "middle");
+  const redBottom = buildStartingLoadout("red-bottom", "red", "ranged", "bottom");
+  const players = [blueTop, blueMid, blueBottom, redTop, redMid, redBottom];
+
   return {
     tick: 0,
-    blue: buildStartingLoadout("blue-1", "blue", "melee", "middle"),
-    red: buildStartingLoadout("red-1", "red", "ranged", "middle"),
+    blue: blueMid,
+    red: redMid,
+    players,
     minions: [],
     towers: [
       ...LANES.map(lane => makeTower(`blue-${lane}-tower`, "blue", lane, BLUE_TOWER_X)),
