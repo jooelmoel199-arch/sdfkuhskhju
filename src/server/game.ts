@@ -3,7 +3,7 @@ import { findPath, MAP_HEIGHT, MAP_WIDTH, type Tile } from "./pathfinding";
 import { MELEE_STYLE_BONUS, WEAPONS, weaponAttackBonus, weaponStance, type AttackType, type MeleeAttackType } from "./combat-definitions";
 
 export type Team = "blue" | "red";
-export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | null;
+export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | "burst_of_strength" | "clarity_of_thought" | "superhuman_strength" | "improved_reflexes" | "incredible_reflexes" | "ultimate_strength" | "steel_skin" | null;
 export type AttackStyle = "accurate" | "aggressive" | "defensive" | "controlled";
 export type ItemAction = "eat" | "equip" | "unequip";
 export interface ItemStack { id:string; quantity:number; }
@@ -87,7 +87,9 @@ function resolveAttack(state:GameState,a:Player):void{
  const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingHitSucceeded=false;a.pendingHitTargetId=null;a.pendingAttackType=null;a.pendingSpecial=false;a.specialQueued=false;return;}
  if(!inMeleeRange(a,d)){const goal=nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y});setDestination(a,goal.x,goal.y);return;}
  const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
- const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+styleBonus[d.attackStyle].defence+8;
+ const attackerPrayer=prayerModifiers(a), defenderPrayer=prayerModifiers(d);
+ const effectiveAttack=effectiveLevel(a.attack,attackerPrayer.attack,bonus.attack);
+ const effectiveDefence=effectiveLevel(d.defence,defenderPrayer.defence,styleBonus[d.attackStyle].defence);
  const weapon=WEAPONS[a.equipment.weapon] ?? WEAPONS.rune_scimitar;
  const stance=weaponStance(weapon, a.attackStyle);
  const attackBonus=weaponAttackBonus(weapon, a.attackStyle);
@@ -99,7 +101,8 @@ function resolveAttack(state:GameState,a:Player):void{
  const accuracyRoll=deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17);
  const rules=state.combatRules.onAttack(a.id,d.id,accuracyRoll,hitChance,attackRoll,defenceRoll);
  // OSRS max-hit formula: floor((effective strength * (strength bonus + 64) + 320) / 640).
- const baseMaxHit=Math.max(1,Math.floor(((a.strength+bonus.strength+8)*(weapon.strengthBonus+64)+320)/640));
+ const effectiveStrength=effectiveLevel(a.strength,attackerPrayer.strength,bonus.strength);
+ const baseMaxHit=Math.max(1,Math.floor((effectiveStrength*(weapon.strengthBonus+64)+320)/640));
  const maxHit=special?Math.max(1,Math.floor(baseMaxHit*a.equipment.specialMultiplier)):baseMaxHit;
  let damage=rules.hit?Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1)):0;
  a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=state.tick+a.equipment.attackSpeed;
@@ -116,6 +119,19 @@ function movementStageForPlayer(state:GameState,p:Player):void{
  if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&!inMeleeRange(p,t)){const goal=nearestMeleeTile({x:p.x,y:p.y},{x:t.x,y:t.y});setDestination(p,goal.x,goal.y);}}
  if(p.path.length){const next=p.path.shift()!;p.x=next.x;p.y=next.y;}
 }
+function prayerModifiers(p:Player):{attack:number;strength:number;defence:number}{
+ switch(p.prayer){
+  case "burst_of_strength": return {attack:1,strength:1.05,defence:1};
+  case "clarity_of_thought": return {attack:1.05,strength:1,defence:1};
+  case "superhuman_strength": return {attack:1,strength:1.1,defence:1};
+  case "improved_reflexes": return {attack:1.1,strength:1,defence:1};
+  case "incredible_reflexes": return {attack:1.15,strength:1,defence:1};
+  case "ultimate_strength": return {attack:1,strength:1.15,defence:1};
+  case "steel_skin": return {attack:1,strength:1,defence:1.15};
+  default: return {attack:1,strength:1,defence:1};
+ }
+}
+function effectiveLevel(base:number,multiplier:number,style:number):number{return Math.floor(base*multiplier)+style+8;}
 function prayerStageForPlayer(state:GameState,p:Player):void{
  if(!p.prayer)return;
  if(state.tick%2===0){p.prayerPoints=Math.max(0,p.prayerPoints-1);if(p.prayerPoints===0)p.prayer=null;}
