@@ -88,6 +88,12 @@ investStat?: "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints
   };
 }
 
+function eventStyle(style: string): CombatEvent["style"] {
+  if (style === "magic") return "magic";
+  if (style === "ranged") return "ranged";
+  return "melee";
+}
+
 function pushCombatEvent(state: SimulationState, event: CombatEvent): void {
   state.combatEvents.push(event);
   if (state.combatEvents.length > 80) state.combatEvents.splice(0, state.combatEvents.length - 80);
@@ -598,7 +604,7 @@ const pendingHitStage: TickStage<SimulationState> = {
           tick: state.tick,
           attackerId: hit.attackerId,
           targetId: target.id,
-          style: hit.style,
+          style: eventStyle(hit.style),
           damage: hit.rawDamage,
           landed: true,
           freezeTicks: hit.freezeTicks
