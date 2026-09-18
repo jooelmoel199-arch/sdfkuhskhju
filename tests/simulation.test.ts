@@ -398,6 +398,36 @@ function testDragonClawsExposeRawDamageForImpactPrayer() {
     "launch-time prayer view should remain consistent with raw claws damage");
 }
 
+
+function testFoodBeforeReadyAttackDoesNotCreateCooldown() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 0, additiveAttackDelayTicks: 0 }
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.humanControl = {
+    attackEnabled: false,
+    laneId: "middle",
+    attackTargetId: state.red.id,
+    consumeItemId: "shark"
+  };
+
+  advanceTick(state);
+
+  equal(state.blue.attackTimer.additiveAttackDelayTicks, 0,
+    "eating while the attack cycle is ready must not create a new attack delay");
+}
+
+function testAuthoritativeStageOrder() {
+  const { tickRunner } = require("../moba/simulation") as typeof import("../moba/simulation");
+  equal(
+    tickRunner.stageNames.join(">"),
+    "npc-turns>player-turns>pending-hits>lock-decay>respawns",
+    "server tick should process NPCs before PID-ordered players"
+  );
+}
+
 function testFoodAndPrayerCanPrecedeImpact() {
   const state = createPvpTestState();
   state.blue = { ...state.blue, currentHp: 60 };
