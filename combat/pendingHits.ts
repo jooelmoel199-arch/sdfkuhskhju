@@ -12,6 +12,8 @@ export interface PendingHit {
   readonly rawDamage: number;
   readonly freezeTicks?: number;
   readonly createdTick: number;
+  /** Monotonic insertion sequence preserves FIFO when several queue entries share a tick. */
+  readonly sequence?: number;
 }
 
 export function processingOrderDelay(attackerPriority: number, defenderPriority: number): number {
