@@ -121,3 +121,7 @@ export function buyConsumables(itemId, quantity = 1) {
 export function resetSimulation() {
   state = { ...createPvpTestState(), humanControl: { attackEnabled: true, laneId: "middle" } };
 }
+
+export function setSpell(spellId) {
+  state.humanControl.spellId = spellId;
+}
