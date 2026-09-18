@@ -1,19 +1,22 @@
 import { levelForXp, xpForLevel } from "./xp";
 import type { CombatLevels } from "../combat/formulas";
 
-export type StatId = "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints";
+export type StatId = "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints" | "prayer";
 
-export const statIds: readonly StatId[] = ["attack", "strength", "defence", "ranged", "magic", "hitpoints"];
+export const statIds: readonly StatId[] = ["attack", "strength", "defence", "ranged", "magic", "hitpoints", "prayer"];
 
 export type StatXp = Readonly<Record<StatId, number>>;
 
 export const startingXp: StatXp = {
-  attack: xpForLevel(1),
-  strength: xpForLevel(1),
-  defence: xpForLevel(1),
-  ranged: xpForLevel(1),
-  magic: xpForLevel(1),
-  hitpoints: xpForLevel(10) // OSRS-style: everyone starts at HP 10
+  // Combat-ready prototype account. The progression system remains live and can be
+  // tuned back toward level-1 starts once the vertical slice is fun to play.
+  attack: xpForLevel(40),
+  strength: xpForLevel(40),
+  defence: xpForLevel(40),
+  ranged: xpForLevel(40),
+  magic: xpForLevel(40),
+  hitpoints: xpForLevel(40),
+  prayer: xpForLevel(43)
 };
 
 /**
@@ -54,6 +57,10 @@ export function levelOf(block: StatBlock, stat: StatId): number {
 
 export function maxHitpoints(block: StatBlock): number {
   return levelOf(block, "hitpoints");
+}
+
+export function maxPrayerPoints(block: StatBlock): number {
+  return levelOf(block, "prayer");
 }
 
 export function toCombatLevels(block: StatBlock): CombatLevels {
