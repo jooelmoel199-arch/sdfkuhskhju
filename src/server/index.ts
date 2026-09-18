@@ -12,7 +12,9 @@ function json(res:import("node:http").ServerResponse,status:number,value:unknown
   res.end(JSON.stringify(value));
 }
 function snapshot(){return {tick:state.tick,players:state.players,events:state.events.slice(-50),queuedInputs:state.pendingInputs.length};}
-function broadcast(){const payload=`data: ${JSON.stringify(snapshot())}\n\n`;for(const c of clients)c.write(payload);}
+function broadcast(){const payload=`data: ${JSON.stringify(snapshot())}
+
+`;for(const c of clients)c.write(payload);}
 async function body(req:import("node:http").IncomingMessage){const chunks:Buffer[]=[];for await(const chunk of req)chunks.push(Buffer.from(chunk));return Buffer.concat(chunks).toString("utf8");}
 function isInput(value:unknown):value is InputCommand{
  if(!value||typeof value!=="object")return false;const c=value as Record<string,unknown>;
@@ -21,7 +23,8 @@ function isInput(value:unknown):value is InputCommand{
   case "move":return typeof c.x==="number"&&Number.isFinite(c.x)&&typeof c.y==="number"&&Number.isFinite(c.y);
   case "prayer":return c.prayer===null||c.prayer==="protect_melee"||c.prayer==="protect_mage"||c.prayer==="protect_range";
   case "attack_style":return c.style==="accurate"||c.style==="aggressive"||c.style==="defensive"||c.style==="controlled";
-  case "item_action":return Number.isInteger(c.slot)&&c.slot>=0&&c.slot<28&&(c.action==="eat"||c.action==="equip"||c.action==="unequip");\n  case "eat":case "special":case "stop_attack":return true;
+  case "item_action":return Number.isInteger(c.slot)&&c.slot>=0&&c.slot<28&&(c.action==="eat"||c.action==="equip"||c.action==="unequip");
+  case "eat":case "special":case "stop_attack":return true;
   default:return false;
  }
 }
@@ -38,7 +41,9 @@ const server=createServer(async(req,res)=>{
  }
  if(req.url==="/tick"&&req.method==="POST"){step(state);broadcast();return json(res,200,snapshot());}
  if(req.url==="/events"&&req.method==="GET"){
-  clients.add(res);req.on("close",()=>clients.delete(res));res.writeHead(200,{"content-type":"text/event-stream; charset=utf-8","cache-control":"no-cache",connection:"keep-alive","access-control-allow-origin":"*"});res.write(`data: ${JSON.stringify(snapshot())}\n\n`);return;
+  clients.add(res);req.on("close",()=>clients.delete(res));res.writeHead(200,{"content-type":"text/event-stream; charset=utf-8","cache-control":"no-cache",connection:"keep-alive","access-control-allow-origin":"*"});res.write(`data: ${JSON.stringify(snapshot())}
+
+`);return;
  }
  return json(res,404,{error:"not found"});
 });
