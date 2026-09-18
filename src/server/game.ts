@@ -1,3 +1,5 @@
+import { createCombatRules, type CombatRules } from "./combat-rules";
+
 export type Team = "blue" | "red";
 export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | null;
 
