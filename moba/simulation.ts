@@ -24,7 +24,7 @@ import {
   type JoinFightInput
 } from "./lane";
 import type { LaneId } from "./lane";
-import type { TilePosition } from "../world/movement";
+import { canMeleeReachThisTick, type TilePosition } from "../world/movement";
 
 const MINION_SPAWN_INTERVAL_TICKS = 15;
 const MINIONS_PER_WAVE_PER_LANE = 3;
@@ -395,7 +395,10 @@ const prayerStage: TickStage<SimulationState> = {
       : [...state.players];
     for (const actor of actors) {
       if (!actor.alive) continue;
-      const enemy = opponentOf(state, actor.id);
+      const queuedSpecialTarget = actor.queuedSpecialTargetId
+        ? state.players.find(player => player.id === actor.queuedSpecialTargetId && player.alive && player.team !== actor.team)
+        : undefined;
+      const enemy = queuedSpecialTarget ?? opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
       const requested = actor.id === state.blue.id ? undefined : decision.activatePrayer as PrayerId | undefined;
       const isHumanToggle = false;
@@ -500,6 +503,99 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
   }
 }
 
+function handleGraniteMaulSpecial(
+  state: SimulationState,
+  actor: PlayerEntity,
+  target: PlayerEntity
+): boolean {
+  if (actor.equipment.weapon?.id !== "granite_maul" || actor.queuedSpecialAttacks <= 0) return false;
+
+  const reach = canMeleeReachThisTick({
+    attacker: actor.tile,
+    defender: target.tile,
+    attackerFrozen: isFrozen(actor.locks, state.tick),
+    attackRange: 1
+  });
+
+  if (!reach.canReach) {
+    // Current OSRS behaviour does not allow a stale pre-queued maul spec to
+    // persist until the player eventually reaches a target.
+    setPlayer(state, { ...actor, queuedSpecialAttacks: 0, queuedSpecialTargetId: undefined });
+    log(state, actor.id + " fails Granite maul special: target not melee-reachable");
+    return true;
+  }
+
+  const specialEnergyCost = actor.equipment.weapon.special?.energyCost ?? 50;
+  const usable = Math.min(actor.queuedSpecialAttacks, Math.floor(actor.specEnergy / specialEnergyCost));
+  if (usable <= 0) {
+    setPlayer(state, { ...actor, queuedSpecialAttacks: 0, queuedSpecialTargetId: undefined });
+    log(state, actor.id + " fails Granite maul special: not enough energy");
+    return true;
+  }
+
+  const prayerBoosts = aggregatePrayerBoosts(actor.activePrayers);
+  const targetPrayerBoosts = aggregatePrayerBoosts(target.activePrayers);
+  const attackBoostMultiplier =
+    1 + prayerBoosts.attack + actor.statusEffects
+      .filter(effect => effect.style === "crush" || effect.style === "slash")
+      .reduce((sum, effect) => sum + effect.amount, 0);
+  const strengthBoostMultiplier =
+    1 + prayerBoosts.strength + actor.statusEffects
+      .filter(effect => effect.style === "crush" || effect.style === "slash")
+      .reduce((sum, effect) => sum + effect.amount, 0);
+  const defenceBoostMultiplier = 1 + targetPrayerBoosts.defence;
+
+  let hitsQueued = 0;
+  for (let strike = 0; strike < usable; strike += 1) {
+    const hit = rollAttack({
+      style: "crush",
+      attackType: actor.attackType,
+      attackerLevels: toCombatLevels(actor.stats),
+      defenderLevels: toCombatLevels(target.stats),
+      attackerBonuses: equipmentBonuses(actor.equipment),
+      defenderBonuses: equipmentBonuses(target.equipment),
+      defenderPrayers: target.activePrayers,
+      attackerIsPlayer: true,
+      attackBoostMultiplier,
+      strengthBoostMultiplier,
+      defenceBoostMultiplier,
+      // Granite maul Quick Smash has no accuracy or damage multiplier.
+      rng: state.rng
+    });
+    const hitTick = meleeHitTick(
+      state.tick,
+      playerPriority(state, actor.id),
+      playerPriority(state, target.id)
+    );
+    enqueuePendingHit(state, {
+      id: "gmaul-" + actor.id + "-" + state.tick + "-" + (++projectileSeq),
+      dueTick: hitTick,
+      attackerId: actor.id,
+      targetId: target.id,
+      attackerPid: actor.pid,
+      targetPid: target.pid,
+      style: "crush",
+      attackType: actor.attackType,
+      landed: hit.landed,
+      hitChance: hit.hitChance,
+      rawDamage: hit.rawDamage,
+      createdTick: state.tick
+    });
+    hitsQueued += 1;
+  }
+
+  setPlayer(state, {
+    ...actor,
+    specEnergy: Math.max(0, actor.specEnergy - hitsQueued * specialEnergyCost),
+    queuedSpecialAttacks: Math.max(0, actor.queuedSpecialAttacks - hitsQueued),
+    queuedSpecialTargetId: actor.queuedSpecialAttacks - hitsQueued > 0 ? target.id : undefined,
+    lastCombatTick: state.tick,
+    lastCombatTargetId: target.id
+  });
+  log(state, actor.id + " uses Granite maul special on " + target.id + " (" + hitsQueued + " instant attack" + (hitsQueued === 1 ? "" : "s") + ")");
+  return true;
+}
+
 const combatStage: TickStage<SimulationState> = {
   name: "combat",
   run: state => {
@@ -563,6 +659,14 @@ const combatStage: TickStage<SimulationState> = {
 
       const weapon = actor.equipment.weapon;
       const attackType = decision.attackType;
+
+      // Granite maul Quick Smash is instant and does not inherit the normal
+      // weapon attack cooldown. It is the main NH combo exception to the
+      // ordinary attack gate.
+      if (weapon.id === "granite_maul" && actor.queuedSpecialAttacks > 0) {
+        if (handleGraniteMaulSpecial(state, actor, enemy)) continue;
+      }
+
       const gateResult = dispatchAttack({
         currentTick: state.tick,
         attackerTile: actor.tile,
@@ -584,12 +688,15 @@ const combatStage: TickStage<SimulationState> = {
         continue;
       }
 
-      // A special is a separate attack mode, not a damage multiplier that can
-      // silently fire when the energy bar is empty. If the player requests a
-      // special without enough energy, fall back to the weapon's normal attack.
-      const special = decision.useSpecial && weapon.special && actor.specEnergy >= weapon.special.energyCost
-        ? weapon.special
-        : undefined;
+      // Standard special attacks consume one queued client special when an
+      // eligible attack actually happens. If energy is insufficient the command
+      // is discarded and the ordinary attack proceeds instead.
+      const humanQueuedSpecial = actor.id === state.blue.id && actor.queuedSpecialAttacks > 0;
+      const special = humanQueuedSpecial
+        ? weapon.special && actor.specEnergy >= weapon.special.energyCost ? weapon.special : undefined
+        : decision.useSpecial && weapon.special && actor.specEnergy >= weapon.special.energyCost
+          ? weapon.special
+          : undefined;
       const currentEnemy = opponentOf(state, actor.id);
       const prayerBoosts = aggregatePrayerBoosts(actor.activePrayers);
       const targetPrayerBoosts = aggregatePrayerBoosts(currentEnemy.activePrayers);
@@ -608,6 +715,13 @@ const combatStage: TickStage<SimulationState> = {
         attackType,
         attackTimer: gateResult.attackTimer,
         lastCombatTick: state.tick,
+        lastCombatTargetId: currentEnemy.id,
+        queuedSpecialAttacks: humanQueuedSpecial
+          ? Math.max(0, actor.queuedSpecialAttacks - 1)
+          : actor.queuedSpecialAttacks,
+        queuedSpecialTargetId: humanQueuedSpecial && actor.queuedSpecialAttacks <= 1
+          ? undefined
+          : actor.queuedSpecialTargetId,
         specEnergy: special ? Math.max(0, actor.specEnergy - special.energyCost) : actor.specEnergy
       };
       setPlayer(state, attackerAfterAttack);
@@ -828,7 +942,8 @@ function handleTowerAttack(
     ...actor,
     attackType,
     attackTimer: gateResult.attackTimer,
-    lastCombatTick: state.tick
+    lastCombatTick: state.tick,
+    lastCombatTargetId: tower.id
   });
 
   if (!hit.landed) {
@@ -919,7 +1034,7 @@ function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: Neu
     rng: state.rng
   });
 
-  setPlayer(state, { ...actor, attackType, attackTimer: gateResult.attackTimer, lastCombatTick: state.tick });
+  setPlayer(state, { ...actor, attackType, attackTimer: gateResult.attackTimer, lastCombatTick: state.tick, lastCombatTargetId: camp.id });
   const index = state.jungleCamps.findIndex(candidate => candidate.id === camp.id);
   if (index < 0) return;
   const currentCamp = state.jungleCamps[index];
@@ -1000,6 +1115,9 @@ function respawnPlayer(state: SimulationState, victim: PlayerEntity): void {
     currentHp: 0,
     tile: respawnTile,
     zone: "base",
+    queuedSpecialAttacks: 0,
+    queuedSpecialTargetId: undefined,
+    lastCombatTargetId: undefined,
     deaths: victim.deaths + 1
   });
 }
