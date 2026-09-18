@@ -2,6 +2,7 @@ import type { PlayerEntity } from "./entities";
 import { levelOf } from "./stats";
 import { shopCatalog, consumableCatalog } from "./economy";
 import type { CombatStyle } from "../combat/formulas";
+import type { AttackType } from "./entities";
 import { LANE_CORE_START, LANE_CORE_END } from "./lane";
 
 /**
@@ -14,6 +15,7 @@ import { LANE_CORE_START, LANE_CORE_END } from "./lane";
 export interface AiDecision {
   readonly moveDelta: -1 | 0 | 1;
   readonly attackStyle: CombatStyle | undefined;
+  readonly attackType: AttackType;
   readonly activatePrayer: string | undefined;
   readonly eatItemId: string | undefined;
   readonly useSpecial: boolean;
@@ -54,7 +56,8 @@ export function decideAction(self: PlayerEntity, enemy: PlayerEntity, currentTic
     buyItemId = affordable.sort((a, b) => b.cost - a.cost)[0]?.id;
   }
 
-  return { moveDelta, attackStyle, activatePrayer, eatItemId, useSpecial, investStat, buyItemId };
+  const attackType: AttackType = weapon?.style === "ranged" ? "rapid_ranged" : weapon?.style === "magic" ? "accurate" : "aggressive";
+  return { moveDelta, attackStyle, attackType, activatePrayer, eatItemId, useSpecial, investStat, buyItemId };
 }
 
 export function findConsumable(id: string) {
