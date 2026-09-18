@@ -19,7 +19,7 @@ import { distanceHitDelay, meleeHitTick, projectileHitTick } from "../combat/pen
 import { rollDragonClawsSpecial } from "../combat/resolve";
 import { zeroBonuses, effectiveDefenceLevel, effectiveAttackLevel } from "../combat/formulas";
 import { drainPlayerCommands, enqueuePlayerCommand, makeStrongCommand } from "../combat/commandQueue";
-import { combatLevelsForPlayer, queueClientCommand } from "../moba/simulation";
+import { combatLevelsForPlayer, queueClientCommand, SPECIAL_ENERGY_PER_TICK } from "../moba/simulation";
 
 function testPrototypeShape() {
   const state = createPrototypeState();
@@ -232,6 +232,29 @@ function testFoodAddsToCombatTimer() {
   advanceTick(state);
   equal(state.blue.inventory.find(item => item.id === "shark")?.quantity, startingSharks - 1, "shark should be consumed once");
   equal(state.blue.attackTimer.additiveAttackDelayTicks, 3, "shark should add three ticks to the attack cycle");
+}
+
+function testSpecialEnergyRegeneratesAtOsrsCadence() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    specEnergy: 0,
+    equipment: { ...state.blue.equipment, weapon: undefined }
+  };
+  state.red = {
+    ...state.red,
+    equipment: { ...state.red.equipment, weapon: undefined }
+  };
+  state.players = state.players.map(player =>
+    player.id === state.blue.id ? state.blue :
+    player.id === state.red.id ? state.red : player
+  );
+  state.humanControl = { attackEnabled: false, laneId: "middle" };
+
+  for (let tick = 0; tick < 50; tick += 1) advanceTick(state);
+
+  equal(SPECIAL_ENERGY_PER_TICK, 0.2, "special energy should regenerate at 0.2 percentage points per game tick");
+  equal(Math.round(state.blue.specEnergy * 10) / 10, 10, "50 ticks should regenerate 10 special-energy points");
 }
 
 function testPotionDoesNotDelayAttackCycle() {
@@ -1159,6 +1182,7 @@ testSameTickPrayerFlickConsumesNoPrayer();
 testQueuedHitResolvesOnTargetTurn();
 testGearSwapCanAttackSameTick();
 testFoodAddsToCombatTimer();
+testSpecialEnergyRegeneratesAtOsrsCadence();
 testPotionDoesNotDelayAttackCycle();
 testPotionBoostsUseBoostedCombatLevelsAndDecay();
 testFoodAndPotionCanChainInOneTick();
