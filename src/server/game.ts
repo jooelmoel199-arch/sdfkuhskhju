@@ -20,6 +20,7 @@ export type InputCommand =
 
 export interface Inventory { slots:Array<ItemStack|null>; food: number; specialEnergy: number; coins: number; }
 export interface CombatXp { attack:number; strength:number; defence:number; ranged:number; magic:number; hitpoints:number; }
+export interface PendingHit { sourceTick:number; resolveTick:number; sequence:number; attackerId:string; defenderId:string; attackType:AttackType; attackStyle:AttackStyle; attackRoll:number; defenceRoll:number; hitChance:number; succeeded:boolean; rawDamage:number; special:boolean; }
 export interface Equipment {
   weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number;
   specialCost: number; specialMultiplier: number; defenceBonus: number; defenceStab: number; defenceSlash: number; defenceCrush: number;
@@ -29,7 +30,7 @@ export interface Player {
   hp:number; maxHp:number; prayerPoints:number; maxPrayerPoints:number;
   attack:number; strength:number; defence:number; xp:CombatXp; equipment:Equipment; inventory:Inventory;
   prayer:Prayer; attackStyle:AttackStyle; targetId:string|null; nextAttackTick:number;
-  attackQueuedTick:number|null; hitQueuedTick:number|null; pendingHitDamage:number; pendingHitSucceeded:boolean; pendingHitRoll:number; pendingDefenceRoll:number; pendingHitTargetId:string|null; pendingAttackType:AttackType|null; pendingSpecial:boolean; specialQueued:boolean; path:Tile[];
+  attackQueuedTick:number|null; hitQueuedTick:number|null; pendingHit:PendingHit|null; specialQueued:boolean; path:Tile[];
 }
 export interface CombatEvent {
   tick:number; type:"attack_queued"|"attack_cancelled"|"attack"|"hit"|"miss"|"eat"|"special_queued"|"special"|"move"|"prayer"|"attack_style"|"death";
@@ -44,7 +45,7 @@ const styleBonus=MELEE_STYLE_BONUS;
 function makePlayer(id:string,name:string,team:Team,x:number,y:number):Player{
   return {id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
     attack:75,strength:75,defence:70,xp:{attack:0,strength:0,defence:0,ranged:0,magic:0,hitpoints:0},equipment:{...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
-    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},null,null,null,null,null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,pendingHitDamage:0,pendingHitSucceeded:false,pendingHitRoll:0,pendingDefenceRoll:0,pendingHitTargetId:null,pendingAttackType:"melee",pendingSpecial:false,specialQueued:false,path:[]};
+    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},null,null,null,null,null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,pendingHit:null,specialQueued:false,path:[]};
 }
 
 export function createGame():GameState{
@@ -60,7 +61,7 @@ function processInput(state:GameState,command:InputCommand):void{
  const p=state.players.player;if(!p||p.hp<=0)return;
  switch(command.type){
   case "attack":{const target=state.players[command.targetId];if(!target||target.hp<=0||target.team===p.team)return;p.targetId=target.id;setDestination(p,target.x,target.y);p.attackQueuedTick=Math.max(state.tick,p.nextAttackTick);p.specialQueued=false;event(state,{tick:state.tick,type:"attack_queued",attacker:p.id,defender:target.id});return;}
-  case "stop_attack":p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHitDamage=0;p.pendingHitTargetId=null;p.pendingSpecial=false;p.specialQueued=false;p.path=[];event(state,{tick:state.tick,type:"attack_cancelled",attacker:p.id});return;
+  case "stop_attack":p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHit=null;p.specialQueued=false;p.path=[];event(state,{tick:state.tick,type:"attack_cancelled",attacker:p.id});return;
   case "move":setDestination(p,command.x,command.y);p.targetId=null;p.attackQueuedTick=null;p.specialQueued=false;event(state,{tick:state.tick,type:"move",attacker:p.id,x:p.destinationX,y:p.destinationY});return;
   case "attack_style":p.attackStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,style:p.attackStyle});return;
   case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
@@ -87,7 +88,7 @@ function nearestMeleeTile(from:Tile,target:Tile,range:number):Tile {
 }
 function resolveAttack(state:GameState,a:Player):void{
  if(!a.targetId||a.attackQueuedTick===null||state.tick<a.attackQueuedTick)return;
- const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingHitSucceeded=false;a.pendingHitTargetId=null;a.pendingAttackType=null;a.pendingSpecial=false;a.specialQueued=false;return;}
+ const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.pendingHit=null;a.specialQueued=false;return;}
  if(!inMeleeRange(a,d)){const goal=nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y},a.equipment.attackRange);setDestination(a,goal.x,goal.y);return;}
  const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
  const attackerPrayer=prayerModifiers(a), defenderPrayer=prayerModifiers(d);
@@ -152,16 +153,17 @@ function awardMeleeXp(a:Player, damage:number):void{
 }
 function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
  const incoming=Object.values(state.players)
-   .filter(a=>a.id!==p.id&&a.hitQueuedTick===state.tick&&a.pendingHitTargetId===p.id)
-   .sort((a,b)=>a.id.localeCompare(b.id));
+   .filter(a=>a.id!==p.id&&a.pendingHit?.resolveTick===state.tick&&a.pendingHit.defenderId===p.id)
+   .sort((a,b)=>(a.pendingHit!.sequence-b.pendingHit!.sequence)||a.id.localeCompare(b.id));
  for(const a of incoming){
-   const rawDamage=a.pendingHitDamage;
-   const attackRoll=a.pendingHitRoll;
-   const defenceRoll=a.pendingDefenceRoll;
-   const special=a.pendingSpecial;
-   const attackType=a.pendingAttackType;
-   const succeeded=a.pendingHitSucceeded;
-   a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingHitSucceeded=false;a.pendingHitTargetId=null;a.pendingAttackType=null;a.pendingSpecial=false;
+   const hit=a.pendingHit!;
+   const rawDamage=hit.rawDamage;
+   const attackRoll=hit.attackRoll;
+   const defenceRoll=hit.defenceRoll;
+   const special=hit.special;
+   const attackType=hit.attackType;
+   const succeeded=hit.succeeded;
+   a.hitQueuedTick=null;a.pendingHit=null;
    if(p.hp<=0)continue;
    // Protection is evaluated on the defender turn, so prayer flicks affect the queued hit.
    const protectedByPrayer=(attackType==="melee"&&p.prayer==="protect_melee");
@@ -169,7 +171,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    if(damage>0){p.hp=Math.max(0,p.hp-damage);awardMeleeXp(a,damage);}
    event(state,{tick:state.tick,type:succeeded?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special});
    if(p.hp<=0){
-     p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHitTargetId=null;
+     p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHit=null;
      a.targetId=null;
      event(state,{tick:state.tick,type:"death",attacker:a.id,defender:p.id});
      break;
