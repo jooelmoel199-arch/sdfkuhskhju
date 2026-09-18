@@ -316,4 +316,5 @@ assert(freezeGame.players.player.equipment.spellId==="ice_barrage","Ice Barrage 
 assert(freezeGame.pendingHits.some(h=>h.attackType==="magic"&&h.freezeTicks===33),"Ice Barrage freeze duration should be snapshotted into the queued hit");
 const freezeBefore=freezeGame.players.opponent.freezeUntilTick;
 for(let i=0;i<5;i++)step(freezeGame);
+assert(freezeGame.events.some(e=>e.type==="hit"&&e.attacker==="player"&&e.defender==="opponent"),"Ice Barrage should produce a hit event in the deterministic freeze test");
 assert(freezeGame.players.opponent.freezeUntilTick>freezeBefore,"successful Ice Barrage should apply a server-side freeze on impact");
