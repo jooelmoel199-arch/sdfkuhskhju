@@ -14,7 +14,8 @@ step(game);
 assert(game.tick === 1, "tick should advance");
 assert(game.players.player.targetId === "opponent", "attack input should acquire target");
 assert(game.events.some(e => e.type === "attack_queued"), "attack should be queued");
-step(game);\nassert(game.events.some(e => e.type === "hit" || e.type === "miss"), "queued hit should resolve on the following tick");
+step(game);
+assert(game.events.some(e => e.type === "hit" || e.type === "miss"), "queued hit should resolve on the following tick");
 assert(game.players.player.nextAttackTick === 5, "rune scimitar should use a 4-tick cooldown");
 
 const hpAfterAttack = game.players.opponent.hp;
