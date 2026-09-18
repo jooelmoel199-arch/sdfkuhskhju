@@ -40,7 +40,7 @@ export interface Player {
   attackQueuedTick:number|null; hitQueuedTick:number|null; specialQueued:boolean; path:Tile[]; freezeUntilTick:number;
 }
 export interface CombatEvent {
-  tick:number; type:"attack_queued"|"attack_cancelled"|"attack"|"hit"|"miss"|"eat"|"special_queued"|"special"|"move"|"prayer"|"attack_style"|"death"|"projectile"|"spell";
+  tick:number; type:"attack_queued"|"attack_cancelled"|"attack"|"hit"|"miss"|"eat"|"special_queued"|"special"|"move"|"prayer"|"attack_style"|"death"|"projectile"|"spell"|"freeze";
   attacker?:string; defender?:string; damage?:number; attackRoll?:number; defenceRoll?:number;
   special?:boolean; hitChance?:number; x?:number; y?:number; sourceX?:number; sourceY?:number; prayer?:Prayer; style?:AttackStyle; reason?:string; resolveTick?:number; attackType?:AttackType;
 }
@@ -281,7 +281,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    const damage=protectedByPrayer?Math.min(rawDamage,Math.floor(rawDamage*0.6)):rawDamage;
    if(damage>0)p.hp=Math.max(0,p.hp-damage);
    awardCombatXp(a,damage,attackType,hit.baseXp);
-   if(attackType==="magic"&&succeeded&&hit.freezeTicks>0)p.freezeUntilTick=Math.max(p.freezeUntilTick,state.tick+hit.freezeTicks);
+   if(attackType==="magic"&&succeeded&&hit.freezeTicks>0){p.freezeUntilTick=Math.max(p.freezeUntilTick,state.tick+hit.freezeTicks);event(state,{tick:state.tick,type:"freeze",attacker:a.id,defender:p.id,resolveTick:p.freezeUntilTick,reason:"magic_freeze"});}
    event(state,{tick:state.tick,type:succeeded?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special,attackType,reason:hit.delivery});
    if(p.hp<=0){
      p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;
