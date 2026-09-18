@@ -1,0 +1,8 @@
+proc on_attack(attacker_id, defender_id, attack_roll, defence_roll) {
+  if (attack_roll > defence_roll) {
+    call event_log("combat_hit", attacker_id, defender_id);
+    return 1;
+  }
+  call event_log("combat_miss", attacker_id, defender_id);
+  return 0;
+}
