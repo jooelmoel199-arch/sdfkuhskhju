@@ -41,6 +41,15 @@ export type PlayerCommand =
       readonly executeTick: number;
     }
   | {
+      readonly kind: "spell-select";
+      readonly spellId: "ice_rush" | "ice_burst" | "ice_blitz" | "ice_barrage";
+      readonly priority: CommandPriority;
+      readonly id: string;
+      readonly sequence: number;
+      readonly issuedTick: number;
+      readonly executeTick: number;
+    }
+  | {
       readonly kind: "vengeance";
       readonly priority: CommandPriority;
       readonly id: string;
@@ -90,6 +99,7 @@ export type PlayerCommandInput =
   | { readonly kind: "prayer"; readonly prayerId: PrayerId }
   | { readonly kind: "special"; readonly targetId?: string }
   | { readonly kind: "vengeance" }
+  | { readonly kind: "spell-select"; readonly spellId: "ice_rush" | "ice_burst" | "ice_blitz" | "ice_barrage" };
   | { readonly kind: "attack-target"; readonly targetId: string }
   | { readonly kind: "clear-attack-target" }
   | { readonly kind: "move"; readonly x: number; readonly y: number }
@@ -154,6 +164,8 @@ export function makeStrongCommand(
       return { ...base, kind: "special", targetId: input.targetId };
     case "vengeance":
       return { ...base, kind: "vengeance" };
+    case "spell-select":
+      return { ...base, kind: "spell-select", spellId: input.spellId };
     case "attack-target":
       return { ...base, kind: "attack-target", targetId: input.targetId };
     case "clear-attack-target":
