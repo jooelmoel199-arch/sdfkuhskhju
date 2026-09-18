@@ -1,310 +1,103 @@
 import { createCombatRules, type CombatRules } from "./combat-rules";
+import { findPath, MAP_HEIGHT, MAP_WIDTH, type Tile } from "./pathfinding";
 
 export type Team = "blue" | "red";
 export type Prayer = "protect_melee" | "protect_mage" | "protect_range" | null;
+export type AttackStyle = "accurate" | "aggressive" | "defensive" | "controlled";
 
 export type InputCommand =
   | { type: "attack"; targetId: string }
-  | { type: "move"; x: number }
+  | { type: "move"; x: number; y: number }
   | { type: "prayer"; prayer: Prayer }
+  | { type: "attack_style"; style: AttackStyle }
   | { type: "eat" }
   | { type: "special" }
   | { type: "stop_attack" };
 
-export interface Inventory {
-  food: number;
-  specialEnergy: number;
-}
-
+export interface Inventory { food: number; specialEnergy: number; coins: number; }
 export interface Equipment {
-  weapon: string;
-  attackSpeed: number;
-  attackBonus: number;
-  strengthBonus: number;
-  specialCost: number;
-  specialMultiplier: number;
+  weapon: string; attackSpeed: number; attackBonus: number; strengthBonus: number;
+  specialCost: number; specialMultiplier: number;
 }
-
 export interface Player {
-  id: string;
-  team: Team;
-  x: number;
-  destinationX: number;
-  hp: number;
-  maxHp: number;
-  attack: number;
-  strength: number;
-  defence: number;
-  equipment: Equipment;
-  inventory: Inventory;
-  prayer: Prayer;
-  targetId: string | null;
-  nextAttackTick: number;
-  attackQueuedTick: number | null;
-  specialQueued: boolean;
+  id:string; name:string; team:Team; x:number; y:number; destinationX:number; destinationY:number;
+  hp:number; maxHp:number; prayerPoints:number; maxPrayerPoints:number;
+  attack:number; strength:number; defence:number; equipment:Equipment; inventory:Inventory;
+  prayer:Prayer; attackStyle:AttackStyle; targetId:string|null; nextAttackTick:number;
+  attackQueuedTick:number|null; specialQueued:boolean; path:Tile[];
 }
-
 export interface CombatEvent {
-  tick: number;
-  type:
-    | "attack_queued"
-    | "attack_cancelled"
-    | "attack"
-    | "hit"
-    | "miss"
-    | "eat"
-    | "special_queued"
-    | "special"
-    | "move"
-    | "prayer";
-  attacker?: string;
-  defender?: string;
-  damage?: number;
-  attackRoll?: number;
-  defenceRoll?: number;
-  special?: boolean;
-  x?: number;
-  prayer?: Prayer;
-  reason?: string;
+  tick:number; type:"attack_queued"|"attack_cancelled"|"attack"|"hit"|"miss"|"eat"|"special_queued"|"special"|"move"|"prayer"|"attack_style"|"death";
+  attacker?:string; defender?:string; damage?:number; attackRoll?:number; defenceRoll?:number;
+  special?:boolean; x?:number; y?:number; prayer?:Prayer; style?:AttackStyle; reason?:string;
+}
+export interface QueuedInput { sequence:number; receivedTick:number; command:InputCommand; }
+export interface GameState { tick:number; nextInputSequence:number; players:Record<string,Player>; pendingInputs:QueuedInput[]; events:CombatEvent[]; readonly combatRules:CombatRules; }
+
+const styleBonus={accurate:{attack:3,strength:0,defence:0},aggressive:{attack:0,strength:3,defence:0},defensive:{attack:0,strength:0,defence:3},controlled:{attack:1,strength:1,defence:1}} as const;
+
+function makePlayer(id:string,name:string,team:Team,x:number,y:number):Player{
+  return {id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
+    attack:75,strength:75,defence:70,equipment:{weapon:"rune_scimitar",attackSpeed:4,attackBonus:45,strengthBonus:44,specialCost:50,specialMultiplier:1.25},
+    inventory:{food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",targetId:null,nextAttackTick:0,attackQueuedTick:null,specialQueued:false,path:[]};
 }
 
-export interface QueuedInput {
-  sequence: number;
-  receivedTick: number;
-  command: InputCommand;
+export function createGame():GameState{
+  const players={player:makePlayer("player","Player","blue",10,10),opponent:makePlayer("opponent","Opponent","red",14,10)};
+  return {tick:0,nextInputSequence:1,pendingInputs:[],events:[],players,combatRules:createCombatRules()};
 }
+export function enqueueInput(state:GameState,command:InputCommand):void{state.pendingInputs.push({sequence:state.nextInputSequence++,receivedTick:state.tick,command});}
+function event(state:GameState,e:CombatEvent):void{state.events.push(e);if(state.events.length>300)state.events.splice(0,state.events.length-300);}
+function clampTile(x:number,y:number):Tile{return{x:Math.max(1,Math.min(MAP_WIDTH-2,Math.round(x))),y:Math.max(1,Math.min(MAP_HEIGHT-2,Math.round(y)))}};
+function setDestination(p:Player,x:number,y:number){const t=clampTile(x,y);p.destinationX=t.x;p.destinationY=t.y;p.path=findPath({x:p.x,y:p.y},t);}
 
-export interface GameState {
-  tick: number;
-  nextInputSequence: number;
-  players: Record<string, Player>;
-  pendingInputs: QueuedInput[];
-  events: CombatEvent[];
+function processInput(state:GameState,command:InputCommand):void{
+ const p=state.players.player;if(!p||p.hp<=0)return;
+ switch(command.type){
+  case "attack":{const target=state.players[command.targetId];if(!target||target.hp<=0||target.team===p.team)return;p.targetId=target.id;setDestination(p,target.x,target.y);p.attackQueuedTick=state.tick;p.specialQueued=false;event(state,{tick:state.tick,type:"attack_queued",attacker:p.id,defender:target.id});return;}
+  case "stop_attack":p.targetId=null;p.attackQueuedTick=null;p.specialQueued=false;p.path=[];event(state,{tick:state.tick,type:"attack_cancelled",attacker:p.id});return;
+  case "move":setDestination(p,command.x,command.y);p.targetId=null;p.attackQueuedTick=null;p.specialQueued=false;event(state,{tick:state.tick,type:"move",attacker:p.id,x:p.destinationX,y:p.destinationY});return;
+  case "attack_style":p.attackStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,style:p.attackStyle});return;
+  case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
+  case "eat":if(p.inventory.food>0&&p.hp<p.maxHp){p.inventory.food--;p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});}return;
+  case "special":if(p.targetId&&p.inventory.specialEnergy>=p.equipment.specialCost&&p.attackQueuedTick!==null){p.specialQueued=true;event(state,{tick:state.tick,type:"special_queued",attacker:p.id,defender:p.targetId,special:true});}return;
+ }
 }
-
-export function createGame(): GameState {
-  const make = (id: string, team: Team, x: number): Player => ({
-    id,
-    team,
-    x,
-    destinationX: x,
-    hp: 99,
-    maxHp: 99,
-    attack: 75,
-    strength: 75,
-    defence: 70,
-    equipment: {
-      weapon: "rune_scimitar",
-      attackSpeed: 4,
-      attackBonus: 45,
-      strengthBonus: 44,
-      specialCost: 50,
-      specialMultiplier: 1.25
-    },
-    inventory: { food: 10, specialEnergy: 100 },
-    prayer: null,
-    targetId: null,
-    nextAttackTick: 0,
-    attackQueuedTick: null,
-    specialQueued: false
-  });
-
-  return {
-    tick: 0,
-    nextInputSequence: 1,
-    pendingInputs: [],
-    events: [],
-    players: {
-      player: make("player", "blue", 10),
-      opponent: make("opponent", "red", 11)
-    }
-  };
+function deterministicRoll(seed:number):number{const x=Math.sin(seed*12.9898)*43758.5453;return x-Math.floor(x);}
+function inMeleeRange(a:Player,b:Player):boolean{return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y))<=1;}
+function resolveAttack(state:GameState,a:Player):void{
+ if(!a.targetId||a.attackQueuedTick===null||state.tick<a.nextAttackTick)return;
+ const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.specialQueued=false;return;}
+ if(!inMeleeRange(a,d)){setDestination(a,d.x,d.y);return;}
+ const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
+ const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+8;
+ const attackRoll=effectiveAttack*(a.equipment.attackBonus+64), defenceRoll=effectiveDefence*(64+styleBonus[d.attackStyle].defence*4);
+ const rules=state.combatRules.onAttack(a.id,d.id,attackRoll,defenceRoll);
+ const baseMaxHit=Math.max(1,Math.floor(((a.strength+bonus.strength+8)*(a.equipment.strengthBonus+64))/640));
+ const maxHit=special?Math.max(1,Math.floor(baseMaxHit*a.equipment.specialMultiplier)):baseMaxHit;
+ const damage=rules.hit?Math.min(d.hp,Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1))):0;
+ a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=null;a.specialQueued=false;
+ if(special){a.inventory.specialEnergy-=a.equipment.specialCost;event(state,{tick:state.tick,type:"special",attacker:a.id,defender:d.id,special:true});}
+ event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,special});
+ event(state,{tick:state.tick,type:rules.hit?"hit":"miss",attacker:a.id,defender:d.id,damage,attackRoll,defenceRoll,special});
+ if(damage>0)d.hp=Math.max(0,d.hp-damage);
+ if(d.hp<=0){d.targetId=null;d.attackQueuedTick=null;a.targetId=null;event(state,{tick:state.tick,type:"death",attacker:a.id,defender:d.id});}
 }
-
-export function enqueueInput(state: GameState, command: InputCommand): void {
-  state.pendingInputs.push({
-    sequence: state.nextInputSequence++,
-    receivedTick: state.tick,
-    command
-  });
+function movementStage(state:GameState):void{
+ for(const p of Object.values(state.players)){
+   if(p.hp<=0)continue;
+   if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&!inMeleeRange(p,t))setDestination(p,t.x,t.y);}
+   if(p.path.length){const next=p.path.shift()!;p.x=next.x;p.y=next.y;}
+ }
 }
-
-function event(state: GameState, e: CombatEvent): void {
-  state.events.push(e);
-  if (state.events.length > 200) state.events.splice(0, state.events.length - 200);
+function prayerStage(state:GameState):void{
+ for(const p of Object.values(state.players)){
+   if(!p.prayer)continue;
+   if(state.tick%2===0){p.prayerPoints=Math.max(0,p.prayerPoints-1);if(p.prayerPoints===0)p.prayer=null;}
+ }
 }
-
-function processInput(state: GameState, command: InputCommand): void {
-  // The prototype has one controllable player. NPC/other-player actions remain
-  // server-owned and can be added later without changing the tick pipeline.
-  const p = state.players.player;
-  if (!p || p.hp <= 0) return;
-
-  switch (command.type) {
-    case "attack": {
-      const target = state.players[command.targetId];
-      if (!target || target.hp <= 0 || target.team === p.team) return;
-
-      p.targetId = target.id;
-      p.destinationX = target.x;
-      p.attackQueuedTick = state.tick;
-      p.specialQueued = false;
-      event(state, {
-        tick: state.tick,
-        type: "attack_queued",
-        attacker: p.id,
-        defender: target.id
-      });
-      return;
-    }
-
-    case "stop_attack":
-      p.targetId = null;
-      p.attackQueuedTick = null;
-      p.specialQueued = false;
-      event(state, { tick: state.tick, type: "attack_cancelled", attacker: p.id });
-      return;
-
-    case "move":
-      p.destinationX = Math.max(0, Math.min(30, Math.round(command.x)));
-      event(state, { tick: state.tick, type: "move", attacker: p.id, x: p.destinationX });
-      return;
-
-    case "prayer":
-      p.prayer = command.prayer;
-      event(state, { tick: state.tick, type: "prayer", attacker: p.id, prayer: p.prayer });
-      return;
-
-    case "eat":
-      if (p.inventory.food > 0 && p.hp < p.maxHp) {
-        p.inventory.food--;
-        p.hp = Math.min(p.maxHp, p.hp + 12);
-        event(state, { tick: state.tick, type: "eat", attacker: p.id, damage: -12 });
-      }
-      return;
-
-    case "special":
-      if (
-        p.targetId &&
-        p.inventory.specialEnergy >= p.equipment.specialCost &&
-        p.attackQueuedTick !== null
-      ) {
-        p.specialQueued = true;
-        event(state, {
-          tick: state.tick,
-          type: "special_queued",
-          attacker: p.id,
-          defender: p.targetId,
-          special: true
-        });
-      }
-      return;
-  }
-}
-
-function deterministicRoll(seed: number): number {
-  // Deterministic per attack: the authoritative server can replay the same fight.
-  const x = Math.sin(seed * 12.9898) * 43758.5453;
-  return x - Math.floor(x);
-}
-
-function resolveAttack(state: GameState, attacker: Player): void {
-  if (!attacker.targetId || attacker.attackQueuedTick === null) return;
-  if (state.tick < attacker.nextAttackTick) return;
-
-  const defender = state.players[attacker.targetId];
-  if (!defender || defender.hp <= 0) {
-    attacker.targetId = null;
-    attacker.attackQueuedTick = null;
-    attacker.specialQueued = false;
-    return;
-  }
-
-  // The attack request stays queued while out of melee range. A later movement
-  // tick can therefore make the already-requested attack eligible.
-  if (Math.abs(attacker.x - defender.x) > 1) return;
-
-  const special = attacker.specialQueued;
-  const effectiveAttack = attacker.attack + 8;
-  const attackRoll = effectiveAttack * (attacker.equipment.attackBonus + 64);
-  const effectiveDefence = defender.defence + 8;
-  const defenceRoll = effectiveDefence * 64;
-  const hit = attackRoll > defenceRoll;
-
-  const baseMaxHit = Math.max(
-    1,
-    Math.floor(
-      ((attacker.strength + 8) * (attacker.equipment.strengthBonus + 64)) / 640
-    )
-  );
-  const maxHit = special
-    ? Math.max(1, Math.floor(baseMaxHit * attacker.equipment.specialMultiplier))
-    : baseMaxHit;
-
-  const roll = deterministicRoll(state.tick * 1009 + attacker.id.length * 97);
-  const damage = hit ? Math.min(defender.hp, Math.floor(roll * (maxHit + 1))) : 0;
-
-  attacker.nextAttackTick = state.tick + attacker.equipment.attackSpeed;
-  attacker.attackQueuedTick = null;
-  attacker.specialQueued = false;
-
-  if (special) {
-    attacker.inventory.specialEnergy -= attacker.equipment.specialCost;
-    event(state, {
-      tick: state.tick,
-      type: "special",
-      attacker: attacker.id,
-      defender: defender.id,
-      special: true
-    });
-  }
-
-  event(state, {
-    tick: state.tick,
-    type: "attack",
-    attacker: attacker.id,
-    defender: defender.id,
-    attackRoll,
-    defenceRoll,
-    special
-  });
-
-  event(state, {
-    tick: state.tick,
-    type: hit ? "hit" : "miss",
-    attacker: attacker.id,
-    defender: defender.id,
-    damage,
-    attackRoll,
-    defenceRoll,
-    special
-  });
-
-  if (hit) defender.hp = Math.max(0, defender.hp - damage);
-  if (defender.hp <= 0) {
-    defender.targetId = null;
-    attacker.targetId = null;
-    attacker.attackQueuedTick = null;
-  }
-}
-
-export function step(state: GameState): void {
-  state.tick++;
-
-  // FIFO input processing is deliberately separate from simulation resolution.
-  // This is the foundation for a real client/server protocol later.
-  const inputs = state.pendingInputs.splice(0);
-  inputs.sort((a, b) => a.sequence - b.sequence);
-  for (const input of inputs) processInput(state, input.command);
-
-  // Movement is discrete and server-authoritative: one tile per game tick.
-  // Attack requests can supply a destination, so clicking an opponent naturally
-  // produces the familiar walk-into-range-then-attack behaviour.
-  for (const player of Object.values(state.players)) {
-    if (player.x < player.destinationX) player.x++;
-    else if (player.x > player.destinationX) player.x--;
-  }
-
-  // Every player gets the same deterministic combat resolution stage.
-  for (const player of Object.values(state.players)) resolveAttack(state, player);
+export function step(state:GameState):void{
+ state.tick++;
+ const inputs=state.pendingInputs.splice(0).sort((a,b)=>a.sequence-b.sequence);for(const input of inputs)processInput(state,input.command);
+ movementStage(state);prayerStage(state);for(const p of Object.values(state.players))resolveAttack(state,p);
 }
