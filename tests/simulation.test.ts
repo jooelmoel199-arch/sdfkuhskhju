@@ -619,6 +619,36 @@ function testFoodAndPrayerCanPrecedeImpact() {
   ok(state.blue.attackTimer.additiveAttackDelayTicks >= 3, "food should still delay the next attack cycle");
 }
 
+function testQueuedHitBeatsPrayerDrain() {
+  const state = createPvpTestState();
+  state.red = {
+    ...state.red,
+    currentHp: 5,
+    prayerPoints: 1,
+    activePrayers: ["redemption"],
+    prayerDrainAccumulator: 59
+  };
+  state.players = state.players.map(player => player.id === state.red.id ? state.red : player);
+  state.pendingHits.push({
+    id: "redemption-before-drain-test",
+    dueTick: 0,
+    attackerId: state.blue.id,
+    targetId: state.red.id,
+    attackerPid: state.blue.pid,
+    targetPid: state.red.pid,
+    style: "slash",
+    attackType: "aggressive",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 20,
+    createdTick: 0
+  });
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+  advanceTick(state);
+  equal(state.red.alive, true, "queued hit should resolve before prayer drain can consume Redemption");
+  equal(state.red.currentHp, 24, "Redemption should trigger before the timer drain");
+}
+ 
 function testRedemptionSavesLethalHit() {
   const state = createPvpTestState();
   state.red = { ...state.red, equipment: { ...state.red.equipment, weapon: undefined } };
@@ -691,6 +721,7 @@ testFoodDelayExpiresAfterOneAttackCycle();
 testNpcHitQueuesIntoPlayerTurn();
 testPlayerNpcImpactWaitsForNpcTurn();
 testQueuedHitUsesImpactPrayer();
+testQueuedHitBeatsPrayerDrain();
 testRedemptionSavesLethalHit();
 testCampRespawnSchedule();
 
