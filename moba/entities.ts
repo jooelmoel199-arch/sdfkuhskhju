@@ -64,7 +64,8 @@ export interface PlayerEntity {
   attackTimer: AttackTimerState;
   statusEffects: StatusEffect[];
   attackDelayUntilTick: number; // from eating, blocks attacking but not the underlying weapon cooldown
-  eatDelayUntilTick: number; // consumable action delay, separate from attack-cycle delay
+  eatDelayUntilTick: number; // food consumption timer; potions use a separate timer
+  potionDelayUntilTick: number; // non-barbarian potion consumption timer
   /** Discrete client commands waiting to be consumed by the combat interaction. */
   queuedSpecialAttacks: number;
   queuedSpecialTargetId?: string;
@@ -209,6 +210,7 @@ export function createPlayer(
     statusEffects: [],
     attackDelayUntilTick: 0,
     eatDelayUntilTick: 0,
+    potionDelayUntilTick: 0,
     queuedSpecialAttacks: 0,
     queuedSpecialTargetId: undefined,
     specialActive: false,
