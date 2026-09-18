@@ -6,7 +6,6 @@ import type { TilePosition } from "../world/movement";
 import type { PrayerId } from "../prayer/prayers";
 import type { LaneId } from "./lane";
 import type { PendingHit } from "../combat/pendingHits";
-import type { PlayerCommand } from "../combat/commandQueue";
 import type { StatBlock } from "./stats";
 import { createStatBlock, maxHitpoints, maxPrayerPoints } from "./stats";
 import type { BonusTable, CombatLevels, CombatStyle } from "../combat/formulas";
