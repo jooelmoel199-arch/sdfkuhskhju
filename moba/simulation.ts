@@ -640,8 +640,13 @@ const effectsStage: TickStage<SimulationState> = {
       if (decision.buyItemId && updated.zone === "base") {
         const item = shopCatalog.find(candidate => candidate.id === decision.buyItemId);
         if (item && updated.gp >= item.cost) {
+          const displaced = updated.equipment[item.slot];
+          const displacedShield = item.twoHanded ? updated.equipment.shield : undefined;
           updated = equipItem(updated, item);
-          log(state, `${updated.id} buys ${item.name}`);
+          updated = addInventoryItem(updated, item.id, 1);
+          if (displaced) updated = addInventoryItem(updated, displaced.id, 1);
+          if (displacedShield) updated = addInventoryItem(updated, displacedShield.id, 1);
+          log(state, updated.id + " buys " + item.name);
         }
       }
 
