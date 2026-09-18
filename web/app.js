@@ -542,6 +542,7 @@ addEventListener("keydown", event => {
   }
   if (key === "p") togglePrayer("protect_from_melee");
   if (key === "f") useConsumable("shark");
+  if (key === "g") useComboFood("karambwan");
   if (key === "c") useConsumable("prayer_potion");
   if (key === "x") useSpecial();
   if (key === "q") setAttackEnabled(!state.humanControl.attackEnabled);
@@ -553,6 +554,11 @@ addEventListener("keydown", event => {
   if (key === "escape") clearAttackTarget();
   if (key === "m") togglePrayer("protect_from_magic");
   if (key === "n") togglePrayer("protect_from_missiles");
+  if (key === "4") setSpell("ice_rush");
+  if (key === "5") setSpell("ice_burst");
+  if (key === "6") setSpell("ice_blitz");
+  if (key === "7") setSpell("ice_barrage");
+
   if (key === "1") setLane("top");
   if (key === "2") setLane("middle");
   if (key === "3") setLane("bottom");
