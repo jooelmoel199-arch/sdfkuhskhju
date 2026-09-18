@@ -439,6 +439,14 @@ const clientInputStage: TickStage<SimulationState> = {
 
       for (const command of drained.commands) {
         switch (command.kind) {
+          case "spell-select":
+            if (current.id === state.blue.id) {
+              state.humanControl = {
+                ...(state.humanControl ?? { attackEnabled: true, laneId: current.laneId }),
+                spellId: command.spellId
+              };
+            }
+            break;
           case "equip": {
             const equipped = equipOwnedItem(current, command.itemId);
             if (equipped !== current) {
