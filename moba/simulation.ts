@@ -48,7 +48,10 @@ export interface SimulationState {
   players: PlayerEntity[];
   minions: MinionEntity[];
   projectiles: ProjectileEntity[];
+  pendingHits: PendingHit[];
   towers: TowerEntity[];
+  pidOrder: string[];
+  nextPidShuffleTick: number;
   jungleCamps: NeutralCampEntity[];
   engagedAttackerTeamByLane: Partial<Record<LaneId, "blue" | "red">>;
   teamBuffs: Partial<Record<"blue" | "red", { name: string; expiresAtTick: number; damageMultiplier: number }>>;
@@ -536,7 +539,7 @@ const pendingHitStage: TickStage<SimulationState> = {
             ...resolvedTarget,
             currentHp: Math.max(newHp, Math.floor(maxHitpoints(resolvedTarget.stats) * 0.25)),
             prayerPoints: 0,
-            activePrayers: compatiblePrayerSet(resolvedTarget.activePrayers.filter(prayer => prayer !== "redemption"))
+            activePrayers: [...compatiblePrayerSet(resolvedTarget.activePrayers.filter(prayer => prayer !== "redemption"))]
           };
           log(state, resolvedTarget.id + " triggers Redemption");
         }
