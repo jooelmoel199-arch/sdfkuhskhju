@@ -49,6 +49,7 @@ export interface SimulationState {
   rng: () => number;
   humanControl?: {
     moveTargetX?: number;
+    moveTargetY?: number;
     attackEnabled: boolean;
     activatePrayer?: PrayerId;
     laneId: LaneId;
@@ -78,11 +79,10 @@ function setPlayer(state: SimulationState, player: PlayerEntity): void {
 
 function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerEntity) {
   const ai = decideAction(actor, enemy, state.tick);
-  if (actor.team !== "blue" || !state.humanControl) {
-    return ai;
-  }
+  if (actor.team !== "blue" || !state.humanControl) return ai;
 
   const targetX = state.humanControl.attackTargetId === enemy.id ? enemy.tile.x : state.humanControl.moveTargetX;
+  const targetY = state.humanControl.attackTargetId === enemy.id ? enemy.tile.y : state.humanControl.moveTargetY;
   const moveDelta = targetX === undefined || Math.abs(targetX - actor.tile.x) < 0.01
     ? 0
     : targetX > actor.tile.x ? 1 : -1;
@@ -145,12 +145,23 @@ const movementStage: TickStage<SimulationState> = {
       const decision = decisionFor(state, current, currentEnemy);
       if (isFrozen(current.locks, state.tick) || decision.moveDelta === 0) continue;
 
-      const nextTile: TilePosition = {
-        x: Math.max(1, Math.min(39, current.tile.x + decision.moveDelta)),
-        y: LANE_Y[laneFromPlayer(current)]
-      };
+      const x = Math.max(1, Math.min(39, current.tile.x + decision.moveDelta));
+      let y = current.tile.y;
 
-      setPlayer(state, { ...current, tile: nextTile, zone: zoneAt(nextTile) });
+      if (current.team === "blue" && state.humanControl?.moveTargetY !== undefined) {
+        const dy = state.humanControl.moveTargetY - current.tile.y;
+        if (Math.abs(dy) > 0.01) {
+          y += Math.sign(dy);
+        }
+      } else {
+        y = LANE_Y[laneFromPlayer(current)];
+      }
+
+      const nextTile: TilePosition = { x, y };
+      const nextZone = zoneAt(nextTile);
+      const nextLaneId = nextZone === "lane" ? laneFromPlayer(current) : current.laneId;
+
+      setPlayer(state, { ...current, tile: nextTile, laneId: nextLaneId, zone: nextZone });
     }
   }
 };
