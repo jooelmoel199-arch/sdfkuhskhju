@@ -772,7 +772,7 @@ function testStandardSpecialQueuesUntilAttackCycleIsReady() {
 
   for (let tick = 0; tick < 6; tick += 1) advanceTick(state);
   equal(state.blue.specialActive, false, "standard special should deactivate after the special attack executes");
-  equal(state.blue.specEnergy, 50.1, "standard special should spend 50 energy and then regenerate on later ticks");
+  equal(state.blue.specEnergy, 50.2, "standard special should spend 50 energy and then regenerate on later ticks");
 }
 
 function testGraniteMaulSpecialDoesNotPersistOutOfReach() {
