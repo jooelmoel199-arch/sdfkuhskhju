@@ -651,11 +651,16 @@ function testGraniteMaulSpecialDoesNotPersistOutOfReach() {
     player.id === state.red.id ? state.red : player
   );
   state.humanControl = { attackEnabled: true, laneId: "middle", attackTargetId: state.red.id };
-  queueClientCommand(state, { kind: "special" });
+
+  // Two bar clicks arm the short-lived double-spec preload even when the target
+  // is currently outside melee range.
+  queueClientCommand(state, { kind: "special" }, false);
+  queueClientCommand(state, { kind: "special" }, false);
   advanceTick(state);
-  advanceTick(state);
-  equal(state.blue.specialActive, false, "the second Gmaul bar click should arm preload rather than leave the special bar active");
-  equal(state.blue.gmaulPreloaded, true, "Gmaul should enter its short preload state");
+
+  equal(state.blue.specialActive, false, "the second Gmaul bar click should turn the active bar off");
+  equal(state.blue.gmaulPreloaded, true, "two Gmaul clicks should create the short preload state");
+  equal(state.blue.queuedSpecialAttacks, 0, "preloading should not create a phantom impact while out of reach");
 }
 
 
