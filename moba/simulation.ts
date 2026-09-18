@@ -10,6 +10,7 @@ import { consumeItem, equipItem, equipOwnedItem, equipmentBonuses, nextPid, inve
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
 import { gpRewards, xpRewards, shopCatalog } from "./economy";
 import { decideAction, findConsumable } from "./ai";
+import { drainPlayerCommands, enqueuePlayerCommand, makeStrongCommand, type PlayerCommand, type PlayerCommandInput } from "../combat/commandQueue";
 import {
   zoneAt,
   BLUE_TOWER_X,
@@ -63,6 +64,9 @@ export interface SimulationState {
   /** Monotonic per-simulation insertion order for queue FIFO semantics. */
   pendingHitSequence: number;
   pendingNpcHits: PendingHit[];
+  /** Client commands are delivered on the following server tick and consumed FIFO, up to ten per tick. */
+  clientCommands: PlayerCommand[];
+  nextClientCommandSequence: number;
   towers: TowerEntity[];
   pidOrder: string[];
   nextPidShuffleTick: number;
@@ -115,9 +119,47 @@ function pushCombatEvent(state: SimulationState, event: CombatEvent): void {
   if (state.combatEvents.length > 80) state.combatEvents.splice(0, state.combatEvents.length - 80);
 }
 
+function comparePendingHits(a: PendingHit, b: PendingHit): number {
+  return a.dueTick - b.dueTick ||
+    a.createdTick - b.createdTick ||
+    (a.sequence ?? 0) - (b.sequence ?? 0) ||
+    a.attackerPid - b.attackerPid ||
+    a.id.localeCompare(b.id);
+}
+
 function enqueuePendingHit(state: SimulationState, hit: PendingHit): void {
   state.pendingHitSequence += 1;
-  enqueuePendingHit(state, { ...hit, sequence: state.pendingHitSequence });
+  state.pendingHits.push({ ...hit, sequence: state.pendingHitSequence });
+}
+
+function enqueuePendingNpcHit(state: SimulationState, hit: PendingHit): void {
+  state.pendingHitSequence += 1;
+  state.pendingNpcHits.push({ ...hit, sequence: state.pendingHitSequence });
+}
+
+function resolvePendingNpcHits(state: SimulationState, targetId: string): PendingHit[] {
+  const ready = state.pendingNpcHits
+    .filter(hit => hit.targetId === targetId && hit.dueTick <= state.tick)
+    .sort(comparePendingHits);
+  if (ready.length === 0) return [];
+  const consumed = new Set(ready.map(hit => hit.id));
+  state.pendingNpcHits = state.pendingNpcHits.filter(hit => !consumed.has(hit.id));
+  return ready;
+}
+
+export function queueClientCommand(
+  state: SimulationState,
+  input: PlayerCommandInput,
+  executeNextTick = true
+): void {
+  state.nextClientCommandSequence += 1;
+  const command = makeStrongCommand(
+    input,
+    state.nextClientCommandSequence,
+    state.tick,
+    state.tick + (executeNextTick ? 1 : 0)
+  );
+  state.clientCommands = enqueuePlayerCommand(state.clientCommands, command);
 }
 
 function playerPriority(state: SimulationState, playerId: string): number {
@@ -195,14 +237,16 @@ function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerE
     moveDelta: moveDelta as -1 | 0 | 1,
     attackStyle,
     attackType: actor.team === "blue" ? actor.attackType : ai.attackType,
-    activatePrayer: state.humanControl.activatePrayer,
-    eatItemId: state.humanControl.consumeItemId,
-    useSpecial: Boolean(state.humanControl.useSpecial),
+    // Human prayers/specials arrive through the authoritative client-command queue.
+    // AI remains a desired-state system and continues to use its own decision.
+    activatePrayer: actor.id === state.blue.id ? undefined : ai.activatePrayer,
+    eatItemId: actor.id === state.blue.id ? undefined : ai.eatItemId,
+    useSpecial: actor.id === state.blue.id ? actor.queuedSpecialAttacks > 0 : ai.useSpecial,
     investStat: state.humanControl.investStat,
     buyItemId: state.humanControl.buyItemId,
     buyConsumableId: state.humanControl.buyConsumableId,
     buyConsumableQuantity: state.humanControl.buyConsumableQuantity,
-    equipItemId: state.humanControl.equipItemId
+    equipItemId: undefined
   };
 }
 
@@ -229,26 +273,65 @@ function clearLaneEngagementForPlayer(state: SimulationState, team: "blue" | "re
 const clientInputStage: TickStage<SimulationState> = {
   name: "client-input",
   run: state => {
-    if (!state.humanControl) return;
-    const actor = state.players.find(player => player.id === (state.playerTurnId ?? state.blue.id));
-    if (!actor || !actor.alive || actor.id !== state.blue.id) return;
+    const human = state.humanControl;
+    // Existing tests and older callers still populate one-shot humanControl
+    // fields directly. Materialize those fields into the real client queue.
+    if (human) {
+      if (human.equipItemId) queueClientCommand(state, { kind: "equip", itemId: human.equipItemId }, false);
+      if (human.consumeItemId) queueClientCommand(state, { kind: "eat", itemId: human.consumeItemId }, false);
+      if (human.comboConsumableId) queueClientCommand(state, { kind: "eat", itemId: human.comboConsumableId, combo: true }, false);
+      if (human.activatePrayer) queueClientCommand(state, { kind: "prayer", prayerId: human.activatePrayer }, false);
+      if (human.useSpecial) queueClientCommand(state, { kind: "special", targetId: human.attackTargetId }, false);
+      delete human.equipItemId;
+      delete human.consumeItemId;
+      delete human.comboConsumableId;
+      delete human.activatePrayer;
+      delete human.useSpecial;
+    }
 
-    if (state.humanControl.equipItemId) {
-      const equipped = equipOwnedItem(actor, state.humanControl.equipItemId);
-      if (equipped !== actor) {
-        setPlayer(state, equipped);
+    const actor = state.blue;
+    if (!actor.alive) {
+      // Inputs issued before death do not survive into a later life.
+      state.clientCommands = state.clientCommands.filter(command => command.executeTick > state.tick);
+      return;
+    }
+
+    const drained = drainPlayerCommands(state.clientCommands, state.tick, 10);
+    state.clientCommands = drained.queue;
+    let current = state.players.find(player => player.id === actor.id) ?? actor;
+
+    for (const command of drained.commands) {
+      switch (command.kind) {
+        case "equip": {
+          const equipped = equipOwnedItem(current, command.itemId);
+          if (equipped !== current) current = equipped;
+          break;
+        }
+        case "eat":
+          current = applyConsumableAction(state, current, command.itemId, Boolean(command.combo));
+          break;
+        case "prayer": {
+          const active = current.activePrayers.includes(command.prayerId)
+            ? current.activePrayers.filter(prayer => prayer !== command.prayerId)
+            : compatiblePrayerSet([...current.activePrayers, command.prayerId]);
+          current = {
+            ...current,
+            activePrayers: current.prayerPoints > 0 ? active : [],
+            lastPrayerToggleTick: state.tick
+          };
+          break;
+        }
+        case "special":
+          current = {
+            ...current,
+            queuedSpecialAttacks: current.queuedSpecialAttacks + 1,
+            queuedSpecialTargetId: command.targetId
+          };
+          break;
       }
     }
 
-    let current = state.players.find(player => player.id === actor.id) ?? actor;
-    if (state.humanControl.consumeItemId) {
-      current = applyConsumableAction(state, current, state.humanControl.consumeItemId);
-      setPlayer(state, current);
-    }
-    if (state.humanControl.comboConsumableId) {
-      current = applyConsumableAction(state, current, state.humanControl.comboConsumableId, true);
-      setPlayer(state, current);
-    }
+    setPlayer(state, current);
   }
 };
 
@@ -314,8 +397,8 @@ const prayerStage: TickStage<SimulationState> = {
       if (!actor.alive) continue;
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
-      const requested = decision.activatePrayer as PrayerId | undefined;
-      const isHumanToggle = actor.id === state.blue.id && Boolean(state.humanControl?.activatePrayer);
+      const requested = actor.id === state.blue.id ? undefined : decision.activatePrayer as PrayerId | undefined;
+      const isHumanToggle = false;
       // Human prayer commands are explicit toggles. AI prayer decisions are
       // desired-state decisions: keep the requested overhead on until the AI
       // changes style, rather than toggling it off every tick.
@@ -349,7 +432,9 @@ const prayerStage: TickStage<SimulationState> = {
 
 // --- Player-turn substage: combat / queued impacts ---
 function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): void {
-  const ready = state.pendingHits.filter(hit => hit.targetId === targetId && hit.dueTick <= state.tick);
+  const ready = state.pendingHits
+    .filter(hit => hit.targetId === targetId && hit.dueTick <= state.tick)
+    .sort(comparePendingHits);
   if (ready.length === 0) return;
   state.pendingHits = state.pendingHits.filter(hit => !(hit.targetId === targetId && hit.dueTick <= state.tick));
 
@@ -990,7 +1075,6 @@ const playerTurnStage: TickStage<SimulationState> = {
       if (!player || !player.alive) continue;
       state.playerTurnId = playerId;
 
-      clientInputStage.run(state);
       prayerStage.run(state);
 
       const current = state.players.find(actor => actor.id === playerId);
@@ -1390,6 +1474,7 @@ const respawnStage: TickStage<SimulationState> = {
 };
 
 export const tickRunner = createTickStageRunner<SimulationState>([
+  clientInputStage,
   npcTurnStage,
   playerTurnStage,
   pendingHitStage,
