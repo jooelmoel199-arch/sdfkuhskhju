@@ -186,8 +186,10 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  if(!resourceOk){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.specialQueued=false;event(state,{tick:state.tick,type:"attack_cancelled",attacker:a.id,defender:d.id,reason:ranged?"out_of_ammo":"missing_runes"});return;}
  const attackSpeed=ranged?(a.rangedStyle==="rapid"?Math.max(1,a.equipment.attackSpeed-1):a.rangedStyle==="longrange"?a.equipment.attackSpeed+1:a.equipment.attackSpeed):a.equipment.attackSpeed;
  a.nextAttackTick=state.tick+attackSpeed;a.attackQueuedTick=a.nextAttackTick;
- const travelTick=state.tick+1;
- event(state,{tick:state.tick,type:ranged?"projectile":"spell",attacker:a.id,defender:d.id,x:d.x,y:d.y,reason:ranged?"arrow":"fire_strike"});
+  const distance=combatDistance(a,d);
+  const travelTicks=projectileHitDelay(ranged?"ranged":"magic",distance);
+  const travelTick=state.tick+travelTicks;
+  event(state,{tick:state.tick,type:ranged?"projectile":"spell",attacker:a.id,defender:d.id,x:d.x,y:d.y,sourceX:a.x,sourceY:a.y,reason:ranged?"arrow":"fire_strike",resolveTick:travelTick,attackType:ranged?"ranged":"magic"});
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,attackType:ranged?"ranged":"magic"});
  a.hitQueuedTick=travelTick;
  state.pendingHits.push({sourceTick:state.tick,resolveTick:travelTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:ranged?"ranged":"magic",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special:false,delivery:ranged?"projectile":"spell"});
