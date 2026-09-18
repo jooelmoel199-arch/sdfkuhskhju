@@ -39,6 +39,7 @@ export interface StyleEvInput {
   readonly strengthBoostMultiplier?: number;
   readonly accuracyModifier?: number;
   readonly maxMagicDamage?: number;
+  readonly damageMultiplier?: number;
 }
 
 export interface StyleEvEstimate {
