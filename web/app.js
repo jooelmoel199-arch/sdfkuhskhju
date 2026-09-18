@@ -19,6 +19,7 @@ const actionbarEl = document.querySelector("#actionbar");
 
 const WORLD = { w: 3600, h: 2400 };
 const CAMERA_LANE_Y = { top: 350, middle: 1200, bottom: 2050 };
+const SIM_Y_PER_WORLD_PX = 20 / 850;
 const camera = { x: 1800, y: 1200, zoom: 0.56 };
 const keys = new Set();
 let last = performance.now();
@@ -31,6 +32,8 @@ let lastRenderedLogTick = -1;
 
 function simToWorldX(x) { return 150 + x * 82.5; }
 function worldToSimX(x) { return (x - 150) / 82.5; }
+function worldToSimY(y) { return y * SIM_Y_PER_WORLD_PX - 20 * SIM_Y_PER_WORLD_PX * 0; }
+function simToWorldY(y) { return y / SIM_Y_PER_WORLD_PX; }
 function laneToWorldY(laneId) { return CAMERA_LANE_Y[laneId]; }
 function worldToLane(y) {
   return LANES.reduce((best, lane) =>
@@ -310,19 +313,20 @@ canvas.addEventListener("click", event => {
     return;
   }
   const world = screenToWorld(event.clientX, event.clientY);
-  const lane = worldToLane(world.y);
   const simX = worldToSimX(world.x);
-  if (simX >= 2 && simX <= 38) {
+  const simY = worldToSimY(world.y);
+  if (simX >= 1 && simX <= 39 && simY >= -2 && simY <= 42) {
     const enemy = state.red;
-    const enemyPos = worldToScreen(simToWorldX(enemy.tile.x), laneToWorldY(enemy.laneId));
+    const enemyPos = worldToScreen(simToWorldX(enemy.tile.x), simToWorldY(enemy.tile.y));
     if (enemy.alive && Math.hypot(event.clientX - enemyPos.x, event.clientY - enemyPos.y) <= 34) {
-      setLane(enemy.laneId);
       setAttackTarget(enemy.id);
       state.humanControl.moveTargetX = enemy.tile.x;
+      state.humanControl.moveTargetY = enemy.tile.y;
     } else {
-      setLane(lane);
       clearAttackTarget();
-      setMoveTarget(simX);
+      setMoveTarget(simX, simY);
+      const lane = worldToLane(world.y);
+      if (Math.abs(world.y - laneToWorldY(lane)) < 70) setLane(lane);
     }
   }
 });
