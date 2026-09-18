@@ -112,7 +112,7 @@ function nearestMeleeTile(from:Tile,target:Tile,range:number):Tile {
 }
 function combatDistance(a:Player,b:Player):number{return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));}
 function inAttackRange(a:Player,b:Player):boolean{return combatDistance(a,b)>0&&combatDistance(a,b)<=a.equipment.attackRange;}
-function projectileHitDelay(attackType:AttackType,distance:number):number{
+function projectileHitDelay(attackType:AttackType,distance:number,projectileSpeed?:number):number{
  const d=Math.max(1,Math.min(15,distance));
  if(attackType==="melee")return 0;
  if(attackType==="ranged"){if(d<=2)return 1;if(d<=8)return 2;return 3;}
@@ -178,7 +178,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const attackSpeed=ranged?(a.rangedStyle==="rapid"?Math.max(1,a.equipment.attackSpeed-1):a.rangedStyle==="longrange"?a.equipment.attackSpeed+1:a.equipment.attackSpeed):a.equipment.attackSpeed;
  a.nextAttackTick=state.tick+attackSpeed;a.attackQueuedTick=a.nextAttackTick;
   const distance=combatDistance(a,d);
-  const travelTicks=projectileHitDelay(ranged?"ranged":"magic",distance);
+  const travelTicks=ranged?projectileHitDelay("ranged",distance,AMMUNITION[a.equipment.ammoId??""]?.projectileSpeed):projectileHitDelay("magic",distance,SPELLS[a.equipment.spellId??""]?.projectileSpeed);
   const travelTick=state.tick+travelTicks;
   event(state,{tick:state.tick,type:ranged?"projectile":"spell",attacker:a.id,defender:d.id,x:d.x,y:d.y,sourceX:a.x,sourceY:a.y,reason:ranged?(a.equipment.ammoId??"projectile"):(a.equipment.spellId??"spell"),resolveTick:travelTick,attackType:ranged?"ranged":"magic"});
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,attackType:ranged?"ranged":"magic"});
