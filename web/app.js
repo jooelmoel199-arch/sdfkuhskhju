@@ -4,6 +4,7 @@ import {
   useConsumable, investAll, useSpecial, buyBestAffordableUpgrade, buyConsumables
 } from "./simState.js";
 import { levelOf } from "../moba/stats.ts";
+import { accountLevelFromXp } from "../moba/xp.ts";
 import { LANE_Y, LANES } from "../moba/lane.ts";
 
 const canvas = document.querySelector("#game");
@@ -74,7 +75,7 @@ function updateHud() {
     return `<div class="playerRow ${player.team}">
       <b>${player.id}</b> <span class="muted">${player.laneId.toUpperCase()} · ${status}</span><br>
       HP ${player.currentHp}/${hp} · GP ${player.gp} · K/D ${player.kills}/${player.deaths}<br>
-      <span class="muted">Atk ${levelOf(player.stats, "attack")} Str ${levelOf(player.stats, "strength")} Def ${levelOf(player.stats, "defence")} · ${weapon}</span>
+      <span class="muted">ACC ${accountLevelFromXp(player.stats.xp)} · XP ${Math.floor(player.stats.unallocatedXp)} · Atk ${levelOf(player.stats, "attack")} Str ${levelOf(player.stats, "strength")} Def ${levelOf(player.stats, "defence")} · ${weapon}</span>
     </div>`;
   }).join("");
 
