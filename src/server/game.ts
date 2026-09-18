@@ -26,7 +26,7 @@ export interface Inventory { slots:Array<ItemStack|null>; food: number; specialE
 export interface CombatXp { attack:number; strength:number; defence:number; ranged:number; magic:number; hitpoints:number; }
 export interface PendingHit { sourceTick:number; resolveTick:number; sequence:number; attackerId:string; defenderId:string; attackType:AttackType; attackStyle:AttackStyle; attackRoll:number; defenceRoll:number; hitChance:number; succeeded:boolean; rawDamage:number; special:boolean; baseXp:number; delivery:"melee"|"projectile"|"spell"; }
 export interface Equipment {
-  weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number;
+  weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number; magicAttackBonus?: number;
   specialCost: number; specialMultiplier: number; defenceBonus: number; defenceStab: number; defenceSlash: number; defenceCrush: number;
   ammoId?: string; spellId?: string;
 }
@@ -49,12 +49,12 @@ const styleBonus=MELEE_STYLE_BONUS;
 
 function makePlayer(pid:number,id:string,name:string,team:Team,x:number,y:number):Player{
   return {pid,id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
-    attack:75,strength:75,defence:70,ranged:75,magic:75,xp:{attack:0,strength:0,defence:0,ranged:0,magic:0,hitpoints:0},equipment:{...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
+    attack:75,strength:75,defence:70,ranged:75,magic:75,xp:{attack:0,strength:0,defence:0,ranged:0,magic:0,hitpoints:0},equipment:{weapon:WEAPONS.rune_scimitar.id,...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
     inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},{id:"shortbow",quantity:1},{id:"bronze_arrow",quantity:250},{id:"fire_rune",quantity:100},{id:"air_rune",quantity:300},{id:"fire_strike",quantity:1},null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,specialQueued:false,path:[]};
 }
 
 export function createGame():GameState{
-  const players={
+  const players:Record<string,Player>={
     player:makePlayer(1,"player","Player","blue",10,10),
     opponent:makePlayer(2,"opponent","Opponent","red",14,10),
     goblin_guard_1:makePlayer(100,"goblin_guard_1","Goblin guard","red",18,8),
