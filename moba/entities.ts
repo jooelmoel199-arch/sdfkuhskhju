@@ -7,7 +7,7 @@ import type { PrayerId } from "../prayer/prayers";
 import type { LaneId } from "./lane";
 import type { PendingHit } from "../combat/pendingHits";
 import type { StatBlock } from "./stats";
-import { createStatBlock, maxHitpoints } from "./stats";
+import { createStatBlock, maxHitpoints, maxPrayerPoints } from "./stats";
 import type { BonusTable, CombatLevels, CombatStyle } from "../combat/formulas";
 import { emptyEquipmentBonuses } from "./economy";
 import type { ShopItem, ConsumableDef } from "./economy";
@@ -173,7 +173,7 @@ export function createPlayer(
     equipment: {},
     activePrayers: [],
     attackType: "accurate",
-    prayerPoints: 30,
+    prayerPoints: maxPrayerPoints(stats),
     prayerDrainAccumulator: 0,
     specEnergy: 100,
     locks: createEntityLockState(),
@@ -252,7 +252,7 @@ export function consumeItem(player: PlayerEntity, item: ConsumableDef, currentTi
   if (inventoryCount(player, item.id) <= 0) return player;
   const maxHp = maxHitpoints(player.stats);
   const currentHp = item.healAmount ? Math.min(maxHp, player.currentHp + item.healAmount) : player.currentHp;
-  const prayerPoints = item.restorePrayer ? Math.min(30, player.prayerPoints + item.restorePrayer) : player.prayerPoints;
+  const prayerPoints = item.restorePrayer ? Math.min(maxPrayerPoints(player.stats), player.prayerPoints + item.restorePrayer) : player.prayerPoints;
   const statusEffects = item.boostStat
     ? [...player.statusEffects, { ...item.boostStat, expiresAtTick: currentTick + item.boostStat.durationTicks }]
     : player.statusEffects;
