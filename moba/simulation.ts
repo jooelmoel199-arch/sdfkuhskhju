@@ -498,21 +498,6 @@ const minionStage: TickStage<SimulationState> = {
 };
 
 
-      if (updated.id === state.blue.id && state.humanControl?.consumeItemId && decision.eatItemId) {
-        delete state.humanControl.consumeItemId;
-      }
-
-      if (updated.id === state.blue.id && state.humanControl?.investStat) {
-        delete state.humanControl.investStat;
-      }
-
-      if (updated.id === state.blue.id && state.humanControl?.buyItemId) {
-        delete state.humanControl.buyItemId;
-      }
-    }
-  }
-};
-
 function rewardNearestPlayer(state: SimulationState, killerMinion: MinionEntity): void {
   const candidates = [state.blue, state.red]
     .filter(player => player.alive && player.team === killerMinion.team && player.laneId === killerMinion.laneId)
