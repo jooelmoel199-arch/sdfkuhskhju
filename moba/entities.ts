@@ -76,6 +76,10 @@ export interface PlayerEntity {
   lastCombatTargetId?: string;
   lastGmaulTargetId?: string;
   lastGmaulAttackTick: number;
+  vengeanceActive: boolean;
+  vengeanceCooldownUntilTick: number;
+  vengeanceExpiresAtTick?: number;
+  lastVengeanceCastTick: number;
   lastSpecEnergyUseTick: number;
   lastPrayerToggleTick: number;
   lastCombatTick: number; // for PJ/engagement timer + assist windows
@@ -213,6 +217,10 @@ export function createPlayer(
     lastCombatTargetId: undefined,
     lastGmaulTargetId: undefined,
     lastGmaulAttackTick: -1000,
+    vengeanceActive: false,
+    vengeanceCooldownUntilTick: 0,
+    vengeanceExpiresAtTick: undefined,
+    lastVengeanceCastTick: -1000,
     lastSpecEnergyUseTick: -1000,
     lastPrayerToggleTick: -1000,
     lastCombatTick: -1000,
