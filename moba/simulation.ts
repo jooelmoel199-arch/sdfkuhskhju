@@ -989,6 +989,7 @@ const combatStage: TickStage<SimulationState> = {
             landed: claw.landed,
             hitChance: 0,
             rawDamage: claw.rawDamages[strike],
+            special: true,
             createdTick: state.tick
           });
         }
@@ -1006,6 +1007,7 @@ const combatStage: TickStage<SimulationState> = {
           landed: hit.landed,
           hitChance: hit.hitChance,
           rawDamage: hit.rawDamage,
+          special: Boolean(special),
           freezeTicks: attackStyle === "magic" ? spellProfile(state.humanControl?.spellId).freezeTicks : undefined,
           createdTick: state.tick
         });
@@ -1050,6 +1052,7 @@ const combatStage: TickStage<SimulationState> = {
             landed: secondaryHit.landed,
             hitChance: secondaryHit.hitChance,
             rawDamage: secondaryHit.rawDamage,
+            special: Boolean(special),
             freezeTicks: spellProfile(state.humanControl?.spellId).freezeTicks,
             createdTick: state.tick
           });
