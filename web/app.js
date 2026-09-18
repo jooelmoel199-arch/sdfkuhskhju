@@ -276,7 +276,7 @@ function draw() {
     ctx.fill();
   }
 
-  for (const player of [state.blue, state.red]) {
+  for (const player of state.players) {
     if (!player.alive) continue;
     const p = worldToScreen(simToWorldX(player.tile.x), simToWorldY(player.tile.y));
     const radius = 25 * camera.zoom;
