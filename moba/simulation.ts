@@ -207,10 +207,19 @@ const combatStage: TickStage<SimulationState> = {
       if (!actor.alive || !actor.equipment.weapon) continue;
 
       const enemy = opponentOf(state, actor.id);
-      if (!enemy.alive) continue;
-
       const decision = decisionFor(state, actor, enemy);
       if (!decision.attackStyle) continue;
+
+      const targetCamp = actor.team === "blue" && state.humanControl?.attackTargetId
+        ? state.jungleCamps.find(camp => camp.id === state.humanControl?.attackTargetId && camp.alive)
+        : undefined;
+
+      if (targetCamp) {
+        handleCampAttack(state, actor, targetCamp, decision.attackType);
+        continue;
+      }
+
+      if (!enemy.alive) continue;
 
       const lane = actor.laneId;
       const joinInput: JoinFightInput = {
@@ -291,18 +300,87 @@ const combatStage: TickStage<SimulationState> = {
       setPlayer(state, updatedEnemy);
       state.engagedAttackerTeamByLane[lane] = actor.team;
 
-      log(
-        state,
-        hit.landed
-          ? `${actor.id} hits ${currentEnemy.id} for ${hit.finalDamage} (${weapon.style}${special ? " SPEC" : ""})`
-          : `${actor.id} misses ${currentEnemy.id} (${weapon.style}${special ? " SPEC" : ""})`
-      );
+      log(state, hit.landed
+        ? actor.id + " hits " + currentEnemy.id + " for " + hit.finalDamage + " (" + attackStyle + " " + attackType + (special ? " SPEC" : "") + ")"
+        : actor.id + " misses " + currentEnemy.id + " (" + attackStyle + " " + attackType + (special ? " SPEC" : "") + ")");
 
-      if (newHp <= 0) handlePlayerDeath(state, updatedEnemy, actor);
+      if (newHp <= 0) handlePlayerDeath(state, updatedEnemy, attackerAfterAttack);
     }
   }
 };
 
+function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: NeutralCampEntity, attackType: PlayerEntity["attackType"]): void {
+  const weapon = actor.equipment.weapon;
+  if (!weapon) return;
+
+  const gateResult = dispatchAttack({
+    currentTick: state.tick,
+    attackerTile: actor.tile,
+    defenderTile: camp.tile,
+    attackerFrozen: isFrozen(actor.locks, state.tick),
+    locks: actor.locks,
+    attackTimer: actor.attackTimer,
+    weapon: {
+      style: weapon.style ?? "slash",
+      cooldownTicks: weapon.cooldownTicks ?? 4,
+      attackRange: weapon.attackRange ?? 1
+    },
+    extraAttackDelayUntilTick: actor.attackDelayUntilTick
+  });
+  if (!gateResult.gate.canAttack) {
+    setPlayer(state, { ...actor, attackTimer: gateResult.attackTimer });
+    return;
+  }
+
+  const style = weapon.style ?? "slash";
+  const prayerBoosts = aggregatePrayerBoosts(actor.activePrayers);
+  const relevantStatusBoost = actor.statusEffects
+    .filter(effect => effect.style === style || (style !== "magic" && style !== "ranged" && effect.style === "slash"))
+    .reduce((sum, effect) => sum + effect.amount, 0);
+  const attackBoostMultiplier = 1 + (style === "magic" ? prayerBoosts.magic : style === "ranged" ? prayerBoosts.rangedAttack : prayerBoosts.attack) + relevantStatusBoost;
+  const strengthBoostMultiplier = 1 + (style === "magic" ? 0 : style === "ranged" ? prayerBoosts.rangedStrength : prayerBoosts.strength) + relevantStatusBoost;
+  const special = actor.team === "blue" ? undefined : undefined;
+  const hit = rollAttack({
+    style,
+    attackType,
+    attackerLevels: toCombatLevels(actor.stats),
+    defenderLevels: camp.combatLevels,
+    attackerBonuses: equipmentBonuses(actor.equipment),
+    defenderBonuses: camp.bonuses,
+    defenderPrayers: [],
+    attackerIsPlayer: true,
+    attackBoostMultiplier,
+    strengthBoostMultiplier,
+    rng: state.rng
+  });
+
+  setPlayer(state, { ...actor, attackType, attackTimer: gateResult.attackTimer, lastCombatTick: state.tick });
+  const index = state.jungleCamps.findIndex(candidate => candidate.id === camp.id);
+  if (index < 0) return;
+  const currentCamp = state.jungleCamps[index];
+  const newHp = Math.max(0, currentCamp.currentHp - hit.finalDamage);
+  if (newHp <= 0) {
+    state.jungleCamps[index] = {
+      ...currentCamp,
+      currentHp: 0,
+      alive: false,
+      aggroTargetId: undefined,
+      respawnAtTick: state.tick + currentCamp.respawnTicks
+    };
+    const rewardPlayer = state.blue.id === actor.id ? state.blue : state.red;
+    setPlayer(state, {
+      ...rewardPlayer,
+      gp: rewardPlayer.gp + currentCamp.rewardGp,
+      stats: grantUnallocatedXp(rewardPlayer.stats, currentCamp.rewardXp)
+    });
+    log(state, actor.id + " clears " + currentCamp.name + " for " + currentCamp.rewardGp + " GP");
+  } else {
+    state.jungleCamps[index] = { ...currentCamp, currentHp: newHp, aggroTargetId: actor.id };
+    log(state, hit.landed
+      ? actor.id + " hits " + currentCamp.name + " for " + hit.finalDamage
+      : actor.id + " misses " + currentCamp.name);
+  }
+};
 function handlePlayerDeath(state: SimulationState, victim: PlayerEntity, killer: PlayerEntity): void {
   const killerCurrent = state.blue.id === killer.id ? state.blue : state.red;
   const killerWithXp: PlayerEntity = {
