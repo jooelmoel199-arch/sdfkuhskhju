@@ -18,7 +18,8 @@ import { shopCatalog } from "../moba/economy";
 
 function testPrototypeShape() {
   const state = createPrototypeState();
-  equal(state.players.length, 6, "prototype should have three players per team");
+  equal(state.players.length, 10, "prototype should have five players per team");
+  deepEqualSet(new Set(state.players.map(player => player.role)), new Set(["top", "middle", "bottom", "support", "jungle"]), "roster should cover all five MOBA positions");
   equal(state.towers.length, 6, "prototype should have two towers per lane");
   equal(state.jungleCamps.length, 4, "prototype should have four neutral camps");
   equal(state.tick, 0, "simulation starts at tick zero");
