@@ -88,12 +88,18 @@ function resolveAttack(state:GameState,a:Player):void{
  const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
  const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+8;
  const attackRoll=effectiveAttack*(a.equipment.attackBonus+64), defenceRoll=effectiveDefence*(64+styleBonus[d.attackStyle].defence*4);
- const rules=state.combatRules.onAttack(a.id,d.id,attackRoll,defenceRoll);
- // OSRS-style player combat separates the attack turn from hit evaluation.
- // Melee has no projectile travel time; defender turn order determines whether the hit lands this tick or next.
- const baseMaxHit=Math.max(1,Math.floor(((a.strength+bonus.strength+8)*(a.equipment.strengthBonus+64))/640));
+ const hitChance=attackRoll<=defenceRoll
+   ? attackRoll/(2*(defenceRoll+1))
+   : 1-(defenceRoll+2)/(2*(attackRoll+1));
+ const accuracyRoll=deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17);
+ const rules=state.combatRules.onAttack(a.id,d.id,accuracyRoll,hitChance,attackRoll,defenceRoll);
+ // OSRS max-hit formula: floor((effective strength * (strength bonus + 64) + 320) / 640).
+ const baseMaxHit=Math.max(1,Math.floor(((a.strength+bonus.strength+8)*(a.equipment.strengthBonus+64)+320)/640));
  const maxHit=special?Math.max(1,Math.floor(baseMaxHit*a.equipment.specialMultiplier)):baseMaxHit;
- const damage=rules.hit?Math.min(d.hp,Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1))):0;
+ let damage=rules.hit?Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1)):0;
+ // Protection prayers reduce incoming PvP damage rather than turning the hit into an
+ // automatic zero. The prayer is evaluated against the attack type at hit creation.
+ if(damage>0&&d.prayer==="protect_melee")damage=Math.floor(damage*0.6);
  a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=state.tick+a.equipment.attackSpeed;
  // Standard melee has no projectile travel delay; PvP processing order can add one tick.
  // If the defender has already taken their turn, the queued hit waits for their next turn.
