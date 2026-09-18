@@ -307,6 +307,13 @@ function expireVengeance(player: PlayerEntity, currentTick: number): PlayerEntit
   };
 }
 
+function tickTargetMemory(player: PlayerEntity): PlayerEntity {
+  if (player.lastTargetTimeoutTicks <= 0) return player;
+  const remaining = player.lastTargetTimeoutTicks - 1;
+  if (remaining > 0) return { ...player, lastTargetTimeoutTicks: remaining };
+  return { ...player, lastTargetId: undefined, lastTargetTimeoutTicks: 0 };
+}
+
 function applyEquipGmaulTiming(
   playerBefore: PlayerEntity,
   playerAfter: PlayerEntity,
@@ -428,7 +435,7 @@ const clientInputStage: TickStage<SimulationState> = {
       const queue = state.clientCommands[actor.id] ?? [];
       const drained = drainPlayerCommands(queue, state.tick, 10);
       state.clientCommands[actor.id] = drained.queue;
-      let current = expireVengeance(expireGmaulPreload(actor, state.tick), state.tick);
+      let current = tickTargetMemory(expireVengeance(expireGmaulPreload(actor, state.tick), state.tick));
 
       for (const command of drained.commands) {
         switch (command.kind) {
