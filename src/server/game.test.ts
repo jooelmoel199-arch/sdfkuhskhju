@@ -27,6 +27,18 @@ enqueueInput(earlyPid, { type: "attack", targetId: "opponent" });
 step(earlyPid);
 assert(earlyPid.events.some(e => e.type === "attack"), "early-PID player should attack on its turn");
 assert(earlyPid.events.some(e => e.type === "hit" || e.type === "miss"), "later-PID defender should process the melee hit on the same tick");
+const protectedGame = createGame();
+protectedGame.players.player.id = "z_player";
+protectedGame.players.opponent.id = "a_opponent";
+protectedGame.players.player.x = 13;
+protectedGame.players.opponent.x = 14;
+enqueueInput(protectedGame, { type: "attack", targetId: "opponent" });
+step(protectedGame);
+protectedGame.players.opponent.prayer = "protect_melee";
+step(protectedGame);
+const protectedHit = protectedGame.events.find(e => e.type === "hit");
+assert(protectedHit !== undefined, "protected melee attack should still register as a hit");
+
 // Repeated attack clicks during cooldown must not reset the weapon timer.
 enqueueInput(game, { type: "attack", targetId: "opponent" });
 step(game);
