@@ -168,7 +168,7 @@ export function createPvpTestState(): SimulationState {
   ];
 
   function prepare(player: PlayerEntity, x: number) {
-    let prepared = {
+    let prepared: PlayerEntity = {
       ...player,
       tile: { x, y: LANE_Y.middle },
       zone: "lane" as const,
