@@ -1262,7 +1262,39 @@ const jungleStage: TickStage<SimulationState> = {
   name: "jungle",
   run: state => {
     for (let index = 0; index < state.jungleCamps.length; index += 1) {
-      const camp = state.jungleCamps[index];
+      let camp = state.jungleCamps[index];
+      const queued = resolvePendingNpcHits(state, camp.id);
+      for (const hit of queued) {
+        if (!camp.alive || !hit.landed) continue;
+        camp = { ...camp, currentHp: Math.max(0, camp.currentHp - hit.rawDamage), aggroTargetId: hit.attackerId };
+        log(state, `${hit.attackerId} hits ${camp.name} for ${hit.rawDamage}`);
+        if (camp.currentHp <= 0) {
+          camp = {
+            ...camp,
+            currentHp: 0,
+            alive: false,
+            aggroTargetId: undefined,
+            respawnAtTick: state.tick + camp.respawnTicks
+          };
+          const rewardPlayer = state.players.find(player => player.id === hit.attackerId && player.alive);
+          if (rewardPlayer) {
+            setPlayer(state, {
+              ...rewardPlayer,
+              gp: rewardPlayer.gp + camp.rewardGp,
+              stats: grantUnallocatedXp(rewardPlayer.stats, camp.rewardXp)
+            });
+            if (camp.id === "river-chaos-elemental") {
+              state.teamBuffs[rewardPlayer.team] = {
+                name: "Elemental surge",
+                expiresAtTick: state.tick + 100,
+                damageMultiplier: 1.10
+              };
+            }
+          }
+          log(state, `${camp.name} is cleared`);
+        }
+      }
+      state.jungleCamps[index] = camp;
 
       if (!camp.alive) {
         if (camp.respawnAtTick !== undefined && state.tick >= camp.respawnAtTick) {
