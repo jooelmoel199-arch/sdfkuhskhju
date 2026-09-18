@@ -10,7 +10,7 @@ import { consumeItem, equipItem, equipOwnedItem, equipmentBonuses, nextNpcId, ne
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
 import { gpRewards, xpRewards, shopCatalog } from "./economy";
 import { decideAction, findConsumable } from "./ai";
-import { drainPlayerCommands, enqueuePlayerCommand, makeStrongCommand, type PlayerCommand, type PlayerCommandInput } from "../combat/commandQueue";
+import { drainPlayerCommands, enqueuePlayerCommand, makeClientCommand, type PlayerCommand, type PlayerCommandInput } from "../combat/commandQueue";
 import {
   zoneAt,
   BLUE_TOWER_X,
@@ -196,7 +196,7 @@ export function queueClientCommand(
   playerId = state.blue.id
 ): void {
   state.nextClientCommandSequence += 1;
-  const command = makeStrongCommand(
+  const command = makeClientCommand(
     input,
     state.nextClientCommandSequence,
     state.tick,
