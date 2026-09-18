@@ -17,6 +17,11 @@ assert(game.events.some(e => e.type === "attack_queued"), "attack should be queu
 step(game);
 assert(game.events.some(e => e.type === "hit" || e.type === "miss"), "queued hit should resolve on the following tick");
 assert(game.players.player.nextAttackTick === 5, "rune scimitar should use a 4-tick cooldown");
+// Repeated attack clicks during cooldown must not reset the weapon timer.
+enqueueInput(game, { type: "attack", targetId: "opponent" });
+step(game);
+assert(game.players.player.attackQueuedTick === 5, "reselecting a target during cooldown must preserve the next attack tick");
+
 
 const hpAfterAttack = game.players.opponent.hp;
 step(game);
