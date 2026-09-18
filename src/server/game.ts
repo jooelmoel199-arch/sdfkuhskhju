@@ -40,7 +40,7 @@ export interface Player {
 export interface CombatEvent {
   tick:number; type:"attack_queued"|"attack_cancelled"|"attack"|"hit"|"miss"|"eat"|"special_queued"|"special"|"move"|"prayer"|"attack_style"|"death"|"projectile"|"spell";
   attacker?:string; defender?:string; damage?:number; attackRoll?:number; defenceRoll?:number;
-  special?:boolean; hitChance?:number; x?:number; y?:number; prayer?:Prayer; style?:AttackStyle; reason?:string;
+  special?:boolean; hitChance?:number; x?:number; y?:number; prayer?:Prayer; style?:AttackStyle; reason?:string; resolveTick?:number; attackType?:AttackType;
 }
 export interface QueuedInput { sequence:number; receivedTick:number; command:InputCommand; }
 export interface GameState { tick:number; nextInputSequence:number; nextCombatSequence:number; players:Record<string,Player>; pendingInputs:QueuedInput[]; pendingHits:PendingHit[]; events:CombatEvent[]; readonly combatRules:CombatRules; }
@@ -112,6 +112,16 @@ function nearestMeleeTile(from:Tile,target:Tile,range:number):Tile {
 }
 function combatDistance(a:Player,b:Player):number{return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));}
 function inAttackRange(a:Player,b:Player):boolean{return combatDistance(a,b)>0&&combatDistance(a,b)<=a.equipment.attackRange;}
+function projectileHitDelay(attackType:AttackType,distance:number):number{
+ const d=Math.max(1,Math.min(15,distance));
+ if(attackType==="melee")return 0;
+ if(attackType==="ranged"){
+   if(d<=2)return 1;
+   if(d<=8)return 2;
+   return 3;
+ }
+ return Math.floor((d+1)/3)+1;
+}
 function consumeResource(p:Player,id:string,amount:number):boolean{
   const stack=p.inventory.slots.find(v=>v?.id===id);
   if(!stack||stack.quantity<amount)return false;
@@ -235,7 +245,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    const protectedByPrayer=(attackType==="melee"&&p.prayer==="protect_melee")||(attackType==="ranged"&&p.prayer==="protect_range")||(attackType==="magic"&&p.prayer==="protect_mage");
    const damage=protectedByPrayer?Math.floor(rawDamage*0.6):rawDamage;
    if(damage>0){p.hp=Math.max(0,p.hp-damage);awardCombatXp(a,damage,attackType);}
-   event(state,{tick:state.tick,type:succeeded?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special});
+   event(state,{tick:state.tick,type:succeeded?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special,attackType,reason:hit.delivery});
    if(p.hp<=0){
      p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHit=null;
      a.targetId=null;
