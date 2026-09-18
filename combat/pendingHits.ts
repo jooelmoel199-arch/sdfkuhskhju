@@ -24,8 +24,8 @@ export function meleeHitTick(currentTick: number, attackerPriority: number, defe
 
 export function distanceHitDelay(style: "ranged" | "magic", distance: number): number {
   const d = Math.max(1, Math.trunc(distance));
-  if (style === "ranged") return 1 + Math.floor((d + 3) / 6);
-  return 1 + Math.floor((d + 1) / 3);
+  if (style === "ranged") return 2 + Math.floor((d + 3) / 6);
+  return 2 + Math.floor((d + 1) / 3);
 }
 
 export function projectileHitTick(
