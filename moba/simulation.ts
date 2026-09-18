@@ -90,7 +90,7 @@ investStat?: "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints
   };
 }
 
-function spellProfile(id: SimulationState["humanControl"] extends infer _ ? NonNullable<SimulationState["humanControl"]>["spellId"] : never) {
+function spellProfile(id: "ice_rush" | "ice_burst" | "ice_blitz" | "ice_barrage" | undefined) {
   switch (id) {
     case "ice_rush": return { maxHit: 20, freezeTicks: 16, aoeRadius: 0 };
     case "ice_burst": return { maxHit: 22, freezeTicks: 20, aoeRadius: 1 };
