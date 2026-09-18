@@ -711,6 +711,7 @@ function testGraniteMaulDoubleSpecConsumesTwoQueues() {
   const state = createPvpTestState();
   state.blue = {
     ...state.blue,
+    tile: { x: 19, y: state.blue.tile.y },
     equipment: { ...state.blue.equipment, weapon: shopCatalog.find(item => item.id === "granite_maul") },
     gmaulEquippedTick: 0,
     gmaulSpecBarVisibleTick: 0,
