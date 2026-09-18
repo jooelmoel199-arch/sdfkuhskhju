@@ -421,8 +421,8 @@ const projectileStage: TickStage<SimulationState> = {
 };
 function projectileHitDelay(style: "ranged" | "magic", from: TilePosition, to: TilePosition): number {
   const distance = Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y));
-  if (style === "ranged") return 2 + Math.floor((3 + distance) / 6);
-  return 3 + Math.floor((distance + 1) / 3);
+  if (style === "ranged") return 1 + Math.floor((3 + distance) / 6);
+  return 1 + Math.floor((distance + 1) / 3);
 }
 
 function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: NeutralCampEntity, attackType: PlayerEntity["attackType"]): void {
