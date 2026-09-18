@@ -36,6 +36,17 @@ let projectileSeq = 0;
 
 export const TICK_MS = 600;
 
+export interface CombatEvent {
+  readonly tick: number;
+  readonly attackerId: string;
+  readonly targetId: string;
+  readonly style: "melee" | "ranged" | "magic";
+  readonly damage: number;
+  readonly landed: boolean;
+  readonly special?: boolean;
+  readonly freezeTicks?: number;
+}
+
 export interface SimulationLogEntry {
   readonly tick: number;
   readonly message: string;
@@ -56,6 +67,8 @@ export interface SimulationState {
   engagedAttackerTeamByLane: Partial<Record<LaneId, "blue" | "red">>;
   teamBuffs: Partial<Record<"blue" | "red", { name: string; expiresAtTick: number; damageMultiplier: number }>>;
   matchResult?: "blue" | "red";
+  readonly pvpTest?: boolean;
+  combatEvents: CombatEvent[];
   log: SimulationLogEntry[];
   rng: () => number;
   humanControl?: {
@@ -73,6 +86,11 @@ investStat?: "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints
     buyConsumableId?: string;
     buyConsumableQuantity?: number;
   };
+}
+
+function pushCombatEvent(state: SimulationState, event: CombatEvent): void {
+  state.combatEvents.push(event);
+  if (state.combatEvents.length > 80) state.combatEvents.splice(0, state.combatEvents.length - 80);
 }
 
 function playerPriority(state: SimulationState, playerId: string): number {
@@ -228,6 +246,7 @@ const prayerStage: TickStage<SimulationState> = {
   run: state => {
     for (const actor of [...state.players]) {
       if (!actor.alive) continue;
+      if (state.pvpTest && actor.team === "red") continue;
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
       const requested = decision.activatePrayer as PrayerId | undefined;
@@ -569,11 +588,28 @@ const pendingHitStage: TickStage<SimulationState> = {
           log(state, resolvedTarget.id + " triggers Redemption");
         }
         setPlayer(state, resolvedTarget);
+        pushCombatEvent(state, {
+          tick: state.tick,
+          attackerId: hit.attackerId,
+          targetId: target.id,
+          style: hit.style,
+          damage: hit.rawDamage,
+          landed: true,
+          freezeTicks: hit.freezeTicks
+        });
         log(state, hit.attackerId + " hits " + target.id + " for " + hit.rawDamage +
           " (" + hit.style + " " + hit.attackType + ", tick " + hit.dueTick + ")");
         if (newHp <= 0 && attacker) handlePlayerDeath(state, resolvedTarget, attacker);
       } else {
         setPlayer(state, { ...target, lastCombatTick: state.tick });
+        pushCombatEvent(state, {
+          tick: state.tick,
+          attackerId: hit.attackerId,
+          targetId: target.id,
+          style: hit.style,
+          damage: 0,
+          landed: false
+        });
         log(state, hit.attackerId + " misses " + target.id + " (" + hit.style + ")");
       }
     }
@@ -1135,6 +1171,7 @@ export function advanceTick(state: SimulationState): void {
   if (state.matchResult) return;
   tickRunner.run(state);
   if (state.humanControl) {
+    delete state.humanControl.activatePrayer;
     delete state.humanControl.consumeItemId;
     delete state.humanControl.equipItemId;
     delete state.humanControl.investStat;
