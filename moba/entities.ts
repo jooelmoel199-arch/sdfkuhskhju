@@ -36,6 +36,8 @@ export interface Equipment {
   cape?: ShopItem;
 }
 
+export type AttackType = "accurate" | "aggressive" | "controlled" | "rapid_ranged" | "long_ranged";
+
 export interface PlayerEntity {
   readonly id: string;
   readonly kind: "player";
@@ -50,6 +52,7 @@ export interface PlayerEntity {
   inventory: InventoryEntry[];
   equipment: Equipment;
   activePrayers: PrayerId[];
+  attackType: AttackType;
   prayerPoints: number;
   specEnergy: number;
   locks: EntityLockState;
@@ -118,6 +121,7 @@ export function createPlayer(id: string, team: Team, spawnTile: TilePosition, la
     inventory: [],
     equipment: {},
     activePrayers: [],
+    attackType: "accurate",
     prayerPoints: 30,
     specEnergy: 100,
     locks: createEntityLockState(),
