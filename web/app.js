@@ -76,7 +76,7 @@ function updateHud() {
       player.activePrayers.length ? "PRAYER" :
       player.team === "blue" && state.humanControl?.moveTargetX !== undefined ? "MOVING" : "READY";
     return `<div class="playerRow ${player.team}">
-      <b>${player.id}</b> <span class="muted">${player.laneId.toUpperCase()} · ${status}</span><br>
+      <b>${player.id}</b> <span class="muted">${player.role.toUpperCase()} · ${player.laneId.toUpperCase()} · ${status}</span><br>
       HP ${player.currentHp}/${hp} · GP ${player.gp} · K/D ${player.kills}/${player.deaths}<br>
       <span class="muted">ACC ${accountLevelFromXp(player.stats.xp)} · XP ${Math.floor(player.stats.unallocatedXp)} · Atk ${levelOf(player.stats, "attack")} Str ${levelOf(player.stats, "strength")} Def ${levelOf(player.stats, "defence")} · ${weapon}</span>
     </div>`;
