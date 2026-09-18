@@ -16,6 +16,8 @@ import { createPrototypeState } from "../moba/factory";
 import { advanceTick } from "../moba/simulation";
 import { shopCatalog } from "../moba/economy";
 import { distanceHitDelay, meleeHitTick, projectileHitTick } from "../combat/pendingHits";
+import { rollDragonClawsSpecial } from "../combat/resolve";
+import { zeroBonuses } from "../combat/formulas";
 
 function testPrototypeShape() {
   const state = createPrototypeState();
@@ -84,6 +86,23 @@ function testOsrsHitTiming() {
   equal(projectileHitTick(10, "ranged", 8, 2, 1), 13, "lower-priority ranged attack gets the processing-order tick");
 }
 
+function testDragonClawsSpecial() {
+  const result = rollDragonClawsSpecial({
+    style: "slash",
+    attackType: "aggressive",
+    attackerLevels: { attack: 99, strength: 99, defence: 99, ranged: 99, magic: 99 },
+    defenderLevels: { attack: 1, strength: 1, defence: 1, ranged: 1, magic: 1 },
+    attackerBonuses: { ...zeroBonuses, slash_attack_bonus: 132, melee_strength_bonus: 114 },
+    defenderBonuses: { ...zeroBonuses },
+    defenderPrayers: [],
+    attackerIsPlayer: true,
+    rng: () => 0
+  });
+  equal(result.damages.length, 4, "Dragon claws should generate four hitsplats");
+  ok(result.damages.every(damage => damage >= 0), "Dragon claws damage should never be negative");
+  ok(result.damages.reduce((sum, damage) => sum + damage, 0) > 0, "Dragon claws should land against a very low defence target");
+}
+
 function testCampRespawnSchedule() {
   const state = createPrototypeState();
   const camp = state.jungleCamps[0];
@@ -99,6 +118,7 @@ testPrototypeShape();
 testWaveCadence();
 testProjectileDelay();
 testOsrsHitTiming();
+testDragonClawsSpecial();
 testCampRespawnSchedule();
 
 console.log("All simulation tests passed.");
