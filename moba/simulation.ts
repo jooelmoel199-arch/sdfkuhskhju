@@ -5,7 +5,7 @@ import { dispatchAttack } from "../combat/attackGate";
 import { rollAttack } from "../combat/resolve";
 import { compatiblePrayerSet, type PrayerId } from "../prayer/prayers";
 import type { PlayerEntity, MinionEntity, TowerEntity } from "./entities";
-import { consumeItem, equipItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
+import { consumeItem, equipItem, equipmentBonuses, nextPid, inventoryCount } from "./entities";
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
 import { gpRewards, xpRewards, shopCatalog } from "./economy";
 import { decideAction, findConsumable } from "./ai";
@@ -53,6 +53,10 @@ export interface SimulationState {
     activatePrayer?: PrayerId;
     laneId: LaneId;
     attackTargetId?: string;
+    consumeItemId?: string;
+    investStat?: "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints";
+    buyItemId?: string;
+    useSpecial?: boolean;
   };
 }
 
@@ -568,6 +572,12 @@ export const tickRunner = createTickStageRunner<SimulationState>([
 
 export function advanceTick(state: SimulationState): void {
   tickRunner.run(state);
+  if (state.humanControl) {
+    delete state.humanControl.consumeItemId;
+    delete state.humanControl.investStat;
+    delete state.humanControl.buyItemId;
+    delete state.humanControl.useSpecial;
+  }
   state.tick += 1;
 }
 
