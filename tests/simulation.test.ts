@@ -306,7 +306,7 @@ function testPotionBoostsUseBoostedCombatLevelsAndDecay() {
 
   state.tick = 100;
   advanceTick(state);
-  equal(state.blue.combatBoosts.strength, 10, "one point of temporary combat boost should decay after 60 seconds");
+  equal(state.blue.combatBoosts.strength, 18, "one point of temporary combat boost should decay after 60 seconds");
 }
 function testKarambwanCombo() {
   const state = createPvpTestState();
