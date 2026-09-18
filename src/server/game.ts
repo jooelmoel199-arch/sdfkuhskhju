@@ -39,7 +39,7 @@ const styleBonus={accurate:{attack:3,strength:0,defence:0},aggressive:{attack:0,
 function makePlayer(id:string,name:string,team:Team,x:number,y:number):Player{
   return {id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
     attack:75,strength:75,defence:70,equipment:{weapon:"rune_scimitar",attackSpeed:4,attackBonus:45,strengthBonus:44,specialCost:50,specialMultiplier:1.25},
-    inventory:{food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,specialQueued:false,path:[]};
+    inventory:{food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,pendingHitDamage:0,pendingHitRoll:0,pendingDefenceRoll:0,pendingSpecial:false,specialQueued:false,path:[]};
 }
 
 export function createGame():GameState{
@@ -55,7 +55,7 @@ function processInput(state:GameState,command:InputCommand):void{
  const p=state.players.player;if(!p||p.hp<=0)return;
  switch(command.type){
   case "attack":{const target=state.players[command.targetId];if(!target||target.hp<=0||target.team===p.team)return;p.targetId=target.id;setDestination(p,target.x,target.y);p.attackQueuedTick=state.tick;p.specialQueued=false;event(state,{tick:state.tick,type:"attack_queued",attacker:p.id,defender:target.id});return;}
-  case "stop_attack":p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.specialQueued=false;p.path=[];event(state,{tick:state.tick,type:"attack_cancelled",attacker:p.id});return;
+  case "stop_attack":p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHitDamage=0;p.pendingSpecial=false;p.specialQueued=false;p.path=[];event(state,{tick:state.tick,type:"attack_cancelled",attacker:p.id});return;
   case "move":setDestination(p,command.x,command.y);p.targetId=null;p.attackQueuedTick=null;p.specialQueued=false;event(state,{tick:state.tick,type:"move",attacker:p.id,x:p.destinationX,y:p.destinationY});return;
   case "attack_style":p.attackStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,style:p.attackStyle});return;
   case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
@@ -81,7 +81,7 @@ function resolveAttack(state:GameState,a:Player):void{
  a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=null;a.hitQueuedTick=state.tick+1;
  if(special){a.inventory.specialEnergy-=a.equipment.specialCost;event(state,{tick:state.tick,type:"special",attacker:a.id,defender:d.id,special:true});}
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,special});
- event(state,{tick:state.tick,type:"hit",attacker:a.id,defender:d.id,damage,attackRoll,defenceRoll,special});
+ a.pendingHitDamage=damage;a.pendingHitRoll=attackRoll;a.pendingDefenceRoll=defenceRoll;a.pendingSpecial=special;
  a.hitQueuedTick=state.tick+1;
 
  if(d.hp<=0){d.targetId=null;d.attackQueuedTick=null;a.targetId=null;event(state,{tick:state.tick,type:"death",attacker:a.id,defender:d.id});}
@@ -101,18 +101,16 @@ function prayerStage(state:GameState):void{
 }
 function resolveQueuedHits(state:GameState):void{
  for(const a of Object.values(state.players)){
-   if(a.hitQueuedTick!==state.tick || !a.targetId)continue;
-   const d=state.players[a.targetId];
-   a.hitQueuedTick=null;
+   if(a.hitQueuedTick!==state.tick)continue;
+   const d=a.targetId?state.players[a.targetId]:undefined;
+   const damage=a.pendingHitDamage;
+   const attackRoll=a.pendingHitRoll;
+   const defenceRoll=a.pendingDefenceRoll;
+   const special=a.pendingSpecial;
+   a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingSpecial=false;
    if(!d||d.hp<=0)continue;
-   // The attack event already determined accuracy/damage. Recompute the deterministic
-   // result from the originating tick so the delayed hit remains replayable.
-   const attackEvent=[...state.events].reverse().find(e=>e.type==="attack"&&e.attacker===a.id&&e.defender===d.id&&e.tick===state.tick-1);
-   if(!attackEvent)continue;
-   const hitEvent=[...state.events].reverse().find(e=>e.type==="hit"&&e.attacker===a.id&&e.defender===d.id&&e.tick===state.tick-1);
-   const damage=hitEvent?.damage??0;
    if(damage>0)d.hp=Math.max(0,d.hp-damage);
-   event(state,{tick:state.tick,type:damage>0?"hit":"miss",attacker:a.id,defender:d.id,damage,attackRoll:attackEvent.attackRoll,defenceRoll:attackEvent.defenceRoll,special:attackEvent.special});
+   event(state,{tick:state.tick,type:damage>0?"hit":"miss",attacker:a.id,defender:d.id,damage,attackRoll,defenceRoll,special});
    if(d.hp<=0){d.targetId=null;d.attackQueuedTick=null;d.hitQueuedTick=null;a.targetId=null;event(state,{tick:state.tick,type:"death",attacker:a.id,defender:d.id});}
  }
 }
