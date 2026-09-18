@@ -1,6 +1,7 @@
 import { createPrototypeState } from "../moba/factory.ts";
 import { advanceTick, TICK_MS } from "../moba/simulation.ts";
 import { maxHitpoints } from "../moba/stats.ts";
+import { LANE_Y, zoneAt } from "../moba/lane.ts";
 import { shopCatalog } from "../moba/economy.ts";
 
 let state = {
@@ -39,8 +40,8 @@ export function setLane(laneId) {
   state.blue = {
     ...state.blue,
     laneId,
-    tile: { x: state.blue.tile.x, y: laneId === "top" ? 0 : laneId === "middle" ? 20 : 40 },
-    zone: "lane"
+    tile: { x: state.blue.tile.x, y: LANE_Y[laneId] },
+    zone: zoneAt({ x: state.blue.tile.x, y: LANE_Y[laneId] })
   };
   delete state.humanControl.moveTargetX;
   delete state.humanControl.moveTargetY;
