@@ -17,6 +17,7 @@ import {
   RED_BASE_X,
   LANE_Y,
   LANES,
+  nearestLane,
   canJoinFight,
   type JoinFightInput
 } from "./lane";
@@ -159,7 +160,7 @@ const movementStage: TickStage<SimulationState> = {
 
       const nextTile: TilePosition = { x, y };
       const nextZone = zoneAt(nextTile);
-      const nextLaneId = nextZone === "lane" ? laneFromPlayer(current) : current.laneId;
+      const nextLaneId = nextZone === "lane" ? nearestLane(nextTile.y) : current.laneId;
 
       setPlayer(state, { ...current, tile: nextTile, laneId: nextLaneId, zone: nextZone });
     }
@@ -198,7 +199,7 @@ const combatStage: TickStage<SimulationState> = {
       if (!actor.alive || !actor.equipment.weapon) continue;
 
       const enemy = opponentOf(state, actor.id);
-      if (!enemy.alive || !sameLane(actor, enemy)) continue;
+      if (!enemy.alive) continue;
 
       const decision = decisionFor(state, actor, enemy);
       if (!decision.attackStyle) continue;
