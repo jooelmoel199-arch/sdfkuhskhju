@@ -182,7 +182,7 @@ const movementStage: TickStage<SimulationState> = {
         if (Math.abs(dy) > 0.01) {
           y += Math.sign(dy);
         }
-      } else {
+      } else if (current.role !== "jungle") {
         y = LANE_Y[laneFromPlayer(current)];
       }
 
