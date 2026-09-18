@@ -569,6 +569,7 @@ function testTargetMemoryExpiresAfterFiveTicks() {
   const state = createPvpTestState();
   queueClientCommand(state, { kind: "attack-target", targetId: state.red.id });
   advanceTick(state);
+  advanceTick(state);
 
   equal(state.blue.lastTargetId, state.red.id, "target interaction should remember the selected target");
   equal(state.blue.lastTargetTimeoutTicks, 4, "target memory should begin counting down after the command-processing tick");
