@@ -88,7 +88,9 @@ export function investAll(stat) {
 }
 
 export function useSpecial() {
-  queueClientCommand(state, { kind: "special", targetId: state.humanControl.attackTargetId });
+  // Resolve the current interaction when the command executes. This matters
+  // when a target click and a special click are issued during the same client tick.
+  queueClientCommand(state, { kind: "special" });
 }
 
 export function buyBestAffordableUpgrade() {
