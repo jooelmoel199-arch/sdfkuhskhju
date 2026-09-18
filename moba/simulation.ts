@@ -6,7 +6,7 @@ import { meleeHitTick, projectileHitTick, type PendingHit } from "../combat/pend
 import { rollAttack, rollDragonClawsSpecial } from "../combat/resolve";
 import { compatiblePrayerSet, aggregatePrayerBoosts, prayerDefinitions, applyProtectionDamageReduction, type PrayerId } from "../prayer/prayers";
 import type { PlayerEntity, MinionEntity, TowerEntity, NeutralCampEntity, ProjectileEntity } from "./entities";
-import { consumeItem, equipItem, equipOwnedItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
+import { consumeItem, equipItem, equipOwnedItem, equipmentBonuses, nextNpcId, nextPid, inventoryCount, addInventoryItem } from "./entities";
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
 import { gpRewards, xpRewards, shopCatalog } from "./economy";
 import { decideAction, findConsumable } from "./ai";
@@ -67,6 +67,8 @@ export interface SimulationState {
   /** Client commands are delivered on the following server tick and consumed FIFO, up to ten per tick. */
   clientCommands: PlayerCommand[];
   nextClientCommandSequence: number;
+  /** NPC currently executing its authoritative turn. */
+  npcTurnId?: string;
   towers: TowerEntity[];
   pidOrder: string[];
   nextPidShuffleTick: number;
@@ -1272,6 +1274,7 @@ const towerStage: TickStage<SimulationState> = {
   name: "towers",
   run: state => {
     for (const tower of state.towers) {
+      if (state.npcTurnId !== undefined && tower.id !== state.npcTurnId) continue;
       const queued = resolvePendingNpcHits(state, tower.id);
       for (const hit of queued) {
         if (!tower.alive || !hit.landed) continue;
@@ -1300,11 +1303,21 @@ const towerStage: TickStage<SimulationState> = {
       if (minion) {
         tower.attackTimer = { ...tower.attackTimer, lastAttackTick: state.tick, weaponCooldownTicks: 5 };
         const damage = Math.floor(state.rng() * (tower.maxHit + 1));
-        minion.currentHp = Math.max(0, minion.currentHp - damage);
-        if (minion.currentHp <= 0) {
-          minion.alive = false;
-          log(state, `${tower.id} destroys ${minion.id}`);
-        }
+        enqueuePendingNpcHit(state, {
+          id: "npc-target-hit-" + tower.id + "-" + state.tick + "-" + (state.pendingHitSequence + 1),
+          dueTick: state.tick,
+          attackerId: tower.id,
+          targetId: minion.id,
+          attackerPid: tower.npcId,
+          targetPid: minion.npcId,
+          style: "crush",
+          attackType: "accurate",
+          landed: true,
+          hitChance: 1,
+          rawDamage: damage,
+          createdTick: state.tick
+        });
+        log(state, tower.id + " queues " + minion.id + " for " + damage + " damage");
         continue;
       }
 
@@ -1340,10 +1353,8 @@ function canAttackTimer(timer: { lastAttackTick: number; weaponCooldownTicks: nu
 }
 
 // --- 6. Minion waves in all lanes ---
-const minionStage: TickStage<SimulationState> = {
-  name: "minions",
-  run: state => {
-    if (state.tick > 0 && state.tick % MINION_SPAWN_INTERVAL_TICKS === 0) {
+function spawnMinionsIfDue(state: SimulationState): void {
+  if (state.tick > 0 && state.tick % MINION_SPAWN_INTERVAL_TICKS === 0) {
       for (const lane of LANES) {
         for (let index = 0; index < MINIONS_PER_WAVE_PER_LANE; index += 1) {
           for (const team of ["blue", "red"] as const) {
@@ -1354,6 +1365,7 @@ const minionStage: TickStage<SimulationState> = {
             state.minions.push({
               id: `minion-${team}-${lane}-${minionSeq}`,
               kind: "minion",
+              npcId: nextNpcId(),
               team,
               laneId: lane,
               pid: nextPid(),
@@ -1369,12 +1381,17 @@ const minionStage: TickStage<SimulationState> = {
           }
         }
       }
-    }
+  }
+}
 
+const minionStage: TickStage<SimulationState> = {
+  name: "minions",
+  run: state => {
     const alive = state.minions.filter(minion => minion.alive);
     const sorted = [...alive].sort((a, b) => a.pid - b.pid);
 
     for (const minion of sorted) {
+      if (state.npcTurnId !== undefined && minion.id !== state.npcTurnId) continue;
       const queued = resolvePendingNpcHits(state, minion.id);
       for (const hit of queued) {
         if (!minion.alive || !hit.landed) continue;
@@ -1455,7 +1472,7 @@ const minionStage: TickStage<SimulationState> = {
           } else {
             enqueuePendingNpcHit(state, {
               id: `npc-target-hit-${minion.id}-${state.tick}-${state.pendingHitSequence + 1}`,
-              dueTick: state.tick + 1,
+              dueTick: state.tick,
               attackerId: minion.id,
               targetId: target.entity.id,
               attackerPid: minion.pid,
@@ -1512,6 +1529,7 @@ const jungleStage: TickStage<SimulationState> = {
   name: "jungle",
   run: state => {
     for (let index = 0; index < state.jungleCamps.length; index += 1) {
+      if (state.npcTurnId !== undefined && state.jungleCamps[index].id !== state.npcTurnId) continue;
       let camp = state.jungleCamps[index];
       const queued = resolvePendingNpcHits(state, camp.id);
       for (const hit of queued) {
@@ -1610,9 +1628,21 @@ const jungleStage: TickStage<SimulationState> = {
 const npcTurnStage: TickStage<SimulationState> = {
   name: "npc-turns",
   run: state => {
-    towerStage.run(state);
-    minionStage.run(state);
-    jungleStage.run(state);
+    spawnMinionsIfDue(state);
+
+    const npcs = [
+      ...state.towers.map(npc => ({ id: npc.id, npcId: npc.npcId })),
+      ...state.minions.map(npc => ({ id: npc.id, npcId: npc.npcId })),
+      ...state.jungleCamps.map(npc => ({ id: npc.id, npcId: npc.npcId }))
+    ].sort((a, b) => a.npcId - b.npcId);
+
+    for (const npc of npcs) {
+      state.npcTurnId = npc.id;
+      towerStage.run(state);
+      minionStage.run(state);
+      jungleStage.run(state);
+    }
+    delete state.npcTurnId;
   }
 };
 
