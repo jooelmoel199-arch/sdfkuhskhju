@@ -4,7 +4,7 @@ export type MeleeAttackType = "stab" | "slash" | "crush";
 export interface CombatStance { name: string; attackType: MeleeAttackType; style: MeleeAttackStyle; }
 
 export interface AmmoDefinition { id:string; rangedStrength:number; projectileSpeed:number; attackBonus:number; }
-export interface SpellDefinition { id:string; maxHit:number; attackSpeed:number; attackRange:number; magicAttackBonus:number; runes:Record<string,number>; projectileSpeed:number; baseXp:number; }
+export interface SpellDefinition { id:string; maxHit:number; attackSpeed:number; attackRange:number; magicAttackBonus:number; runes:Record<string,number>; projectileSpeed:number; baseXp:number; freezeTicks?:number; }
 
 export interface WeaponDefinition {
   id: string;
@@ -30,11 +30,13 @@ export const AMMUNITION: Record<string, AmmoDefinition> = {
 
 export const SPELLS: Record<string, SpellDefinition> = {
   fire_strike:{id:"fire_strike",maxHit:8,attackSpeed:5,attackRange:10,magicAttackBonus:0,runes:{fire_rune:1,air_rune:3},projectileSpeed:10,baseXp:11.5},
+  ice_barrage:{id:"ice_barrage",maxHit:30,attackSpeed:5,attackRange:10,magicAttackBonus:0,runes:{death_rune:2,chaos_rune:4,water_rune:6},projectileSpeed:10,baseXp:52.5,freezeTicks:33},
 };
 
 export const WEAPONS: Record<string, WeaponDefinition> = {
   shortbow: { id:"shortbow", attackSpeed:4, attackRange:7, attackType:"ranged", attackBonus:8, strengthBonus:0, rangedStrengthBonus:0, projectileSpeed:10, specialCost:0, specialMultiplier:1.0, stances:[] },
   fire_strike: { id:"fire_strike", attackSpeed:5, attackRange:10, attackType:"magic", attackBonus:0, strengthBonus:0, magicAttackBonus:0, specialCost:0, specialMultiplier:1.0, stances:[] },
+  ice_barrage: { id:"ice_barrage", attackSpeed:5, attackRange:10, attackType:"magic", attackBonus:0, strengthBonus:0, magicAttackBonus:0, specialCost:0, specialMultiplier:1.0, stances:[] },
   rune_scimitar: {
     id: "rune_scimitar",
     attackSpeed: 4,
