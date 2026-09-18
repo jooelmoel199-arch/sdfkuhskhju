@@ -234,6 +234,52 @@ function testFoodAddsToCombatTimer() {
   equal(state.blue.attackTimer.additiveAttackDelayTicks, 3, "shark should add three ticks to the attack cycle");
 }
 
+function testPotionDoesNotDelayAttackCycle() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 4, additiveAttackDelayTicks: 0 }
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  const starting = state.blue.inventory.find(item => item.id === "prayer_potion")?.quantity ?? 0;
+  state.humanControl = { attackEnabled: false, laneId: "middle" };
+  queueClientCommand(state, { kind: "eat", itemId: "prayer_potion" }, false);
+  advanceTick(state);
+
+  equal(state.blue.inventory.find(item => item.id === "prayer_potion")?.quantity, starting - 1, "potion should be consumed");
+  equal(state.blue.attackTimer.additiveAttackDelayTicks, 0, "drinking a potion should not add an attack-cycle delay");
+  equal(state.blue.potionDelayUntilTick, 3, "potion consumption should start its separate three-tick repeat timer");
+}
+
+function testFoodAndPotionCanChainInOneTick() {
+  const state = createPvpTestState();
+  const startingSharks = state.blue.inventory.find(item => item.id === "shark")?.quantity ?? 0;
+  const startingPots = state.blue.inventory.find(item => item.id === "prayer_potion")?.quantity ?? 0;
+  state.humanControl = { attackEnabled: false, laneId: "middle" };
+
+  queueClientCommand(state, { kind: "eat", itemId: "shark" }, false);
+  queueClientCommand(state, { kind: "eat", itemId: "prayer_potion" }, false);
+  advanceTick(state);
+
+  equal(state.blue.inventory.find(item => item.id === "shark")?.quantity, startingSharks - 1, "food should be consumed before the potion");
+  equal(state.blue.inventory.find(item => item.id === "prayer_potion")?.quantity, startingPots - 1, "potion should be chainable after food");
+  equal(state.blue.potionDelayUntilTick, 3, "chained potion should start its own repeat timer");
+}
+
+function testPotionThenFoodIsBlockedByPotionActionDelay() {
+  const state = createPvpTestState();
+  const startingSharks = state.blue.inventory.find(item => item.id === "shark")?.quantity ?? 0;
+  const startingPots = state.blue.inventory.find(item => item.id === "prayer_potion")?.quantity ?? 0;
+  state.humanControl = { attackEnabled: false, laneId: "middle" };
+
+  queueClientCommand(state, { kind: "eat", itemId: "prayer_potion" }, false);
+  queueClientCommand(state, { kind: "eat", itemId: "shark" }, false);
+  advanceTick(state);
+
+  equal(state.blue.inventory.find(item => item.id === "prayer_potion")?.quantity, startingPots - 1, "potion should be consumed");
+  equal(state.blue.inventory.find(item => item.id === "shark")?.quantity, startingSharks, "normal food should be blocked immediately after a potion");
+}
+
 function testKarambwanCombo() {
   const state = createPvpTestState();
   state.blue = {
@@ -1056,6 +1102,9 @@ testSameTickPrayerFlickConsumesNoPrayer();
 testQueuedHitResolvesOnTargetTurn();
 testGearSwapCanAttackSameTick();
 testFoodAddsToCombatTimer();
+testPotionDoesNotDelayAttackCycle();
+testFoodAndPotionCanChainInOneTick();
+testPotionThenFoodIsBlockedByPotionActionDelay();
 testKarambwanCombo();
 testWaveCadence();
 testProjectileDelay();
