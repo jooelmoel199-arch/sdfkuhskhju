@@ -11,6 +11,11 @@ let state = {
 
 export { state, TICK_MS, maxHitpoints };
 
+function syncHumanPlayer(player) {
+  state.blue = player;
+  state.players = state.players.map(current => current.id === player.id ? player : current);
+}
+
 export function stepSimulation() {
   advanceTick(state);
 }
@@ -52,7 +57,7 @@ export function setLane(laneId) {
 export function cycleAttackType() {
   const modes = state.blue.equipment.weapon?.attackTypes ?? ["accurate"];
   const current = modes.indexOf(state.blue.attackType);
-  state.blue = { ...state.blue, attackType: modes[(current + 1) % modes.length] };
+  syncHumanPlayer({ ...state.blue, attackType: modes[(current + 1) % modes.length] });
 }
 
 export function setAttackEnabled(enabled) {
