@@ -29,6 +29,7 @@ export interface Player {
   id: string;
   team: Team;
   x: number;
+  destinationX: number;
   hp: number;
   maxHp: number;
   attack: number;
@@ -86,6 +87,7 @@ export function createGame(): GameState {
     id,
     team,
     x,
+    destinationX: x,
     hp: 99,
     maxHp: 99,
     attack: 75,
@@ -144,6 +146,7 @@ function processInput(state: GameState, command: InputCommand): void {
       if (!target || target.hp <= 0 || target.team === p.team) return;
 
       p.targetId = target.id;
+      p.destinationX = target.x;
       p.attackQueuedTick = state.tick;
       p.specialQueued = false;
       event(state, {
@@ -163,8 +166,8 @@ function processInput(state: GameState, command: InputCommand): void {
       return;
 
     case "move":
-      p.x = Math.max(0, Math.min(30, Math.round(command.x)));
-      event(state, { tick: state.tick, type: "move", attacker: p.id, x: p.x });
+      p.destinationX = Math.max(0, Math.min(30, Math.round(command.x)));
+      event(state, { tick: state.tick, type: "move", attacker: p.id, x: p.destinationX });
       return;
 
     case "prayer":
@@ -293,6 +296,14 @@ export function step(state: GameState): void {
   const inputs = state.pendingInputs.splice(0);
   inputs.sort((a, b) => a.sequence - b.sequence);
   for (const input of inputs) processInput(state, input.command);
+
+  // Movement is discrete and server-authoritative: one tile per game tick.
+  // Attack requests can supply a destination, so clicking an opponent naturally
+  // produces the familiar walk-into-range-then-attack behaviour.
+  for (const player of Object.values(state.players)) {
+    if (player.x < player.destinationX) player.x++;
+    else if (player.x > player.destinationX) player.x--;
+  }
 
   // Every player gets the same deterministic combat resolution stage.
   for (const player of Object.values(state.players)) resolveAttack(state, player);
