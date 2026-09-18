@@ -648,6 +648,20 @@ function handleTowerAttack(
   }
 }
 
+function applyConsumableAction(state: SimulationState, actor: PlayerEntity, itemId: string): PlayerEntity {
+  const item = findConsumable(itemId);
+  if (!item || inventoryCount(actor, item.id) <= 0 || state.tick < actor.eatDelayUntilTick) return actor;
+  const updated = consumeItem(actor, item, state.tick);
+  const attackDelay = item.id === "karambwan" ? 2 : item.attackDelayTicks;
+  const next = {
+    ...updated,
+    attackDelayUntilTick: Math.max(updated.attackDelayUntilTick, state.tick + attackDelay),
+    eatDelayUntilTick: state.tick + 3
+  };
+  log(state, actor.id + " eats " + item.name);
+  return next;
+}
+
 function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: NeutralCampEntity, attackType: PlayerEntity["attackType"]): void {
   const weapon = actor.equipment.weapon;
   if (!weapon) return;
