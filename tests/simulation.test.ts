@@ -12,7 +12,7 @@ function deepEqualSet(actual: Set<unknown>, expected: Set<unknown>, message: str
   }
 }
 
-import { createPrototypeState } from "../moba/factory";
+import { createPrototypeState, createPvpTestState } from "../moba/factory";
 import { advanceTick } from "../moba/simulation";
 import { shopCatalog } from "../moba/economy";
 import { distanceHitDelay, meleeHitTick, projectileHitTick } from "../combat/pendingHits";
@@ -26,6 +26,35 @@ function testPrototypeShape() {
   equal(state.towers.length, 6, "prototype should have two towers per lane");
   equal(state.jungleCamps.length, 5, "prototype should have four jungle camps plus one river boss");
   equal(state.tick, 0, "simulation starts at tick zero");
+}
+
+
+function testPvpTestLane() {
+  const state = createPvpTestState();
+  equal(state.pvpTest, true, "PvP test state should be marked as test mode");
+  equal(state.players.length, 2, "PvP test lane should contain exactly two players");
+  equal(state.towers.length, 0, "PvP test lane should not contain towers");
+  equal(state.minions.length, 0, "PvP test lane should not contain minions");
+  equal(state.blue.currentHp, 99, "PvP test player should start at 99 HP");
+  equal(state.blue.prayerPoints, 99, "PvP test player should start at 99 Prayer");
+  ok(state.blue.inventory.some(item => item.id === "dragon_claws"), "PvP test loadout should contain dragon claws");
+  ok(state.blue.inventory.some(item => item.id === "armadyl_godsword"), "PvP test loadout should contain AGS");
+  ok(state.blue.inventory.some(item => item.id === "armadyl_crossbow"), "PvP test loadout should contain ACB");
+  ok(state.blue.inventory.some(item => item.id === "ancient_staff"), "PvP test loadout should contain an ice spell weapon");
+}
+
+function testHumanPrayerInputIsOneShot() {
+  const state = createPvpTestState();
+  state.humanControl = {
+    attackEnabled: false,
+    laneId: "middle",
+    attackTargetId: state.red.id,
+    activatePrayer: "protect_from_melee"
+  };
+  advanceTick(state);
+  ok(state.blue.activePrayers.includes("protect_from_melee"), "prayer input should activate overhead");
+  advanceTick(state);
+  ok(state.blue.activePrayers.includes("protect_from_melee"), "prayer should remain active until another explicit toggle");
 }
 
 function testWaveCadence() {
@@ -121,6 +150,8 @@ function testCampRespawnSchedule() {
 }
 
 testPrototypeShape();
+testPvpTestLane();
+testHumanPrayerInputIsOneShot();
 testWaveCadence();
 testProjectileDelay();
 testOsrsHitTiming();
