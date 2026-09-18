@@ -146,10 +146,10 @@ assert(Number(styled.players.player.x)===12 && Number(styled.players.player.y)==
 const prayed=createGame();
 enqueueInput(prayed,{type:"prayer",prayer:"protect_melee"});step(prayed);
 const prayerBefore=prayed.players.player.prayerPoints;
+for(let i=0;i<3;i++) step(prayed);
+assert(prayed.players.player.prayerPoints===prayerBefore,"prayer should not drain before the configured resistance is reached");
 step(prayed);
-assert(prayed.players.player.prayerPoints===prayerBefore,"prayer drains on the configured cadence");
-step(prayed);
-assert(prayed.players.player.prayerPoints===prayerBefore-1,"active prayer should drain server-side");
+assert(prayed.players.player.prayerPoints===prayerBefore-1,"active prayer should drain after five active ticks at zero prayer bonus");
 console.log("server combat queue tests passed");
 
 const xpGame = createGame();
