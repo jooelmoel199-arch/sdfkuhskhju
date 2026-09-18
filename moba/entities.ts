@@ -69,6 +69,7 @@ export interface PlayerEntity {
   queuedSpecialAttacks: number;
   queuedSpecialTargetId?: string;
   lastCombatTargetId?: string;
+  lastSpecEnergyUseTick: number;
   lastPrayerToggleTick: number;
   lastCombatTick: number; // for PJ/engagement timer + assist windows
   lastDamagedByPlayerId?: string;
@@ -198,6 +199,7 @@ export function createPlayer(
     queuedSpecialAttacks: 0,
     queuedSpecialTargetId: undefined,
     lastCombatTargetId: undefined,
+    lastSpecEnergyUseTick: -1000,
     lastPrayerToggleTick: -1000,
     lastCombatTick: -1000,
     alive: true,
