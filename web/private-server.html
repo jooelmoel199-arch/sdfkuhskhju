@@ -47,6 +47,15 @@ function draw(s){
  const me=s.players.player;
  if(me&&(me.destinationX!==me.x||me.destinationY!==me.y)){ctx.strokeStyle="rgba(255,255,255,.65)";ctx.lineWidth=2;ctx.strokeRect(px(me.destinationX)+5,py(me.destinationY)+5,T-10,T-10)}
  if(me&&me.targetId){const t=s.players[me.targetId];if(t){ctx.strokeStyle="#f5d742";ctx.lineWidth=3;ctx.strokeRect(px(t.x)+3,py(t.y)+3,T-6,T-6);ctx.beginPath();ctx.arc(px(t.x)+T/2,py(t.y)+T/2,28,0,Math.PI*2);ctx.strokeStyle="rgba(255,230,80,.22)";ctx.stroke()}}
+ for(const ev of (s.events||[])){
+   if((ev.type!=="projectile"&&ev.type!=="spell")||ev.resolveTick===undefined||ev.sourceX===undefined||ev.sourceY===undefined)continue;
+   if(s.tick<ev.tick||s.tick>ev.resolveTick)continue;
+   const span=Math.max(1,ev.resolveTick-ev.tick),progress=Math.max(0,Math.min(1,(s.tick-ev.tick)/span));
+   const sx=px(ev.sourceX)+T/2,sy=py(ev.sourceY)+T/2,tx=px(ev.x??ev.sourceX)+T/2,ty=py(ev.y??ev.sourceY)+T/2;
+   const x=sx+(tx-sx)*progress,y=sy+(ty-sy)*progress;
+   ctx.beginPath();ctx.arc(x,y,ev.type==="spell"?6:4,0,Math.PI*2);
+   ctx.fillStyle=ev.type==="spell"?"#e9a4ff":"#e8d36b";ctx.fill();
+ }
  for(const p of Object.values(s.players)){
    const x=px(p.x)+T/2,y=py(p.y)+T/2,me=p.id==="player",goblin=p.id.startsWith("goblin_guard"),dead=p.hp<=0;
    ctx.fillStyle="rgba(0,0,0,.25)";ctx.beginPath();ctx.ellipse(x,y+18,15,6,0,0,Math.PI*2);ctx.fill();
