@@ -26,9 +26,9 @@ export const shopCatalog: readonly ShopItem[] = [
   // Melee
   { id: "rune_scimitar", name: "Rune scimitar", cost: 150, slot: "weapon", style: "slash", defaultAttackType: "aggressive", attackTypes: ["accurate", "aggressive", "defensive"], cooldownTicks: 4, attackRange: 1, bonuses: { slash_attack_bonus: 45, melee_strength_bonus: 44 } },
   { id: "abyssal_whip", name: "Abyssal whip", cost: 600, slot: "weapon", style: "slash", defaultAttackType: "controlled", attackTypes: ["accurate", "controlled", "defensive"], cooldownTicks: 4, attackRange: 1, bonuses: { slash_attack_bonus: 82, melee_strength_bonus: 82 } },
-  { id: "dragon_claws", name: "Dragon claws", cost: 1400, slot: "weapon", style: "slash", defaultAttackType: "aggressive", attackTypes: ["accurate", "aggressive", "controlled", "defensive"], cooldownTicks: 4, attackRange: 1, bonuses: { slash_attack_bonus: 65, melee_strength_bonus: 61 },
+  { id: "dragon_claws", name: "Dragon claws", cost: 1400, slot: "weapon", style: "slash", defaultAttackType: "aggressive", attackTypes: ["accurate", "aggressive", "controlled", "defensive"], cooldownTicks: 4, attackRange: 1, bonuses: { stab_attack_bonus: 41, slash_attack_bonus: 57, crush_attack_bonus: -4, melee_strength_bonus: 56 },
     special: { energyCost: 50, damageMultiplier: 1, accuracyMultiplier: 1 } },
-  { id: "armadyl_godsword", name: "Armadyl godsword", cost: 1600, slot: "weapon", style: "slash", defaultAttackType: "aggressive", attackTypes: ["accurate", "aggressive", "defensive"], cooldownTicks: 6, attackRange: 1, twoHanded: true, bonuses: { slash_attack_bonus: 132, melee_strength_bonus: 114 },
+  { id: "armadyl_godsword", name: "Armadyl godsword", cost: 1600, slot: "weapon", style: "slash", defaultAttackType: "aggressive", attackTypes: ["accurate", "aggressive", "defensive"], cooldownTicks: 6, attackRange: 1, twoHanded: true, bonuses: { slash_attack_bonus: 132, crush_attack_bonus: 80, melee_strength_bonus: 132 },
     special: { energyCost: 50, damageMultiplier: 1.375, accuracyMultiplier: 2 } },
   { id: "rune_defender", name: "Rune defender", cost: 120, slot: "shield", bonuses: { stab_defence_bonus: 24, slash_defence_bonus: 24, crush_defence_bonus: 24, melee_strength_bonus: 6 } },
   { id: "fighter_torso", name: "Fighter torso", cost: 250, slot: "body", bonuses: { stab_defence_bonus: 24, slash_defence_bonus: 25, crush_defence_bonus: 26, melee_strength_bonus: 4 } },
@@ -37,7 +37,7 @@ export const shopCatalog: readonly ShopItem[] = [
   // Ranged
   { id: "magic_shortbow", name: "Magic shortbow", cost: 200, slot: "weapon", style: "ranged", defaultAttackType: "rapid_ranged", attackTypes: ["accurate", "rapid_ranged", "long_ranged"], cooldownTicks: 4, attackRange: 7, bonuses: { range_attack_bonus: 69 } },
   { id: "toxic_blowpipe", name: "Toxic blowpipe", cost: 1500, slot: "weapon", style: "ranged", defaultAttackType: "rapid_ranged", attackTypes: ["accurate", "rapid_ranged"], cooldownTicks: 4, attackRange: 5, bonuses: { range_attack_bonus: 30, ranged_strength_bonus: 30 } },
-  { id: "armadyl_crossbow", name: "Armadyl crossbow", cost: 1700, slot: "weapon", style: "ranged", defaultAttackType: "rapid_ranged", attackTypes: ["accurate", "rapid_ranged", "long_ranged"], cooldownTicks: 6, attackRange: 8, bonuses: { range_attack_bonus: 94, ranged_strength_bonus: 5 },
+  { id: "armadyl_crossbow", name: "Armadyl crossbow", cost: 1700, slot: "weapon", style: "ranged", defaultAttackType: "rapid_ranged", attackTypes: ["accurate", "rapid_ranged", "long_ranged"], cooldownTicks: 6, attackRange: 8, bonuses: { range_attack_bonus: 100, ranged_strength_bonus: 122 },
     special: { energyCost: 50, damageMultiplier: 1, accuracyMultiplier: 2 } },
   { id: "black_dhide_body", name: "Black d'hide body", cost: 220, slot: "body", bonuses: { range_defence_bonus: 65 } },
   { id: "archer_helm", name: "Archer helm", cost: 130, slot: "head", bonuses: { range_attack_bonus: 3, ranged_strength_bonus: 6 } },
