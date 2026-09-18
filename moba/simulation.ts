@@ -1132,8 +1132,14 @@ const minionStage: TickStage<SimulationState> = {
         log(state, `${hit.attackerId} hits ${minion.id} for ${hit.rawDamage}`);
         if (minion.currentHp <= 0) {
           minion.alive = false;
-          const killer = state.players.find(player => player.id === hit.attackerId);
-          if (killer) rewardNearestPlayer(state, killer as unknown as MinionEntity);
+          const killer = state.players.find(player => player.id === hit.attackerId && player.alive);
+          if (killer) {
+            setPlayer(state, {
+              ...killer,
+              gp: killer.gp + gpRewards.minionKill,
+              stats: grantUnallocatedXp(killer.stats, xpRewards.minionKill)
+            });
+          }
           log(state, `${minion.id} is destroyed`);
         }
       }
