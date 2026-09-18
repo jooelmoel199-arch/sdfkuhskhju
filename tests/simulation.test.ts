@@ -53,6 +53,7 @@ function testSameTickPrayerFlickConsumesNoPrayer() {
 
   const before = state.blue.prayerPoints;
   advanceTick(state);
+  advanceTick(state);
 
   equal(state.blue.prayerPoints, before, "activating and deactivating a prayer within one client tick should not drain prayer");
   ok(!state.blue.activePrayers.includes("protect_from_melee"), "same-tick prayer flick should finish inactive");
