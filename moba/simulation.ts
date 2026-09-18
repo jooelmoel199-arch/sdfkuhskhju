@@ -251,8 +251,8 @@ const combatStage: TickStage<SimulationState> = {
       log(
         state,
         hit.landed
-          ? \`${actor.id} hits ${currentEnemy.id} for ${hit.finalDamage} (${weapon.style}${special ? " SPEC" : ""})\`
-          : \`${actor.id} misses ${currentEnemy.id} (${weapon.style}${special ? " SPEC" : ""})\`
+          ? `${actor.id} hits ${currentEnemy.id} for ${hit.finalDamage} (${weapon.style}${special ? " SPEC" : ""})`
+          : `${actor.id} misses ${currentEnemy.id} (${weapon.style}${special ? " SPEC" : ""})`
       );
 
       if (newHp <= 0) handlePlayerDeath(state, updatedEnemy, actor);
@@ -270,12 +270,12 @@ function handlePlayerDeath(state: SimulationState, victim: PlayerEntity, killer:
   };
   setPlayer(state, killerWithXp);
   respawnPlayer(state, victim);
-  log(state, \`${victim.id} was slain by ${killer.id}\`);
+  log(state, `${victim.id} was slain by ${killer.id}`);
 }
 
 function handleEnvironmentalDeath(state: SimulationState, victim: PlayerEntity, sourceLabel: string): void {
   respawnPlayer(state, victim);
-  log(state, \`${victim.id} was slain by ${sourceLabel}\`);
+  log(state, `${victim.id} was slain by ${sourceLabel}`);
 }
 
 function respawnPlayer(state: SimulationState, victim: PlayerEntity): void {
@@ -323,7 +323,7 @@ const effectsStage: TickStage<SimulationState> = {
         const item = shopCatalog.find(candidate => candidate.id === decision.buyItemId);
         if (item && updated.gp >= item.cost) {
           updated = equipItem(updated, item);
-          log(state, \`${updated.id} buys ${item.name}\`);
+          log(state, `${updated.id} buys ${item.name}`);
         }
       }
 
@@ -357,7 +357,7 @@ const towerStage: TickStage<SimulationState> = {
         minion.currentHp = Math.max(0, minion.currentHp - damage);
         if (minion.currentHp <= 0) {
           minion.alive = false;
-          log(state, \`${tower.id} destroys ${minion.id}\`);
+          log(state, `${tower.id} destroys ${minion.id}`);
         }
         continue;
       }
@@ -377,7 +377,7 @@ const towerStage: TickStage<SimulationState> = {
         lastCombatTick: state.tick,
         lastDamagedByPlayerId: tower.id
       });
-      log(state, \`${tower.id} hits ${target.id} for ${damage}\`);
+      log(state, `${tower.id} hits ${target.id} for ${damage}`);
       if (newHp <= 0) handleEnvironmentalDeath(state, { ...target, currentHp: 0 }, tower.id);
     }
   }
@@ -400,7 +400,7 @@ const minionStage: TickStage<SimulationState> = {
               ? BLUE_BASE_X + 2 - index
               : RED_BASE_X - 2 + index;
             state.minions.push({
-              id: \`minion-${team}-${lane}-${minionSeq}\`,
+              id: `minion-${team}-${lane}-${minionSeq}`,
               kind: "minion",
               team,
               laneId: lane,
@@ -472,13 +472,13 @@ const minionStage: TickStage<SimulationState> = {
               lastCombatTick: state.tick,
               lastDamagedByPlayerId: minion.id
             });
-            log(state, \`${minion.id} hits ${currentTarget.id} for ${damage}\`);
+            log(state, `${minion.id} hits ${currentTarget.id} for ${damage}`);
             if (newHp <= 0) handleEnvironmentalDeath(state, { ...currentTarget, currentHp: 0 }, minion.id);
           } else {
             target.entity.currentHp = Math.max(0, target.entity.currentHp - damage);
             if (target.entity.currentHp <= 0) {
               target.entity.alive = false;
-              log(state, \`${minion.id} destroys ${target.entity.id}\`);
+              log(state, `${minion.id} destroys ${target.entity.id}`);
               if (target.kind === "minion") rewardNearestPlayer(state, minion);
             }
           }
@@ -534,7 +534,7 @@ const respawnStage: TickStage<SimulationState> = {
         tile,
         zone: "base"
       });
-      log(state, \`${actor.id} respawns in ${actor.laneId} lane\`);
+      log(state, `${actor.id} respawns in ${actor.laneId} lane`);
     }
   }
 };
