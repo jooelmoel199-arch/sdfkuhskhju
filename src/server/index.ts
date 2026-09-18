@@ -1,4 +1,6 @@
 import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import {
   createGame,
   enqueueInput,
@@ -8,6 +10,7 @@ import {
 } from "./game";
 
 const state: GameState = createGame();
+const clientHtml = resolve(process.cwd(), "web/private-server.html");
 const clients = new Set<import("node:http").ServerResponse>();
 
 function json(
@@ -77,7 +80,7 @@ const server = createServer(async (req, res) => {
     return res.end();
   }
 
-  if (req.url === "/state" && req.method === "GET") {
+  if ((req.url === "/" || req.url === "/private-server.html") && req.method === "GET") {\n    try {\n      const html = await readFile(clientHtml, "utf8");\n      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });\n      return res.end(html);\n    } catch {\n      return json(res, 500, { error: "client not found" });\n    }\n  }\n\n  if (req.url === "/state" && req.method === "GET") {
     return json(res, 200, snapshot());
   }
 
