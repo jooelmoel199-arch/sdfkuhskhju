@@ -19,6 +19,7 @@ export type InputCommand =
   | { type: "stop_attack" };
 
 export interface Inventory { slots:Array<ItemStack|null>; food: number; specialEnergy: number; coins: number; }
+export interface CombatXp { attack:number; strength:number; defence:number; ranged:number; magic:number; hitpoints:number; }
 export interface Equipment {
   weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number;
   specialCost: number; specialMultiplier: number; defenceBonus: number; defenceStab: number; defenceSlash: number; defenceCrush: number;
@@ -26,7 +27,7 @@ export interface Equipment {
 export interface Player {
   id:string; name:string; team:Team; x:number; y:number; destinationX:number; destinationY:number;
   hp:number; maxHp:number; prayerPoints:number; maxPrayerPoints:number;
-  attack:number; strength:number; defence:number; equipment:Equipment; inventory:Inventory;
+  attack:number; strength:number; defence:number; xp:CombatXp; equipment:Equipment; inventory:Inventory;
   prayer:Prayer; attackStyle:AttackStyle; targetId:string|null; nextAttackTick:number;
   attackQueuedTick:number|null; hitQueuedTick:number|null; pendingHitDamage:number; pendingHitSucceeded:boolean; pendingHitRoll:number; pendingDefenceRoll:number; pendingHitTargetId:string|null; pendingAttackType:AttackType|null; pendingSpecial:boolean; specialQueued:boolean; path:Tile[];
 }
@@ -42,7 +43,7 @@ const styleBonus=MELEE_STYLE_BONUS;
 
 function makePlayer(id:string,name:string,team:Team,x:number,y:number):Player{
   return {id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
-    attack:75,strength:75,defence:70,equipment:{...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
+    attack:75,strength:75,defence:70,xp:{attack:0,strength:0,defence:0,ranged:0,magic:0,hitpoints:0},equipment:{...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
     inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},null,null,null,null,null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,pendingHitDamage:0,pendingHitSucceeded:false,pendingHitRoll:0,pendingDefenceRoll:0,pendingHitTargetId:null,pendingAttackType:"melee",pendingSpecial:false,specialQueued:false,path:[]};
 }
 
@@ -138,6 +139,17 @@ function prayerStageForPlayer(state:GameState,p:Player):void{
  if(!p.prayer)return;
  if(state.tick%2===0){p.prayerPoints=Math.max(0,p.prayerPoints-1);if(p.prayerPoints===0)p.prayer=null;}
 }
+function awardMeleeXp(a:Player, damage:number):void{
+ if(damage<=0)return;
+ const units=damage*4/3;
+ switch(a.attackStyle){
+  case "accurate": a.xp.attack+=units; break;
+  case "aggressive": a.xp.strength+=units; break;
+  case "defensive": a.xp.defence+=units; break;
+  case "controlled": a.xp.attack+=units/3; a.xp.strength+=units/3; a.xp.defence+=units/3; break;
+ }
+ a.xp.hitpoints+=units/3;
+}
 function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
  const incoming=Object.values(state.players)
    .filter(a=>a.id!==p.id&&a.hitQueuedTick===state.tick&&a.pendingHitTargetId===p.id)
@@ -154,7 +166,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    // Protection is evaluated on the defender turn, so prayer flicks affect the queued hit.
    const protectedByPrayer=(attackType==="melee"&&p.prayer==="protect_melee");
    const damage=protectedByPrayer?Math.floor(rawDamage*0.6):rawDamage;
-   if(damage>0)p.hp=Math.max(0,p.hp-damage);
+   if(damage>0){p.hp=Math.max(0,p.hp-damage);awardMeleeXp(a,damage);}
    event(state,{tick:state.tick,type:succeeded?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special});
    if(p.hp<=0){
      p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHitTargetId=null;
