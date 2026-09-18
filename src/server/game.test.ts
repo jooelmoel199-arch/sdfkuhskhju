@@ -143,3 +143,16 @@ assert(prayed.players.player.prayerPoints===prayerBefore,"prayer drains on the c
 step(prayed);
 assert(prayed.players.player.prayerPoints===prayerBefore-1,"active prayer should drain server-side");
 console.log("server combat queue tests passed");
+
+const boosted = createGame();
+boosted.players.player.x = 13;
+boosted.players.opponent.x = 14;
+boosted.players.player.attack = 50;
+boosted.players.player.strength = 50;
+boosted.players.opponent.defence = 50;
+boosted.players.player.prayer = "superhuman_strength";
+boosted.players.player.attackStyle = "aggressive";
+enqueueInput(boosted, { type: "attack", targetId: "opponent" });
+step(boosted);
+const boostedAttack = boosted.events.find(e => e.type === "attack");
+assert(boostedAttack !== undefined && (boostedAttack.attackRoll ?? 0) > 0, "prayer-boosted attack should produce an attack roll");
