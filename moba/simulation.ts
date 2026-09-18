@@ -266,6 +266,40 @@ const combatStage: TickStage<SimulationState> = {
       const attackBoostMultiplier = 1 + (attackStyle === "magic" ? prayerBoosts.magic : attackStyle === "ranged" ? prayerBoosts.rangedAttack : prayerBoosts.attack) + relevantStatusBoost;
       const strengthBoostMultiplier = 1 + (attackStyle === "magic" ? 0 : attackStyle === "ranged" ? prayerBoosts.rangedStrength : prayerBoosts.strength) + relevantStatusBoost;
       const defenceBoostMultiplier = 1 + targetPrayerBoosts.defence;
+
+      const attackerAfterAttack: PlayerEntity = {
+        ...actor,
+        attackType,
+        attackTimer: gateResult.attackTimer,
+        lastCombatTick: state.tick,
+        specEnergy: special ? Math.max(0, actor.specEnergy - special.energyCost) : actor.specEnergy
+      };
+      setPlayer(state, attackerAfterAttack);
+      state.engagedAttackerTeamByLane[actor.laneId] = actor.team;
+
+      if (attackStyle === "ranged" || attackStyle === "magic") {
+        state.projectiles.push({
+          id: "projectile-" + (++projectileSeq),
+          kind: "projectile",
+          attackerId: actor.id,
+          targetId: currentEnemy.id,
+          style: attackStyle,
+          attackType,
+          attackerLevels: toCombatLevels(actor.stats),
+          attackerBonuses: equipmentBonuses(actor.equipment),
+          attackBoostMultiplier,
+          strengthBoostMultiplier,
+          damageMultiplier: special?.damageMultiplier ?? 1,
+          accuracyMultiplier: special?.accuracyMultiplier ?? 1,
+          createdTick: state.tick,
+          hitTick: state.tick + 2,
+          fromTile: actor.tile,
+          toTile: currentEnemy.tile
+        });
+        log(state, actor.id + " fires " + attackStyle + " at " + currentEnemy.id + (special ? " (SPEC)" : ""));
+        continue;
+      }
+
       const hit = rollAttack({
         style: attackStyle,
         attackType,
@@ -283,15 +317,6 @@ const combatStage: TickStage<SimulationState> = {
         rng: state.rng
       });
 
-      const attackerAfterAttack: PlayerEntity = {
-        ...actor,
-        attackType,
-        attackTimer: gateResult.attackTimer,
-        lastCombatTick: state.tick,
-        specEnergy: special ? Math.max(0, actor.specEnergy - special.energyCost) : actor.specEnergy
-      };
-      setPlayer(state, attackerAfterAttack);
-
       const newHp = Math.max(0, currentEnemy.currentHp - hit.finalDamage);
       const updatedEnemy: PlayerEntity = {
         ...currentEnemy,
@@ -300,15 +325,12 @@ const combatStage: TickStage<SimulationState> = {
         lastDamagedByPlayerId: actor.id
       };
       setPlayer(state, updatedEnemy);
-      state.engagedAttackerTeamByLane[lane] = actor.team;
 
       log(state, hit.landed
         ? actor.id + " hits " + currentEnemy.id + " for " + hit.finalDamage + " (" + attackStyle + " " + attackType + (special ? " SPEC" : "") + ")"
         : actor.id + " misses " + currentEnemy.id + " (" + attackStyle + " " + attackType + (special ? " SPEC" : "") + ")");
 
-      if (newHp <= 0) handlePlayerDeath(state, updatedEnemy, attackerAfterAttack);
-    }
-  }
+      if (newHp <= 0) handlePlayerDeath(state, updatedEnemy, attackerAfterAttack);  }
 };
 
 function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: NeutralCampEntity, attackType: PlayerEntity["attackType"]): void {
