@@ -35,7 +35,7 @@ export interface Player {
   pid:number; id:string; name:string; team:Team; x:number; y:number; destinationX:number; destinationY:number;
   hp:number; maxHp:number; prayerPoints:number; maxPrayerPoints:number;
   attack:number; strength:number; defence:number; ranged:number; magic:number; xp:CombatXp; equipment:Equipment; inventory:Inventory;
-  prayer:Prayer; prayerNextDrainTick:number|null; prayerDrainCounter:number; attackStyle:AttackStyle; rangedStyle:RangedStyle; magicStyle:MagicStyle; targetId:string|null; nextAttackTick:number;
+  prayer:Prayer; activePrayers:Prayer[]; prayerNextDrainTick:number|null; prayerDrainCounter:number; attackStyle:AttackStyle; rangedStyle:RangedStyle; magicStyle:MagicStyle; targetId:string|null; nextAttackTick:number;
   attackQueuedTick:number|null; hitQueuedTick:number|null; specialQueued:boolean; path:Tile[];
 }
 export interface CombatEvent {
@@ -56,7 +56,7 @@ const PRAYER_DRAIN_EFFECT:Record<Exclude<Prayer,null>,number>={
 function makePlayer(pid:number,id:string,name:string,team:Team,x:number,y:number):Player{
   return {pid,id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
     attack:75,strength:75,defence:70,ranged:75,magic:75,xp:{attack:0,strength:0,defence:0,ranged:0,magic:0,hitpoints:0},equipment:{weapon:WEAPONS.rune_scimitar.id,...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
-    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},{id:"shortbow",quantity:1},{id:"bronze_arrow",quantity:250},{id:"fire_rune",quantity:100},{id:"air_rune",quantity:300},{id:"fire_strike",quantity:1},null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,prayerNextDrainTick:null,prayerDrainCounter:0,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,specialQueued:false,path:[]};
+    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},{id:"shortbow",quantity:1},{id:"bronze_arrow",quantity:250},{id:"fire_rune",quantity:100},{id:"air_rune",quantity:300},{id:"fire_strike",quantity:1},null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,activePrayers:[],prayerNextDrainTick:null,prayerDrainCounter:0,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,specialQueued:false,path:[]};
 }
 
 export function createGame():GameState{
@@ -89,7 +89,27 @@ function processInput(state:GameState,command:InputCommand):void{
   case "attack_style":p.attackStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,style:p.attackStyle});return;
   case "ranged_style":p.rangedStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"ranged:"+p.rangedStyle});return;
   case "magic_style":p.magicStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"magic:"+p.magicStyle});return;
-  case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;p.prayerNextDrainTick=command.prayer===null?null:state.tick+1;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
+  case "prayer":{
+   if(command.prayer===null){p.activePrayers=[];p.prayer=null;p.prayerNextDrainTick=null;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:null});return;}
+   if(p.prayerPoints<=0)return;
+   const group=(prayer:Prayer):"overhead"|"offence"|"defence"|"other"=>{
+     if(prayer==="protect_melee"||prayer==="protect_mage"||prayer==="protect_range")return "overhead";
+     if(prayer==="burst_of_strength"||prayer==="clarity_of_thought"||prayer==="superhuman_strength"||prayer==="improved_reflexes"||prayer==="incredible_reflexes"||prayer==="ultimate_strength"||prayer==="eagle_eye"||prayer==="mystic_might")return "offence";
+     if(prayer==="steel_skin")return "defence";
+     return "other";
+   };
+   const index=p.activePrayers.indexOf(command.prayer);
+   if(index>=0)p.activePrayers.splice(index,1);
+   else{
+     const g=group(command.prayer);
+     if(g!=="other")p.activePrayers=p.activePrayers.filter(active=>group(active)!==g);
+     p.activePrayers.push(command.prayer);
+   }
+   p.prayer=p.activePrayers[p.activePrayers.length-1]??null;
+   p.prayerNextDrainTick=p.activePrayers.length?state.tick+1:null;
+   event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});
+   return;
+ }
   case "item_action":{const stack=p.inventory.slots[command.slot];if(!stack||stack.quantity<=0)return;if(command.action==="eat"&&stack.id==="lobster"&&p.hp<p.maxHp){stack.quantity--;p.inventory.food=Math.max(0,p.inventory.food-1);p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});if(stack.quantity===0)p.inventory.slots[command.slot]=null;return;}if(command.action==="equip"){
       if(stack.id==="rune_scimitar"){Object.assign(p.equipment,{...WEAPONS.rune_scimitar,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0});delete p.equipment.ammoId;delete p.equipment.spellId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped rune scimitar"});return;}
       if(stack.id==="shortbow"){Object.assign(p.equipment,{...WEAPONS.shortbow,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0,ammoId:"bronze_arrow"});delete p.equipment.spellId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped shortbow"});return;}
@@ -210,23 +230,28 @@ function movementStageForPlayer(state:GameState,p:Player):void{
  if(p.path.length){const next=p.path.shift()!;p.x=next.x;p.y=next.y;}
 }
 function prayerModifiers(p:Player):{attack:number;strength:number;defence:number;rangedAttack:number;rangedStrength:number;magicAttack:number;magicDefence:number;magicDamage:number}{
- switch(p.prayer){
-  case "eagle_eye": return {attack:1,strength:1,defence:1,rangedAttack:1.15,rangedStrength:1.15,magicAttack:1,magicDefence:1,magicDamage:0};
-  case "mystic_might": return {attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1.15,magicDefence:1.15,magicDamage:0.20};
-  case "burst_of_strength": return {attack:1,strength:1.05,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
-  case "clarity_of_thought": return {attack:1.05,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
-  case "superhuman_strength": return {attack:1,strength:1.1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
-  case "improved_reflexes": return {attack:1.1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
-  case "incredible_reflexes": return {attack:1.15,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
-  case "ultimate_strength": return {attack:1,strength:1.15,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
-  case "steel_skin": return {attack:1,strength:1,defence:1.15,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
-  default: return {attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
+ const result={attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
+ const prayers=p.activePrayers.length?p.activePrayers:(p.prayer?[p.prayer]:[]);
+ for(const prayer of prayers){
+   switch(prayer){
+     case "eagle_eye":result.rangedAttack*=1.15;result.rangedStrength*=1.15;break;
+     case "mystic_might":result.magicAttack*=1.15;result.magicDefence*=1.15;result.magicDamage+=0.02;break;
+     case "burst_of_strength":result.strength*=1.05;break;
+     case "clarity_of_thought":result.attack*=1.05;break;
+     case "superhuman_strength":result.strength*=1.10;break;
+     case "improved_reflexes":result.attack*=1.10;break;
+     case "incredible_reflexes":result.attack*=1.15;break;
+     case "ultimate_strength":result.strength*=1.15;break;
+     case "steel_skin":result.defence*=1.15;break;
+   }
  }
+ return result;
 }
 const effectiveLevel=effectiveCombatLevel;
 function prayerStageForPlayer(state:GameState,p:Player):void{
- if(!p.prayer)return;
- const effect=PRAYER_DRAIN_EFFECT[p.prayer];
+ const prayers=p.activePrayers.length?p.activePrayers:(p.prayer?[p.prayer]:[]);
+ if(!prayers.length)return;
+ const effect=prayers.reduce((total,prayer)=>total+PRAYER_DRAIN_EFFECT[prayer],0);
  p.prayerDrainCounter+=effect;
  const resistance=prayerDrainResistance(p.equipment.prayerBonus??0);
  while(p.prayerDrainCounter>=resistance&&p.prayerPoints>0){p.prayerDrainCounter-=resistance;p.prayerPoints--;}
@@ -248,7 +273,8 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    a.hitQueuedTick=null;
    if(p.hp<=0){continue;}
    // Protection is evaluated on the defender turn, so prayer flicks affect the queued hit.
-   const protectedByPrayer=(attackType==="melee"&&p.prayer==="protect_melee")||(attackType==="ranged"&&p.prayer==="protect_range")||(attackType==="magic"&&p.prayer==="protect_mage");
+   const prayers=p.activePrayers.length?p.activePrayers:(p.prayer?[p.prayer]:[]);
+   const protectedByPrayer=(attackType==="melee"&&prayers.includes("protect_melee"))||(attackType==="ranged"&&prayers.includes("protect_range"))||(attackType==="magic"&&prayers.includes("protect_mage"));
    const damage=protectedByPrayer?Math.min(rawDamage,Math.floor(rawDamage*0.6)):rawDamage;
    if(damage>0)p.hp=Math.max(0,p.hp-damage);
    awardCombatXp(a,damage,attackType,hit.baseXp);
