@@ -508,10 +508,27 @@ const pendingHitStage: TickStage<SimulationState> = {
             locks: applyFreeze(updatedTarget.locks, state.tick, hit.freezeTicks, hit.attackerId)
           };
         }
-        setPlayer(state, updatedTarget);
+        let resolvedTarget = updatedTarget;
+        if (hit.landed && hit.rawDamage > 0 && resolvedTarget.activePrayers.includes("smite")) {
+          resolvedTarget = {
+            ...resolvedTarget,
+            prayerPoints: Math.max(0, resolvedTarget.prayerPoints - Math.floor(hit.rawDamage * 0.25))
+          };
+        }
+        if (newHp > 0 && newHp <= Math.floor(maxHitpoints(resolvedTarget.stats) * 0.1) &&
+            resolvedTarget.activePrayers.includes("redemption") && resolvedTarget.prayerPoints > 0) {
+          resolvedTarget = {
+            ...resolvedTarget,
+            currentHp: Math.max(newHp, Math.floor(maxHitpoints(resolvedTarget.stats) * 0.25)),
+            prayerPoints: 0,
+            activePrayers: compatiblePrayerSet(resolvedTarget.activePrayers.filter(prayer => prayer !== "redemption"))
+          };
+          log(state, resolvedTarget.id + " triggers Redemption");
+        }
+        setPlayer(state, resolvedTarget);
         log(state, hit.attackerId + " hits " + target.id + " for " + hit.rawDamage +
           " (" + hit.style + " " + hit.attackType + ", tick " + hit.dueTick + ")");
-        if (newHp <= 0 && attacker) handlePlayerDeath(state, updatedTarget, attacker);
+        if (newHp <= 0 && attacker) handlePlayerDeath(state, resolvedTarget, attacker);
       } else {
         setPlayer(state, { ...target, lastCombatTick: state.tick });
         log(state, hit.attackerId + " misses " + target.id + " (" + hit.style + ")");
