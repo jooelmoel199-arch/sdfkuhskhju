@@ -107,7 +107,7 @@ export function effectiveAttackLevel(
   multiplier = 1
 ): number {
   const base = style === "ranged" ? levels.ranged : style === "magic" ? levels.magic : levels.attack;
-  return Math.floor(base * multiplier) + accuracyStyleBonus(style, attackType) + 8;
+  return Math.floor(base * multiplier) + (style === "magic" ? 8 : accuracyStyleBonus(style, attackType) + 8);
 }
 
 export function effectiveDefenceLevel(
