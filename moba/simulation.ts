@@ -5,7 +5,7 @@ import { dispatchAttack } from "../combat/attackGate";
 import { rollAttack } from "../combat/resolve";
 import { compatiblePrayerSet, type PrayerId } from "../prayer/prayers";
 import type { PlayerEntity, MinionEntity, TowerEntity } from "./entities";
-import { consumeItem, equipItem, equipmentBonuses, nextPid } from "./entities";
+import { consumeItem, equipItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
 import { gpRewards, xpRewards, shopCatalog } from "./economy";
 import { decideAction, findConsumable } from "./ai";
@@ -87,10 +87,10 @@ function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerE
     moveDelta: moveDelta as -1 | 0 | 1,
     attackStyle,
     activatePrayer: state.humanControl.activatePrayer,
-    eatItemId: undefined,
-    useSpecial: false,
-    investStat: undefined,
-    buyItemId: undefined
+    eatItemId: state.humanControl.consumeItemId,
+    useSpecial: Boolean(state.humanControl.useSpecial),
+    investStat: state.humanControl.investStat,
+    buyItemId: state.humanControl.buyItemId
   };
 }
 
@@ -309,7 +309,7 @@ const effectsStage: TickStage<SimulationState> = {
 
       if (decision.eatItemId) {
         const item = findConsumable(decision.eatItemId);
-        if (item && updated.gp >= item.cost) {
+        if (item && inventoryCount(updated, item.id) > 0) {
           updated = consumeItem(updated, item, state.tick);
           updated = { ...updated, attackDelayUntilTick: state.tick + item.attackDelayTicks };
         }
@@ -490,6 +490,22 @@ const minionStage: TickStage<SimulationState> = {
     }
 
     state.minions = state.minions.filter(minion => minion.alive);
+  }
+};
+
+
+      if (updated.id === state.blue.id && state.humanControl?.consumeItemId && decision.eatItemId) {
+        delete state.humanControl.consumeItemId;
+      }
+
+      if (updated.id === state.blue.id && state.humanControl?.investStat) {
+        delete state.humanControl.investStat;
+      }
+
+      if (updated.id === state.blue.id && state.humanControl?.buyItemId) {
+        delete state.humanControl.buyItemId;
+      }
+    }
   }
 };
 
