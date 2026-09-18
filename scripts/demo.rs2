@@ -1,0 +1,16 @@
+// Minimal RuneScript-2-inspired content language used by the prototype.
+// This deliberately implements a small, clean subset first. The next stages
+// can expand it toward the real RuneScript grammar without coupling scripts
+// to the combat engine.
+
+proc damage_roll(attacker, defender) {
+  set accuracy = attacker + 10;
+  set defence = defender;
+  if (accuracy > defence) {
+    print "hit";
+    return 12;
+  } else {
+    print "miss";
+    return 0;
+  }
+}
