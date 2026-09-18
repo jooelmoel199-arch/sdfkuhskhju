@@ -17,7 +17,7 @@ import { advanceTick } from "../moba/simulation";
 import { shopCatalog } from "../moba/economy";
 import { distanceHitDelay, meleeHitTick, projectileHitTick } from "../combat/pendingHits";
 import { rollDragonClawsSpecial } from "../combat/resolve";
-import { zeroBonuses } from "../combat/formulas";
+import { zeroBonuses, effectiveDefenceLevel, effectiveAttackLevel } from "../combat/formulas";
 
 function testPrototypeShape() {
   const state = createPrototypeState();
@@ -86,6 +86,12 @@ function testOsrsHitTiming() {
   equal(projectileHitTick(10, "ranged", 8, 2, 1), 13, "lower-priority ranged attack gets the processing-order tick");
 }
 
+function testPlayerMagicFormula() {
+  const levels = { attack: 70, strength: 70, defence: 70, ranged: 70, magic: 80 };
+  equal(effectiveAttackLevel(levels, "magic", "accurate", 1), 88, "player spell accuracy should use Magic level + 8");
+  equal(effectiveDefenceLevel(levels, "magic", "accurate", 1, 1), 80, "player magic defence should be 70% Magic + 30% Defence + 8");
+}
+
 function testDragonClawsSpecial() {
   const result = rollDragonClawsSpecial({
     style: "slash",
@@ -118,6 +124,7 @@ testPrototypeShape();
 testWaveCadence();
 testProjectileDelay();
 testOsrsHitTiming();
+testPlayerMagicFormula();
 testDragonClawsSpecial();
 testCampRespawnSchedule();
 
