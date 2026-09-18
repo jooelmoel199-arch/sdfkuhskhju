@@ -4,6 +4,7 @@ import type { AttackTimerState } from "../combat/timers";
 import { createAttackTimerState } from "../combat/timers";
 import type { TilePosition } from "../world/movement";
 import type { PrayerId } from "../prayer/prayers";
+import type { LaneId } from "./lane";
 import type { StatBlock } from "./stats";
 import { createStatBlock, maxHitpoints } from "./stats";
 import type { BonusTable, CombatStyle } from "../combat/formulas";
@@ -34,6 +35,7 @@ export interface PlayerEntity {
   readonly id: string;
   readonly kind: "player";
   readonly team: Team;
+  readonly laneId: LaneId;
   readonly pid: number; // deterministic per-tick processing order
   tile: TilePosition;
   zone: ZoneKind;
@@ -60,6 +62,7 @@ export interface MinionEntity {
   readonly id: string;
   readonly kind: "minion";
   readonly team: Team;
+  readonly laneId: LaneId;
   readonly pid: number;
   tile: TilePosition;
   currentHp: number;
@@ -76,6 +79,7 @@ export interface TowerEntity {
   readonly id: string;
   readonly kind: "tower";
   readonly team: Team;
+  readonly laneId: LaneId;
   readonly tile: TilePosition;
   currentHp: number;
   maxHp: number;
@@ -92,12 +96,13 @@ export function nextPid(): number {
   return pidCounter;
 }
 
-export function createPlayer(id: string, team: Team, spawnTile: TilePosition): PlayerEntity {
+export function createPlayer(id: string, team: Team, spawnTile: TilePosition, laneId: LaneId = "middle"): PlayerEntity {
   const stats = createStatBlock();
   return {
     id,
     kind: "player",
     team,
+    laneId,
     pid: nextPid(),
     tile: spawnTile,
     zone: "base",
