@@ -15,6 +15,7 @@ function deepEqualSet(actual: Set<unknown>, expected: Set<unknown>, message: str
 import { createPrototypeState } from "../moba/factory";
 import { advanceTick } from "../moba/simulation";
 import { shopCatalog } from "../moba/economy";
+import { distanceHitDelay, meleeHitTick, projectileHitTick } from "../combat/pendingHits";
 
 function testPrototypeShape() {
   const state = createPrototypeState();
@@ -67,7 +68,20 @@ function testProjectileDelay() {
       " gate context logs=" + state.log.slice(-12).map(entry => "[" + entry.tick + "] " + entry.message).join(" | ")
     );
   }
-  equal(state.projectiles[0].hitTick, state.tick + 3, "8-tile bow projectile should use a 3-tick hit delay");
+  equal(state.projectiles[0].hitTick, state.tick + 2, "8-tile bow projectile should use a 2-tick hit delay");
+}
+
+function testOsrsHitTiming() {
+  equal(distanceHitDelay("ranged", 1), 1, "bows should hit in 1 tick at distance 1");
+  equal(distanceHitDelay("ranged", 8), 2, "bows should hit in 2 ticks at distance 8");
+  equal(distanceHitDelay("ranged", 9), 3, "bows should hit in 3 ticks at distance 9");
+  equal(distanceHitDelay("magic", 1), 1, "magic should hit in 1 tick at distance 1");
+  equal(distanceHitDelay("magic", 4), 2, "magic should hit in 2 ticks at distance 4");
+  equal(distanceHitDelay("magic", 5), 3, "magic should hit in 3 ticks at distance 5");
+  equal(meleeHitTick(10, 1, 2), 10, "higher-priority attacker should land melee damage on the same tick");
+  equal(meleeHitTick(10, 2, 1), 11, "lower-priority attacker should incur a one-tick processing delay");
+  equal(projectileHitTick(10, "ranged", 8, 1, 2), 12, "higher-priority ranged attack uses base projectile delay");
+  equal(projectileHitTick(10, "ranged", 8, 2, 1), 13, "lower-priority ranged attack gets the processing-order tick");
 }
 
 function testCampRespawnSchedule() {
@@ -84,6 +98,7 @@ function testCampRespawnSchedule() {
 testPrototypeShape();
 testWaveCadence();
 testProjectileDelay();
+testOsrsHitTiming();
 testCampRespawnSchedule();
 
 console.log("All simulation tests passed.");
