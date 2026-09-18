@@ -60,6 +60,8 @@ export interface SimulationState {
   minions: MinionEntity[];
   projectiles: ProjectileEntity[];
   pendingHits: PendingHit[];
+  /** Monotonic per-simulation insertion order for queue FIFO semantics. */
+  pendingHitSequence: number;
   towers: TowerEntity[];
   pidOrder: string[];
   nextPidShuffleTick: number;
@@ -110,6 +112,11 @@ function eventStyle(style: string): CombatEvent["style"] {
 function pushCombatEvent(state: SimulationState, event: CombatEvent): void {
   state.combatEvents.push(event);
   if (state.combatEvents.length > 80) state.combatEvents.splice(0, state.combatEvents.length - 80);
+}
+
+function enqueuePendingHit(state: SimulationState, hit: PendingHit): void {
+  state.pendingHitSequence += 1;
+  enqueuePendingHit(state, { ...hit, sequence: state.pendingHitSequence });
 }
 
 function playerPriority(state: SimulationState, playerId: string): number {
@@ -557,7 +564,7 @@ const combatStage: TickStage<SimulationState> = {
         });
         const clawTick = meleeHitTick(state.tick, playerPriority(state, actor.id), playerPriority(state, currentEnemy.id));
         for (let strike = 0; strike < 4; strike += 1) {
-          state.pendingHits.push({
+          enqueuePendingHit(state, {
             id: "claw-" + actor.id + "-" + state.tick + "-" + strike,
             dueTick: clawTick,
             attackerId: actor.id,
@@ -574,7 +581,7 @@ const combatStage: TickStage<SimulationState> = {
         }
         log(state, actor.id + " uses Dragon claws on " + currentEnemy.id + " (" + claw.damages.join("/") + ")");
       } else {
-        state.pendingHits.push({
+        enqueuePendingHit(state, {
           id: "hit-" + actor.id + "-" + state.tick + "-" + (++projectileSeq),
           dueTick: hitTick,
           attackerId: actor.id,
@@ -618,7 +625,7 @@ const combatStage: TickStage<SimulationState> = {
             rng: state.rng
           });
           const secondaryDistance = Math.max(Math.abs(actor.tile.x - secondary.tile.x), Math.abs(actor.tile.y - secondary.tile.y));
-          state.pendingHits.push({
+          enqueuePendingHit(state, {
             id: "hit-" + actor.id + "-" + state.tick + "-" + (++projectileSeq),
             dueTick: projectileHitTick(state.tick, "magic", secondaryDistance, playerPriority(state, actor.id), playerPriority(state, secondary.id)),
             attackerId: actor.id,
