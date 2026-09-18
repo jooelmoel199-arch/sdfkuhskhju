@@ -338,7 +338,8 @@ const clientInputStage: TickStage<SimulationState> = {
     // phase. Each player's command stream is independent and FIFO.
     for (const actorSnapshot of [...state.players]) {
       const actor = state.players.find(player => player.id === actorSnapshot.id);
-      if (!actor || !actor.alive) continue;
+      // A player at 0 HP has a queued death and cannot execute fresh client input before it resolves.
+      if (!actor || !actor.alive || actor.currentHp <= 0) continue;
 
       const queue = state.clientCommands[actor.id] ?? [];
       const drained = drainPlayerCommands(queue, state.tick, 10);
