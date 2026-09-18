@@ -159,14 +159,15 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const rules=state.combatRules.onAttack(a.id,d.id,deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17),hitChance,attackRoll,defenceRoll);
  let damage=0;
  if(rules.hit){
-   const maxHit=ranged?Math.max(1,Math.floor((effectiveLevel(a.strength,1,style.strength)*(a.equipment.strengthBonus+64)+320)/640)):8;
+   const maxHit=ranged?Math.max(1,Math.floor((effectiveLevel(a.ranged,attackerPrayer.rangedStrength,style.strength)*(a.equipment.strengthBonus+64)+320)/640)):8;
    damage=Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53+d.x*31+d.y*17)*(maxHit+1));
  }
  let resourceOk=false;
  if(ranged) resourceOk=consumeResource(a,a.equipment.ammoId??"bronze_arrow",1);
  else { const fire=a.inventory.slots.find(v=>v?.id==="fire_rune"),air=a.inventory.slots.find(v=>v?.id==="air_rune"); if(fire&&air&&fire.quantity>=1&&air.quantity>=3){fire.quantity--;air.quantity-=3;resourceOk=true;} }
  if(!resourceOk)return;
- a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=a.nextAttackTick;
+ const attackSpeed=ranged?(a.rangedStyle==="rapid"?Math.max(1,a.equipment.attackSpeed-1):a.rangedStyle==="longrange"?a.equipment.attackSpeed+1:a.equipment.attackSpeed):a.equipment.attackSpeed;
+ a.nextAttackTick=state.tick+attackSpeed;a.attackQueuedTick=a.nextAttackTick;
  const travelTick=state.tick+1;
  event(state,{tick:state.tick,type:ranged?"projectile":"spell",attacker:a.id,defender:d.id,x:d.x,y:d.y,reason:ranged?"arrow":"fire_strike"});
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance});
