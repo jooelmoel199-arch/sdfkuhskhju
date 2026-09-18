@@ -4,7 +4,7 @@ import { consumeExpiredAttackDelay, createAttackTimerState, delayAttack } from "
 import { dispatchAttack } from "../combat/attackGate";
 import { meleeHitTick, projectileHitTick, type PendingHit } from "../combat/pendingHits";
 import { rollAttack, rollDragonClawsSpecial } from "../combat/resolve";
-import { compatiblePrayerSet, aggregatePrayerBoosts, prayerDefinitions, type PrayerId } from "../prayer/prayers";
+import { compatiblePrayerSet, aggregatePrayerBoosts, prayerDefinitions, applyProtectionDamageReduction, type PrayerId } from "../prayer/prayers";
 import type { PlayerEntity, MinionEntity, TowerEntity, NeutralCampEntity, ProjectileEntity } from "./entities";
 import { consumeItem, equipItem, equipOwnedItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
@@ -350,7 +350,13 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
       continue;
     }
 
-    const newHp = Math.max(0, target.currentHp - hit.rawDamage);
+    const impactDamage = applyProtectionDamageReduction({
+      damage: hit.rawDamage,
+      attackStyle: hit.style,
+      defenderPrayers: target.activePrayers,
+      attackerIsPlayer: Boolean(attacker)
+    });
+    const newHp = Math.max(0, target.currentHp - impactDamage);
     let resolvedTarget: PlayerEntity = {
       ...target,
       currentHp: newHp,
@@ -364,10 +370,10 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
         locks: applyFreeze(resolvedTarget.locks, state.tick, hit.freezeTicks, hit.attackerId)
       };
     }
-    if (hit.rawDamage > 0 && resolvedTarget.activePrayers.includes("smite")) {
+    if (impactDamage > 0 && resolvedTarget.activePrayers.includes("smite")) {
       resolvedTarget = {
         ...resolvedTarget,
-        prayerPoints: Math.max(0, resolvedTarget.prayerPoints - Math.floor(hit.rawDamage * 0.25))
+        prayerPoints: Math.max(0, resolvedTarget.prayerPoints - Math.floor(impactDamage * 0.25))
       };
     }
     if (newHp > 0 && newHp <= Math.floor(maxHitpoints(resolvedTarget.stats) * 0.1) &&
@@ -383,8 +389,8 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
 
     setPlayer(state, resolvedTarget);
     pushCombatEvent(state, { tick: state.tick, attackerId: hit.attackerId, targetId: target.id,
-      style: eventStyle(hit.style), damage: hit.rawDamage, landed: true, freezeTicks: hit.freezeTicks });
-    log(state, hit.attackerId + " hits " + target.id + " for " + hit.rawDamage +
+      style: eventStyle(hit.style), damage: impactDamage, landed: true, freezeTicks: hit.freezeTicks });
+    log(state, hit.attackerId + " hits " + target.id + " for " + impactDamage +
       " (" + hit.style + " " + hit.attackType + ", tick " + hit.dueTick + ")");
     if (newHp <= 0 && attacker) handlePlayerDeath(state, resolvedTarget, attacker);
   }
@@ -562,7 +568,7 @@ const combatStage: TickStage<SimulationState> = {
           attackType,
           landed: hit.landed,
           hitChance: hit.hitChance,
-          rawDamage: hit.finalDamage,
+          rawDamage: hit.rawDamage,
           freezeTicks: attackStyle === "magic" ? spellProfile(state.humanControl?.spellId).freezeTicks : undefined,
           createdTick: state.tick
         });
@@ -606,7 +612,7 @@ const combatStage: TickStage<SimulationState> = {
             attackType,
             landed: secondaryHit.landed,
             hitChance: secondaryHit.hitChance,
-            rawDamage: secondaryHit.finalDamage,
+            rawDamage: secondaryHit.rawDamage,
             freezeTicks: spellProfile(state.humanControl?.spellId).freezeTicks,
             createdTick: state.tick
           });
