@@ -255,5 +255,18 @@ assert(magicGame.events.filter(e=>e.type==="hit"||e.type==="miss").length===0,"m
 step(magicGame);
 assert(magicGame.events.some(e=>e.type==="hit"||e.type==="miss"),"spell should resolve at its arrival tick");
 assert(magicGame.pendingHits.length===0,"resolved spell should leave the combat queue");
+assert(magicSpell.reason==="fire_strike","spell delivery should identify its definition");
+const rapid=createGame();
+rapid.players.player.x=10;rapid.players.opponent.x=14;
+enqueueInput(rapid,{type:"item_action",slot:3,action:"equip"});step(rapid);
+enqueueInput(rapid,{type:"ranged_style",style:"rapid"});step(rapid);
+enqueueInput(rapid,{type:"attack",targetId:"opponent"});step(rapid);
+assert(rapid.players.player.nextAttackTick===rapid.tick+3,"rapid ranged style should reduce the weapon cycle by one tick");
+const magicDefence=createGame();
+magicDefence.players.player.x=10;magicDefence.players.opponent.x=14;
+enqueueInput(magicDefence,{type:"item_action",slot:7,action:"equip"});step(magicDefence);
+enqueueInput(magicDefence,{type:"prayer",prayer:"mystic_might"});step(magicDefence);
+assert(magicDefence.players.player.prayer==="mystic_might","mystic might should be selectable while testing magic combat");
+
 
 console.log("ranged and magic combat queue tests passed");
