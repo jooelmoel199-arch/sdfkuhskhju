@@ -531,7 +531,11 @@ function testStandardSpecialQueuesUntilAttackCycleIsReady() {
   queueClientCommand(state, { kind: "special" });
 
   advanceTick(state);
-  equal(state.blue.queuedSpecialAttacks, 1, "a standard special should remain queued while the weapon is on cooldown");
+  equal(state.blue.queuedSpecialAttacks, 0, "the click itself is still in the one-tick client delivery queue");
+  equal(state.clientCommands[state.blue.id]?.length, 1, "the special command should remain queued until the next client-input phase");
+
+  advanceTick(state);
+  equal(state.blue.queuedSpecialAttacks, 1, "a delivered standard special should remain queued while the weapon is on cooldown");
   equal(state.blue.specEnergy, 100, "queued special should not spend energy before the attack is actually dispatched");
 
   for (let tick = 0; tick < 6; tick += 1) advanceTick(state);
