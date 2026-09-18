@@ -163,7 +163,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const effectiveAttack=effectiveLevel(ranged?a.ranged:a.magic,ranged?attackerPrayer.rangedAttack:attackerPrayer.magicAttack,style.attack);
  const effectiveDefence=effectiveLevel(d.defence,defenderPrayer.defence,styleBonus[d.attackStyle].defence+style.defence);
  const attackBonus=a.equipment.attackBonus, defenceBonus=d.equipment.defenceBonus;
- const effectiveMagicDefence=effectiveLevel(d.magic,defenderPrayer.magicDefence,styleBonus[d.attackStyle].defence+style.defence);
+ const baseMagicDefence=Math.floor(d.magic*0.7+d.defence*0.3);\n const effectiveMagicDefence=effectiveLevel(baseMagicDefence,defenderPrayer.magicDefence,styleBonus[d.attackStyle].defence+style.defence);
  const rangedDefence=effectiveDefence, magicDefence=effectiveMagicDefence;
  const attackRoll=effectiveAttack*(attackBonus+64),defenceRoll=(ranged?rangedDefence:magicDefence)*(defenceBonus+64);
  const hitChance=attackRoll<=defenceRoll?attackRoll/(2*(defenceRoll+1)):1-(defenceRoll+2)/(2*(attackRoll+1));
