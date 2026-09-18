@@ -2,6 +2,7 @@ import { createTickStageRunner, type TickStage } from "../engine/tick";
 import { isFrozen, tickLocks } from "../entity/locks";
 import { consumeExpiredAttackDelay, createAttackTimerState } from "../combat/timers";
 import { dispatchAttack } from "../combat/attackGate";
+import { meleeHitTick, projectileHitTick, type PendingHit } from "../combat/pendingHits";
 import { rollAttack } from "../combat/resolve";
 import { compatiblePrayerSet, aggregatePrayerBoosts, prayerDefinitions, type PrayerId } from "../prayer/prayers";
 import type { PlayerEntity, MinionEntity, TowerEntity, NeutralCampEntity, ProjectileEntity } from "./entities";
@@ -260,6 +261,12 @@ const combatStage: TickStage<SimulationState> = {
         currentTick: state.tick
       };
       if (!canJoinFight(joinInput)) continue;
+      if (enemy.zone === "lane" && enemy.lastDamagedByPlayerId &&
+          enemy.lastDamagedByPlayerId !== actor.id &&
+          state.tick - enemy.lastCombatTick <= 8) {
+        const previousAttacker = state.players.find(player => player.id === enemy.lastDamagedByPlayerId);
+        if (previousAttacker?.alive && previousAttacker.team !== actor.team) continue;
+      }
 
       const weapon = actor.equipment.weapon;
       const gateResult = dispatchAttack({
@@ -307,29 +314,6 @@ const combatStage: TickStage<SimulationState> = {
       setPlayer(state, attackerAfterAttack);
       state.engagedAttackerTeamByLane[actor.laneId] = actor.team;
 
-      if (attackStyle === "ranged" || attackStyle === "magic") {
-        state.projectiles.push({
-          id: "projectile-" + (++projectileSeq),
-          kind: "projectile",
-          attackerId: actor.id,
-          targetId: currentEnemy.id,
-          style: attackStyle,
-          attackType,
-          attackerLevels: toCombatLevels(actor.stats),
-          attackerBonuses: equipmentBonuses(actor.equipment),
-          attackBoostMultiplier,
-          strengthBoostMultiplier,
-          damageMultiplier: special?.damageMultiplier ?? 1,
-          accuracyMultiplier: special?.accuracyMultiplier ?? 1,
-          createdTick: state.tick,
-          hitTick: state.tick + projectileHitDelay(attackStyle, actor.tile, currentEnemy.tile),
-          fromTile: actor.tile,
-          toTile: currentEnemy.tile
-        });
-        log(state, actor.id + " fires " + attackStyle + " at " + currentEnemy.id + (special ? " (SPEC)" : ""));
-        continue;
-      }
-
       const hit = rollAttack({
         style: attackStyle,
         attackType,
@@ -347,83 +331,88 @@ const combatStage: TickStage<SimulationState> = {
         rng: state.rng
       });
 
-      const newHp = Math.max(0, currentEnemy.currentHp - hit.finalDamage);
-      const updatedEnemy: PlayerEntity = {
-        ...currentEnemy,
-        currentHp: newHp,
-        lastCombatTick: state.tick,
-        lastDamagedByPlayerId: actor.id
-      };
-      setPlayer(state, updatedEnemy);
+      const distance = Math.max(Math.abs(actor.tile.x - currentEnemy.tile.x), Math.abs(actor.tile.y - currentEnemy.tile.y));
+      const hitTick = attackStyle === "ranged" || attackStyle === "magic"
+        ? projectileHitTick(state.tick, attackStyle, distance, actor.pid, currentEnemy.pid)
+        : meleeHitTick(state.tick, actor.pid, currentEnemy.pid);
 
-      log(state, hit.landed
-        ? actor.id + " hits " + currentEnemy.id + " for " + hit.finalDamage + " (" + attackStyle + " " + attackType + (special ? " SPEC" : "") + ")"
-        : actor.id + " misses " + currentEnemy.id + " (" + attackStyle + " " + attackType + (special ? " SPEC" : "") + ")");
-
-      if (newHp <= 0) handlePlayerDeath(state, updatedEnemy, attackerAfterAttack);
-    }
-  }
-};
-
-
-const projectileStage: TickStage<SimulationState> = {
-  name: "projectiles",
-  run: state => {
-    const pending: ProjectileEntity[] = [];
-    for (const projectile of state.projectiles) {
-      if (projectile.hitTick > state.tick) {
-        pending.push(projectile);
-        continue;
-      }
-
-      const target = state.players.find(player => player.id === projectile.targetId);
-      if (!target || !target.alive) {
-        log(state, projectile.style + " projectile fizzles");
-        continue;
-      }
-
-      const targetPrayerBoosts = aggregatePrayerBoosts(target.activePrayers);
-      const hit = rollAttack({
-        style: projectile.style,
-        attackType: projectile.attackType,
-        attackerLevels: projectile.attackerLevels,
-        defenderLevels: toCombatLevels(target.stats),
-        attackerBonuses: projectile.attackerBonuses,
-        defenderBonuses: equipmentBonuses(target.equipment),
-        defenderPrayers: target.activePrayers,
-        attackerIsPlayer: true,
-        attackBoostMultiplier: projectile.attackBoostMultiplier,
-        strengthBoostMultiplier: projectile.strengthBoostMultiplier,
-        defenceBoostMultiplier: 1 + targetPrayerBoosts.defence,
-        accuracyMultiplier: projectile.accuracyMultiplier,
-        damageMultiplier: projectile.damageMultiplier,
-        rng: state.rng
+      state.pendingHits.push({
+        id: "hit-" + actor.id + "-" + state.tick + "-" + (++projectileSeq),
+        dueTick: hitTick,
+        attackerId: actor.id,
+        targetId: currentEnemy.id,
+        attackerPid: actor.pid,
+        targetPid: currentEnemy.pid,
+        style: attackStyle,
+        attackType,
+        landed: hit.landed,
+        hitChance: hit.hitChance,
+        rawDamage: hit.finalDamage,
+        createdTick: state.tick
       });
 
-      const newHp = Math.max(0, target.currentHp - hit.finalDamage);
-      const updatedTarget: PlayerEntity = {
-        ...target,
-        currentHp: newHp,
-        lastCombatTick: state.tick,
-        lastDamagedByPlayerId: projectile.attackerId
-      };
-      setPlayer(state, updatedTarget);
-
-      log(state, hit.landed
-        ? projectile.attackerId + " hits " + target.id + " for " + hit.finalDamage + " (" + projectile.style + " impact)"
-        : projectile.attackerId + " misses " + target.id + " (" + projectile.style + " impact)");
-
-      const attacker = state.players.find(player => player.id === projectile.attackerId);
-      if (newHp <= 0 && attacker) handlePlayerDeath(state, updatedTarget, attacker);
+      if (attackStyle === "ranged" || attackStyle === "magic") {
+        state.projectiles.push({
+          id: "projectile-" + projectileSeq,
+          kind: "projectile",
+          attackerId: actor.id,
+          targetId: currentEnemy.id,
+          style: attackStyle,
+          attackType,
+          attackerLevels: toCombatLevels(actor.stats),
+          attackerBonuses: equipmentBonuses(actor.equipment),
+          attackBoostMultiplier,
+          strengthBoostMultiplier,
+          damageMultiplier: special?.damageMultiplier ?? 1,
+          accuracyMultiplier: special?.accuracyMultiplier ?? 1,
+          createdTick: state.tick,
+          hitTick,
+          fromTile: actor.tile,
+          toTile: currentEnemy.tile
+        });
+        log(state, actor.id + " fires " + attackStyle + " at " + currentEnemy.id + (special ? " (SPEC)" : ""));
+      } else {
+        log(state, actor.id + " queues " + attackStyle + " at " + currentEnemy.id +
+          " for tick " + hitTick + (special ? " (SPEC)" : ""));
+      }
     }
-    state.projectiles = pending;
   }
 };
-function projectileHitDelay(style: "ranged" | "magic", from: TilePosition, to: TilePosition): number {
-  const distance = Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y));
-  if (style === "ranged") return 1 + Math.floor((3 + distance) / 6);
-  return 1 + Math.floor((distance + 1) / 3);
-}
+
+
+const pendingHitStage: TickStage<SimulationState> = {
+  name: "pending-hits",
+  run: state => {
+    const pending: PendingHit[] = [];
+    for (const hit of state.pendingHits) {
+      if (hit.dueTick > state.tick) {
+        pending.push(hit);
+        continue;
+      }
+      const target = state.players.find(player => player.id === hit.targetId);
+      if (!target || !target.alive) continue;
+      const attacker = state.players.find(player => player.id === hit.attackerId);
+      if (hit.landed && hit.rawDamage > 0) {
+        const newHp = Math.max(0, target.currentHp - hit.rawDamage);
+        const updatedTarget: PlayerEntity = {
+          ...target,
+          currentHp: newHp,
+          lastCombatTick: state.tick,
+          lastDamagedByPlayerId: hit.attackerId
+        };
+        setPlayer(state, updatedTarget);
+        log(state, hit.attackerId + " hits " + target.id + " for " + hit.rawDamage +
+          " (" + hit.style + " " + hit.attackType + ", tick " + hit.dueTick + ")");
+        if (newHp <= 0 && attacker) handlePlayerDeath(state, updatedTarget, attacker);
+      } else {
+        setPlayer(state, { ...target, lastCombatTick: state.tick });
+        log(state, hit.attackerId + " misses " + target.id + " (" + hit.style + ")");
+      }
+    }
+    state.pendingHits = pending;
+    state.projectiles = state.projectiles.filter(projectile => projectile.hitTick > state.tick);
+  }
+};
 
 function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: NeutralCampEntity, attackType: PlayerEntity["attackType"]): void {
   const weapon = actor.equipment.weapon;
@@ -858,8 +847,8 @@ export const tickRunner = createTickStageRunner<SimulationState>([
   movementStage,
   prayerStage,
   combatStage,
-  projectileStage,
   effectsStage,
+  pendingHitStage,
   towerStage,
   minionStage,
   jungleStage,
