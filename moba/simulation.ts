@@ -1,5 +1,5 @@
 import { createTickStageRunner, type TickStage } from "../engine/tick";
-import { isFrozen, tickLocks } from "../entity/locks";
+import { applyFreeze, isFrozen, tickLocks } from "../entity/locks";
 import { consumeExpiredAttackDelay, createAttackTimerState } from "../combat/timers";
 import { dispatchAttack } from "../combat/attackGate";
 import { meleeHitTick, projectileHitTick, type PendingHit } from "../combat/pendingHits";
@@ -420,7 +420,7 @@ const pendingHitStage: TickStage<SimulationState> = {
         setPlayer(state, updatedTarget);
         log(state, hit.attackerId + " hits " + target.id + " for " + hit.rawDamage +
           " (" + hit.style + " " + hit.attackType + ", tick " + hit.dueTick + ")");
-        if (newHp <= 0 && attacker) handlePlayerDeath(state, updatedTarget, attacker);
+        const frozenTarget = hit.freezeTicks && hit.landed\n          ? { ...updatedTarget, locks: applyFreeze(updatedTarget.locks, state.tick, hit.freezeTicks, hit.attackerId) }\n          : updatedTarget;\n        if (frozenTarget !== updatedTarget) setPlayer(state, frozenTarget);\n        if (newHp <= 0 && attacker) handlePlayerDeath(state, frozenTarget, attacker);
       } else {
         setPlayer(state, { ...target, lastCombatTick: state.tick });
         log(state, hit.attackerId + " misses " + target.id + " (" + hit.style + ")");
