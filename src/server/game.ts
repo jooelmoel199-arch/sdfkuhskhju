@@ -34,7 +34,7 @@ export interface Player {
   pid:number; id:string; name:string; team:Team; x:number; y:number; destinationX:number; destinationY:number;
   hp:number; maxHp:number; prayerPoints:number; maxPrayerPoints:number;
   attack:number; strength:number; defence:number; ranged:number; magic:number; xp:CombatXp; equipment:Equipment; inventory:Inventory;
-  prayer:Prayer; attackStyle:AttackStyle; rangedStyle:RangedStyle; magicStyle:MagicStyle; targetId:string|null; nextAttackTick:number;
+  prayer:Prayer; prayerNextDrainTick:number|null; attackStyle:AttackStyle; rangedStyle:RangedStyle; magicStyle:MagicStyle; targetId:string|null; nextAttackTick:number;
   attackQueuedTick:number|null; hitQueuedTick:number|null; specialQueued:boolean; path:Tile[];
 }
 export interface CombatEvent {
@@ -50,7 +50,7 @@ const styleBonus=MELEE_STYLE_BONUS;
 function makePlayer(pid:number,id:string,name:string,team:Team,x:number,y:number):Player{
   return {pid,id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
     attack:75,strength:75,defence:70,ranged:75,magic:75,xp:{attack:0,strength:0,defence:0,ranged:0,magic:0,hitpoints:0},equipment:{weapon:WEAPONS.rune_scimitar.id,...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
-    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},{id:"shortbow",quantity:1},{id:"bronze_arrow",quantity:250},{id:"fire_rune",quantity:100},{id:"air_rune",quantity:300},{id:"fire_strike",quantity:1},null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,specialQueued:false,path:[]};
+    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},{id:"shortbow",quantity:1},{id:"bronze_arrow",quantity:250},{id:"fire_rune",quantity:100},{id:"air_rune",quantity:300},{id:"fire_strike",quantity:1},null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,prayerNextDrainTick:null,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,specialQueued:false,path:[]};
 }
 
 export function createGame():GameState{
@@ -83,7 +83,7 @@ function processInput(state:GameState,command:InputCommand):void{
   case "attack_style":p.attackStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,style:p.attackStyle});return;
   case "ranged_style":p.rangedStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"ranged:"+p.rangedStyle});return;
   case "magic_style":p.magicStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"magic:"+p.magicStyle});return;
-  case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
+  case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;p.prayerNextDrainTick=command.prayer===null?null:state.tick+2;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
   case "item_action":{const stack=p.inventory.slots[command.slot];if(!stack||stack.quantity<=0)return;if(command.action==="eat"&&stack.id==="lobster"&&p.hp<p.maxHp){stack.quantity--;p.inventory.food=Math.max(0,p.inventory.food-1);p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});if(stack.quantity===0)p.inventory.slots[command.slot]=null;return;}if(command.action==="equip"){
       if(stack.id==="rune_scimitar"){Object.assign(p.equipment,{...WEAPONS.rune_scimitar,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0});delete p.equipment.ammoId;delete p.equipment.spellId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped rune scimitar"});return;}
       if(stack.id==="shortbow"){Object.assign(p.equipment,{...WEAPONS.shortbow,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0,ammoId:"bronze_arrow"});delete p.equipment.spellId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped shortbow"});return;}
@@ -214,8 +214,8 @@ function prayerModifiers(p:Player):{attack:number;strength:number;defence:number
 }
 function effectiveLevel(base:number,multiplier:number,style:number):number{return Math.floor(base*multiplier)+style+8;}
 function prayerStageForPlayer(state:GameState,p:Player):void{
- if(!p.prayer)return;
- if(state.tick%2===0){p.prayerPoints=Math.max(0,p.prayerPoints-1);if(p.prayerPoints===0)p.prayer=null;}
+ if(!p.prayer||p.prayerNextDrainTick===null)return;
+ if(state.tick>=p.prayerNextDrainTick){p.prayerPoints=Math.max(0,p.prayerPoints-1);p.prayerNextDrainTick=state.tick+2;if(p.prayerPoints===0){p.prayer=null;p.prayerNextDrainTick=null;}}
 }
 function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
  const incoming=state.pendingHits
