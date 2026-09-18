@@ -41,6 +41,14 @@ export type PlayerCommand =
       readonly executeTick: number;
     }
   | {
+      readonly kind: "vengeance";
+      readonly priority: CommandPriority;
+      readonly id: string;
+      readonly sequence: number;
+      readonly issuedTick: number;
+      readonly executeTick: number;
+    }
+  | {
       readonly kind: "attack-target";
       readonly targetId: string;
       readonly priority: CommandPriority;
@@ -81,6 +89,7 @@ export type PlayerCommandInput =
   | { readonly kind: "eat"; readonly itemId: string; readonly combo?: boolean }
   | { readonly kind: "prayer"; readonly prayerId: PrayerId }
   | { readonly kind: "special"; readonly targetId?: string }
+  | { readonly kind: "vengeance" }
   | { readonly kind: "attack-target"; readonly targetId: string }
   | { readonly kind: "clear-attack-target" }
   | { readonly kind: "move"; readonly x: number; readonly y: number }
@@ -143,6 +152,8 @@ export function makeStrongCommand(
       return { ...base, kind: "prayer", prayerId: input.prayerId };
     case "special":
       return { ...base, kind: "special", targetId: input.targetId };
+    case "vengeance":
+      return { ...base, kind: "vengeance" };
     case "attack-target":
       return { ...base, kind: "attack-target", targetId: input.targetId };
     case "clear-attack-target":
