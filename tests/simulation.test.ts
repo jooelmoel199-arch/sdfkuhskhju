@@ -67,7 +67,7 @@ function testProjectileDelay() {
       " gate context logs=" + state.log.slice(-12).map(entry => "[" + entry.tick + "] " + entry.message).join(" | ")
     );
   }
-  equal(state.projectiles[0].hitTick, state.tick + 1, "projectile should land two ticks from launch time");
+  equal(state.projectiles[0].hitTick, state.tick + 3, "8-tile bow projectile should use a 3-tick hit delay");
 }
 
 function testCampRespawnSchedule() {
