@@ -232,7 +232,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    const attackType=hit.attackType;
    const succeeded=hit.succeeded;
    a.hitQueuedTick=null;
-   if(p.hp<=0){state.pendingHits=state.pendingHits.filter(existing=>existing!==hit);continue;}
+   if(p.hp<=0){continue;}
    // Protection is evaluated on the defender turn, so prayer flicks affect the queued hit.
    const protectedByPrayer=(attackType==="melee"&&p.prayer==="protect_melee")||(attackType==="ranged"&&p.prayer==="protect_range")||(attackType==="magic"&&p.prayer==="protect_mage");
    const damage=protectedByPrayer?Math.min(rawDamage,Math.floor(rawDamage*0.6)):rawDamage;
