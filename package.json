@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "sim": "tsx src/index.ts",
+    "sim": "tsx index.ts",
     "web": "vite web --host 0.0.0.0",
     "build:web": "vite build web",
     "check": "npm run sim && npm run build:web"
