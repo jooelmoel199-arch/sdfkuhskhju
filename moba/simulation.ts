@@ -224,7 +224,8 @@ const combatStage: TickStage<SimulationState> = {
     const actors = [...state.players].sort((a, b) => a.pid - b.pid);
 
     for (const snapshot of actors) {
-      const actor = snapshot.id === state.blue.id ? state.blue : state.red;
+      const actor = state.players.find(player => player.id === snapshot.id);
+      if (!actor) continue;
       if (!actor.alive || !actor.equipment.weapon) continue;
 
       const enemy = opponentOf(state, actor.id);
