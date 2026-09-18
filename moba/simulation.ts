@@ -1057,15 +1057,21 @@ const towerStage: TickStage<SimulationState> = {
 
       tower.attackTimer = { ...tower.attackTimer, lastAttackTick: state.tick, weaponCooldownTicks: 5 };
       const damage = Math.floor(state.rng() * (tower.maxHit + 1));
-      const newHp = Math.max(0, target.currentHp - damage);
-      setPlayer(state, {
-        ...target,
-        currentHp: newHp,
-        lastCombatTick: state.tick,
-        lastDamagedByPlayerId: tower.id
+      enqueuePendingHit(state, {
+        id: `npc-hit-${tower.id}-${state.tick}-${state.pendingHitSequence + 1}`,
+        dueTick: state.tick,
+        attackerId: tower.id,
+        targetId: target.id,
+        attackerPid: -1,
+        targetPid: target.pid,
+        style: "crush",
+        attackType: "accurate",
+        landed: true,
+        hitChance: 1,
+        rawDamage: damage,
+        createdTick: state.tick
       });
-      log(state, `${tower.id} hits ${target.id} for ${damage}`);
-      if (newHp <= 0) handleEnvironmentalDeath(state, { ...target, currentHp: 0 }, tower.id);
+      log(state, `${tower.id} queues ${target.id} for ${damage} damage`);
     }
   }
 };
@@ -1152,15 +1158,21 @@ const minionStage: TickStage<SimulationState> = {
 
           if (target.kind === "player") {
             const currentTarget = target.entity.id === state.blue.id ? state.blue : state.red;
-            const newHp = Math.max(0, currentTarget.currentHp - damage);
-            setPlayer(state, {
-              ...currentTarget,
-              currentHp: newHp,
-              lastCombatTick: state.tick,
-              lastDamagedByPlayerId: minion.id
+            enqueuePendingHit(state, {
+              id: `npc-hit-${minion.id}-${state.tick}-${state.pendingHitSequence + 1}`,
+              dueTick: state.tick,
+              attackerId: minion.id,
+              targetId: currentTarget.id,
+              attackerPid: minion.pid,
+              targetPid: currentTarget.pid,
+              style: minion.style,
+              attackType: "accurate",
+              landed: true,
+              hitChance: 1,
+              rawDamage: damage,
+              createdTick: state.tick
             });
-            log(state, `${minion.id} hits ${currentTarget.id} for ${damage}`);
-            if (newHp <= 0) handleEnvironmentalDeath(state, { ...currentTarget, currentHp: 0 }, minion.id);
+            log(state, `${minion.id} queues ${currentTarget.id} for ${damage} damage`);
           } else {
             target.entity.currentHp = Math.max(0, target.entity.currentHp - damage);
             if (target.entity.currentHp <= 0) {
@@ -1253,10 +1265,21 @@ const jungleStage: TickStage<SimulationState> = {
       });
 
       state.jungleCamps[index] = { ...camp, attackTimer: { ...camp.attackTimer, lastAttackTick: state.tick, weaponCooldownTicks: 5 }, aggroTargetId: target.id };
-      const newHp = Math.max(0, target.currentHp - hit.finalDamage);
-      setPlayer(state, { ...target, currentHp: newHp, lastCombatTick: state.tick, lastDamagedByPlayerId: camp.id });
-      log(state, hit.landed ? camp.name + " hits " + target.id + " for " + hit.finalDamage : camp.name + " misses " + target.id);
-      if (newHp <= 0) handleEnvironmentalDeath(state, { ...target, currentHp: 0 }, camp.name);
+      enqueuePendingHit(state, {
+        id: `npc-hit-${camp.id}-${state.tick}-${state.pendingHitSequence + 1}`,
+        dueTick: state.tick,
+        attackerId: camp.id,
+        targetId: target.id,
+        attackerPid: -1,
+        targetPid: target.pid,
+        style: camp.style,
+        attackType: "accurate",
+        landed: hit.landed,
+        hitChance: hit.landed ? 1 : 0,
+        rawDamage: hit.rawDamage,
+        createdTick: state.tick
+      });
+      log(state, hit.landed ? camp.name + " queues " + target.id + " for " + hit.rawDamage : camp.name + " misses " + target.id);
     }
   }
 };
