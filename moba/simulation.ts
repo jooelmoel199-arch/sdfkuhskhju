@@ -310,7 +310,7 @@ const combatStage: TickStage<SimulationState> = {
         setPlayer(state, updated);
         if (updated !== actor) {
           if (state.humanControl?.comboConsumableId) {
-            const combo = applyConsumableAction(state, updated, state.humanControl.comboConsumableId);
+            const combo = applyConsumableAction(state, updated, state.humanControl.comboConsumableId, true);
             setPlayer(state, combo);
           }
           continue;
@@ -717,9 +717,9 @@ function handleTowerAttack(
   }
 }
 
-function applyConsumableAction(state: SimulationState, actor: PlayerEntity, itemId: string): PlayerEntity {
+function applyConsumableAction(state: SimulationState, actor: PlayerEntity, itemId: string, combo = false): PlayerEntity {
   const item = findConsumable(itemId);
-  if (!item || inventoryCount(actor, item.id) <= 0 || state.tick < actor.eatDelayUntilTick) return actor;
+  if (!item || inventoryCount(actor, item.id) <= 0 || (!combo && state.tick < actor.eatDelayUntilTick) || (combo && !item.comboFood)) return actor;
   const updated = consumeItem(actor, item, state.tick);
   // OSRS food modifies the attack/skilling timer additively. A 3-tick food
   // adds three to a live positive cycle; it does not create a cooldown when idle.
