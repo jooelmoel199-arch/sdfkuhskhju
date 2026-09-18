@@ -70,14 +70,12 @@ function main(): void {
   const MAX_TICKS = 300;
   for (let i = 0; i < MAX_TICKS; i += 1) advanceTick(state);
 
-  console.log(`Simulated ${MAX_TICKS} ticks (${(MAX_TICKS * TICK_MS) / 1000}s of match time)
-`);
+  console.log(`Simulated ${MAX_TICKS} ticks (${(MAX_TICKS * TICK_MS) / 1000}s of match time)\n`);
   for (const entry of state.log) {
     console.log(`[tick ${entry.tick.toString().padStart(4, " ")}] ${entry.message}`);
   }
 
-  console.log("
---- Final state ---");
+  console.log("\n--- Final state ---");
   for (const player of [state.blue, state.red]) {
     console.log(
       `${player.id} (${player.team}, ${player.laneId}): HP ${player.currentHp}/${levelOf(player.stats, "hitpoints")}, ` +
