@@ -110,9 +110,10 @@ export function rollDragonClawsSpecial(input: HitRollInput): ClawSpecialResult {
     damageMultiplier: 1
   }));
 
-  const multiplier = [1, 0.75, 0.5, 0.25][firstSuccessfulStrike];
-  const totalMax = Math.max(1, Math.floor(ordinaryMax * multiplier));
-  const totalMin = firstSuccessfulStrike === 0 ? 1 : 0;
+  const maxMultiplier = [2, 1.75, 1.5, 1.25][firstSuccessfulStrike];
+  const minMultiplier = [1, 0.75, 0.5, 0.25][firstSuccessfulStrike];
+  const totalMax = Math.max(1, Math.floor(ordinaryMax * maxMultiplier));
+  const totalMin = Math.floor(ordinaryMax * minMultiplier);
   const total = totalMin + Math.floor(rng() * Math.max(1, totalMax - totalMin + 1));
   const hits = Math.max(1, firstSuccessfulStrike + 1);
   const damages = Array.from({ length: 4 }, (_, index) => {
