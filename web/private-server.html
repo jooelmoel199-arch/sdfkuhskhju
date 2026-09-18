@@ -1,35 +1,60 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Private Server Combat Client</title>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Private Server Combat Client</title>
 <style>
 body{font-family:system-ui;background:#111;color:#eee;max-width:960px;margin:24px auto;padding:0 16px}
 button{padding:9px 14px;margin:3px;border:1px solid #555;background:#222;color:#eee;border-radius:5px}
-.row{border:1px solid #444;padding:12px;margin:8px 0;border-radius:6px}.bar{height:16px;background:#333;margin:7px 0}.hp{height:100%;background:#c33}
-.controls{position:sticky;top:0;background:#111;padding:8px 0;border-bottom:1px solid #333}.mono{font-family:monospace}
-</style></head><body>
+button:hover{background:#2c2c2c}.row{border:1px solid #444;padding:12px;margin:8px 0;border-radius:6px}
+.bar{height:16px;background:#333;margin:7px 0}.hp{height:100%;background:#c33}
+.controls{position:sticky;top:0;background:#111;padding:8px 0;border-bottom:1px solid #333}
+.mono{font-family:monospace}.hint{color:#aaa}.selected{outline:1px solid #aaa}
+</style>
+</head>
+<body>
 <h1>Private Server Combat Client</h1>
-<p>Client inputs are queued; the server owns the 600 ms simulation clock and resolves combat.</p>
+<p class="hint">The browser is only a client. Inputs are queued; the server owns the 600 ms clock and combat state.</p>
 <div class="controls">
-<button onclick="send({type:'attack',targetId:'opponent'})">Attack</button>
-<button onclick="send({type:'special'})">Special</button>
-<button onclick="send({type:'eat'})">Eat</button>
-<button onclick="send({type:'prayer',prayer:'protect_melee'})">Protect melee</button>
-<button onclick="send({type:'prayer',prayer:null})">Prayer off</button>
-<button onclick="send({type:'move',x:9})">Move left</button>
-<button onclick="send({type:'move',x:11})">Move right</button>
-<button onclick="tick()">Force tick</button>
+  <button onclick="send({type:'attack',targetId:'opponent'})">Attack</button>
+  <button onclick="send({type:'special'})">Queue special</button>
+  <button onclick="send({type:'stop_attack'})">Stop</button>
+  <button onclick="send({type:'eat'})">Eat</button>
+  <button onclick="send({type:'prayer',prayer:'protect_melee'})">Protect melee</button>
+  <button onclick="send({type:'prayer',prayer:null})">Prayer off</button>
+  <button onclick="send({type:'move',x:9})">Move left</button>
+  <button onclick="send({type:'move',x:11})">Move right</button>
+  <button onclick="tick()">Force tick</button>
 </div>
-<div id="state">Connecting...</div><h3>Recent events</h3><pre id="events"></pre>
+<div id="state">Connecting...</div>
+<h3>Recent server events</h3>
+<pre id="events"></pre>
 <script>
 async function getState(){return (await fetch('/state')).json()}
-async function send(command){await fetch('/input',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(command)});render(await getState())}
+async function send(command){
+  await fetch('/input',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(command)});
+  render(await getState());
+}
 async function tick(){render(await (await fetch('/tick',{method:'POST'})).json())}
 function render(s){
- document.getElementById('state').innerHTML=Object.values(s.players).map(p=>{
-   const target=p.targetId?' → '+p.targetId:'';
-   return '<div class="row"><b>'+p.id+'</b> '+p.equipment.weapon+' | tile '+p.x+' | HP '+p.hp+'/'+p.maxHp+' | prayer '+(p.prayer||'off')+' | food '+p.inventory.food+' | spec '+p.inventory.specialEnergy+'%'+target+
-   '<div class="bar"><div class="hp" style="width:'+Math.max(0,100*p.hp/p.maxHp)+'%"></div></div></div>'
- }).join('')+'<div class="mono">server tick: '+s.tick+' | queued inputs: '+s.queuedInputs+'</div>';
- document.getElementById('events').textContent=s.events.map(e=>JSON.stringify(e)).join('\n')
+  document.getElementById('state').innerHTML =
+    Object.values(s.players).map(p=>{
+      const target=p.targetId?' → '+p.targetId:'';
+      const queued=p.attackQueuedTick!==null?' | attack queued @ '+p.attackQueuedTick:'';
+      return '<div class="row"><b>'+p.id+'</b> '+p.equipment.weapon+
+      ' | tile '+p.x+' | HP '+p.hp+'/'+p.maxHp+
+      ' | prayer '+(p.prayer||'off')+' | food '+p.inventory.food+
+      ' | spec '+p.inventory.specialEnergy+'%'+target+queued+
+      '<div class="bar"><div class="hp" style="width:'+Math.max(0,100*p.hp/p.maxHp)+'%"></div></div></div>';
+    }).join('')+
+    '<div class="mono">server tick: '+s.tick+' | queued inputs: '+s.queuedInputs+'</div>';
+  document.getElementById('events').textContent=s.events.map(e=>JSON.stringify(e)).join('\n');
 }
-const stream=new EventSource('/events');stream.onmessage=e=>render(JSON.parse(e.data));getState().then(render);
-</script></body></html>
+const stream=new EventSource('/events');
+stream.onmessage=e=>render(JSON.parse(e.data));
+stream.onerror=()=>{};
+getState().then(render);
+</script>
+</body>
+</html>
