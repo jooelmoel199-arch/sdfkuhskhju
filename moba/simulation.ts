@@ -389,7 +389,7 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
         prayerPoints: Math.max(0, resolvedTarget.prayerPoints - Math.floor(impactDamage * 0.25))
       };
     }
-    if (newHp > 0 && newHp <= Math.floor(maxHitpoints(resolvedTarget.stats) * 0.1) &&
+    if (newHp <= Math.floor(maxHitpoints(resolvedTarget.stats) * 0.1) &&
         resolvedTarget.activePrayers.includes("redemption") && resolvedTarget.prayerPoints > 0) {
       resolvedTarget = {
         ...resolvedTarget,
@@ -405,7 +405,7 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
       style: eventStyle(hit.style), damage: impactDamage, landed: true, freezeTicks: hit.freezeTicks });
     log(state, hit.attackerId + " hits " + target.id + " for " + impactDamage +
       " (" + hit.style + " " + hit.attackType + ", tick " + hit.dueTick + ")");
-    if (newHp <= 0 && attacker) handlePlayerDeath(state, resolvedTarget, attacker);
+    if (resolvedTarget.currentHp <= 0 && attacker) handlePlayerDeath(state, resolvedTarget, attacker);
   }
 }
 
