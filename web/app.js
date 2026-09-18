@@ -225,16 +225,42 @@ function draw() {
       minion.team === "blue" ? "#71a8df" : "#df7474");
   }
 
-  if (state.humanControl?.attackTargetId === state.red.id && state.red.alive) {
-    const target = worldToScreen(simToWorldX(state.red.tile.x), laneToWorldY(state.red.laneId));
-    ctx.strokeStyle = "rgba(255,232,130,.95)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(target.x, target.y, 36 * camera.zoom, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.lineWidth = 1;
-  }
 
+  // Neutral jungle camps.
+  for (const camp of state.jungleCamps) {
+    const p = worldToScreen(simToWorldX(camp.tile.x), simToWorldY(camp.tile.y));
+    const radius = 18 * camera.zoom;
+    ctx.fillStyle = camp.alive ? "#8f7a45" : "rgba(30,30,25,.55)";
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    if (camp.alive) {
+      ctx.fillStyle = "#e6d49d";
+      ctx.font = "700 " + Math.max(9, 10 * camera.zoom) + "px ui-monospace,monospace";
+      ctx.textAlign = "center";
+      ctx.fillText(camp.name, p.x, p.y - radius - 8);
+      drawHpBar(p.x, p.y + radius + 4, 44 * camera.zoom, camp.currentHp, camp.maxHp, "#d9ad4f");
+    } else if (camp.respawnAtTick !== undefined) {
+      ctx.fillStyle = "rgba(230,212,157,.55)";
+      ctx.font = "700 9px ui-monospace,monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("RESP " + Math.max(0, camp.respawnAtTick - state.tick), p.x, p.y + 4);
+    }
+  }
+  if (state.humanControl?.attackTargetId) {
+    const targetPlayer = state.humanControl.attackTargetId === state.red.id ? state.red : undefined;
+    const targetCamp = state.jungleCamps.find(camp => camp.id === state.humanControl.attackTargetId && camp.alive);
+    const targetTile = targetPlayer?.tile ?? targetCamp?.tile;
+    if (targetTile) {
+      const target = worldToScreen(simToWorldX(targetTile.x), simToWorldY(targetTile.y));
+      ctx.strokeStyle = "rgba(255,232,130,.95)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(target.x, target.y, (targetPlayer ? 36 : 28) * camera.zoom, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+  }
   for (const player of [state.blue, state.red]) {
     if (!player.alive) continue;
     const p = worldToScreen(simToWorldX(player.tile.x), simToWorldY(player.tile.y));
@@ -323,10 +349,20 @@ canvas.addEventListener("click", event => {
   if (simX >= 1 && simX <= 39 && simY >= -2 && simY <= 42) {
     const enemy = state.red;
     const enemyPos = worldToScreen(simToWorldX(enemy.tile.x), simToWorldY(enemy.tile.y));
-    if (enemy.alive && Math.hypot(event.clientX - enemyPos.x, event.clientY - enemyPos.y) <= 34) {
+    const clickedEnemy = enemy.alive && Math.hypot(event.clientX - enemyPos.x, event.clientY - enemyPos.y) <= 34;
+    const clickedCamp = state.jungleCamps
+      .filter(camp => camp.alive)
+      .map(camp => ({ camp, pos: worldToScreen(simToWorldX(camp.tile.x), simToWorldY(camp.tile.y)) }))
+      .find(entry => Math.hypot(event.clientX - entry.pos.x, event.clientY - entry.pos.y) <= 28);
+
+    if (clickedEnemy) {
       setAttackTarget(enemy.id);
       state.humanControl.moveTargetX = enemy.tile.x;
       state.humanControl.moveTargetY = enemy.tile.y;
+    } else if (clickedCamp) {
+      setAttackTarget(clickedCamp.camp.id);
+      state.humanControl.moveTargetX = clickedCamp.camp.tile.x;
+      state.humanControl.moveTargetY = clickedCamp.camp.tile.y;
     } else {
       clearAttackTarget();
       const lane = worldToLane(world.y);
