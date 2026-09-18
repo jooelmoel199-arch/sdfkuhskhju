@@ -219,6 +219,14 @@ assert(rangedGame.events.filter(e=>e.type==="hit"||e.type==="miss").length===0,"
 step(rangedGame);
 assert(rangedGame.events.some(e=>e.type==="hit"||e.type==="miss"),"ranged projectile should resolve at its arrival tick");
 assert(rangedGame.pendingHits.length===0,"resolved projectile should leave the combat queue");
+const emptyAmmo=createGame();
+emptyAmmo.players.player.x=10;emptyAmmo.players.opponent.x=14;
+emptyAmmo.players.player.inventory.slots[4]={id:"bronze_arrow",quantity:1};
+enqueueInput(emptyAmmo,{type:"item_action",slot:3,action:"equip"});step(emptyAmmo);
+enqueueInput(emptyAmmo,{type:"attack",targetId:"opponent"});step(emptyAmmo);
+assert(emptyAmmo.players.player.inventory.slots[4]===null,"last arrow should be removed from the inventory");
+step(emptyAmmo);step(emptyAmmo);step(emptyAmmo);step(emptyAmmo);
+assert(emptyAmmo.players.player.targetId===null,"running out of arrows should cancel the active ranged interaction");
 
 const rangedProtected=createGame();
 rangedProtected.players.player.x=10;rangedProtected.players.player.y=10;
