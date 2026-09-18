@@ -465,23 +465,6 @@ function testNpcHitQueuesIntoPlayerTurn() {
 }
 
 function testPlayerNpcImpactWaitsForNpcTurn() {
-  const state = createPvpTestState();
-  const tower = state.towers[0];
-  state.pendingNpcHits.push({
-    id: "player-npc-queue-test",
-    dueTick: 0,
-    attackerId: state.blue.id,
-    targetId: tower.id,
-    attackerPid: state.blue.pid,
-    targetPid: -1,
-    style: "slash",
-    attackType: "aggressive",
-    landed: true,
-    hitChance: 1,
-    rawDamage: 20,
-    createdTick: 0
-  });
-  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
   // PVP fixtures have no towers, so use the prototype fixture for an actual NPC.
   const prototype = createPrototypeState();
   const targetTower = prototype.towers.find(candidate => candidate.team === "red" && candidate.laneId === "middle")!;
