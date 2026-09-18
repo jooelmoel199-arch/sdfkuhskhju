@@ -10,3 +10,7 @@
   color: #8fd0ff;
   font-weight: 800;
 }
+
+.prayer-row { display:flex; flex-wrap:wrap; gap:4px; margin:7px 0; }
+.prayer-row button { font:700 10px ui-monospace,monospace; padding:4px 6px; cursor:pointer; }
+.invItem { cursor:pointer; }
