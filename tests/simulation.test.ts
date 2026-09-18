@@ -82,6 +82,7 @@ function testGearSwapCanAttackSameTick() {
 
 function testFoodAddsToCombatTimer() {
   const state = createPvpTestState();
+  const startingSharks = state.blue.inventory.find(item => item.id === "shark")?.quantity ?? 0;
   state.humanControl = {
     attackEnabled: true,
     laneId: "middle",
@@ -95,12 +96,14 @@ function testFoodAddsToCombatTimer() {
   };
   state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
   advanceTick(state);
-  equal(state.blue.inventory.find(item => item.id === "shark")?.quantity, 19, "shark should be consumed once");
+  equal(state.blue.inventory.find(item => item.id === "shark")?.quantity, startingSharks - 1, "shark should be consumed once");
   equal(state.blue.attackTimer.additiveAttackDelayTicks, 3, "shark should add three ticks to the attack cycle");
 }
 
 function testKarambwanCombo() {
   const state = createPvpTestState();
+  const startingSharks = state.blue.inventory.find(item => item.id === "shark")?.quantity ?? 0;
+  const startingKarambwans = state.blue.inventory.find(item => item.id === "karambwan")?.quantity ?? 0;
   state.humanControl = {
     attackEnabled: true,
     laneId: "middle",
@@ -109,8 +112,8 @@ function testKarambwanCombo() {
     comboConsumableId: "karambwan"
   };
   advanceTick(state);
-  equal(state.blue.inventory.find(item => item.id === "shark")?.quantity, 19, "combo shark should be consumed");
-  equal(state.blue.inventory.find(item => item.id === "karambwan")?.quantity, 19, "karambwan should be consumed on the same tick");
+  equal(state.blue.inventory.find(item => item.id === "shark")?.quantity, startingSharks - 1, "combo shark should be consumed");
+  equal(state.blue.inventory.find(item => item.id === "karambwan")?.quantity, startingKarambwans - 1, "karambwan should be consumed on the same tick");
   equal(state.blue.attackTimer.additiveAttackDelayTicks, 5, "shark plus karambwan should add five ticks");
 }
 
