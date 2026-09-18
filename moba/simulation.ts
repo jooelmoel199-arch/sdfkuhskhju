@@ -620,16 +620,34 @@ function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: Neu
   }
 };
 function handlePlayerDeath(state: SimulationState, victim: PlayerEntity, killer: PlayerEntity): void {
-  const killerCurrent = state.blue.id === killer.id ? state.blue : state.red;
-  const killerWithXp: PlayerEntity = {
-    ...killerCurrent,
-    stats: grantUnallocatedXp(killerCurrent.stats, xpRewards.playerKill),
-    gp: killerCurrent.gp + gpRewards.playerKill,
-    kills: killerCurrent.kills + 1
-  };
-  setPlayer(state, killerWithXp);
+  const killerCurrent = state.players.find(player => player.id === killer.id);
+  if (killerCurrent) {
+    const killerWithXp: PlayerEntity = {
+      ...killerCurrent,
+      stats: grantUnallocatedXp(killerCurrent.stats, xpRewards.playerKill),
+      gp: killerCurrent.gp + gpRewards.playerKill,
+      kills: killerCurrent.kills + 1
+    };
+    setPlayer(state, killerWithXp);
+  }
+
+  if (victim.activePrayers.includes("retribution") && killerCurrent) {
+    const distance = Math.max(
+      Math.abs(victim.tile.x - killerCurrent.tile.x),
+      Math.abs(victim.tile.y - killerCurrent.tile.y)
+    );
+    if (distance <= 15) {
+      const retaliation = Math.floor(maxHitpoints(victim.stats) * 0.1);
+      setPlayer(state, {
+        ...killerCurrent,
+        currentHp: Math.max(0, killerCurrent.currentHp - retaliation)
+      });
+      log(state, victim.id + " triggers Retribution for " + retaliation);
+    }
+  }
+
   respawnPlayer(state, victim);
-  log(state, `${victim.id} was slain by ${killer.id}`);
+  log(state, victim.id + " was slain by " + killer.id);
 }
 
 function handleEnvironmentalDeath(state: SimulationState, victim: PlayerEntity, sourceLabel: string): void {
