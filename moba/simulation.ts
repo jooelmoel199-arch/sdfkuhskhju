@@ -1014,6 +1014,17 @@ const combatStage: TickStage<SimulationState> = {
       const enemy = queuedSpecialTarget ?? opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
 
+      // An armed Granite maul spec is an explicit combat command. It must be
+      // evaluated before the ordinary attack-style gate, otherwise a valid
+      // queued special can be stranded by a transient movement/interaction state.
+      if (
+        actor.equipment.weapon?.id === "granite_maul" &&
+        actor.queuedSpecialAttacks > 0 &&
+        enemy.alive
+      ) {
+        if (handleGraniteMaulSpecial(state, actor, enemy)) continue;
+      }
+
       if (!decision.attackStyle) continue;
 
       const targetCamp = actor.team === "blue" && state.humanControl?.attackTargetId
@@ -1063,7 +1074,7 @@ const combatStage: TickStage<SimulationState> = {
       // seven-tick attack cooldown. One-click auto-release is only available
       // against a target hit by this Gmaul within the previous five ticks.
       if (weapon.id === "granite_maul") {
-        let gmaulActor = actor;
+        let gmaulActor = state.players.find(player => player.id === actor.id) ?? actor;
 
         if (
           gmaulActor.specialActive &&
