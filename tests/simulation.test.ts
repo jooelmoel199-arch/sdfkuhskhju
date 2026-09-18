@@ -224,6 +224,37 @@ function testDragonClawsSpecial() {
   ok(result.damages.reduce((sum, damage) => sum + damage, 0) > 0, "Dragon claws should land against a very low defence target");
 }
 
+function testQueuedHitUsesImpactPrayer() {
+  const state = createPvpTestState();
+  state.blue = { ...state.blue, currentHp: 99, tile: { x: 19, y: state.blue.tile.y } };
+  state.red = { ...state.red, currentHp: 99, tile: { x: 20, y: state.red.tile.y }, activePrayers: [] };
+  state.players = state.players.map(player =>
+    player.id === state.blue.id ? state.blue :
+    player.id === state.red.id ? state.red : player
+  );
+  state.pendingHits.push({
+    id: "impact-prayer-test",
+    dueTick: 1,
+    attackerId: state.blue.id,
+    targetId: state.red.id,
+    attackerPid: state.blue.pid,
+    targetPid: state.red.pid,
+    style: "ranged",
+    attackType: "rapid_ranged",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 20,
+    createdTick: 0
+  });
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+
+  advanceTick(state);
+  state.humanControl.activatePrayer = "protect_from_missiles";
+  advanceTick(state);
+
+  equal(state.red.currentHp, 87, "missile protection should reduce a queued 20 damage hit to 12 at impact");
+}
+
 function testCampRespawnSchedule() {
   const state = createPrototypeState();
   const camp = state.jungleCamps[0];
@@ -247,6 +278,7 @@ testProjectileDelay();
 testOsrsHitTiming();
 testPlayerMagicFormula();
 testDragonClawsSpecial();
+testQueuedHitUsesImpactPrayer();
 testCampRespawnSchedule();
 
 console.log("All simulation tests passed.");
