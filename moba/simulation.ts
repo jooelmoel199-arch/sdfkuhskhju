@@ -386,6 +386,63 @@ function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerE
   };
 }
 
+function combatLevelsForPlayer(player: PlayerEntity): ReturnType<typeof toCombatLevels> {
+  const base = toCombatLevels(player.stats);
+  const boost = player.combatBoosts;
+  return {
+    attack: base.attack + boost.attack,
+    strength: base.strength + boost.strength,
+    defence: base.defence + boost.defence,
+    ranged: base.ranged + boost.ranged,
+    magic: base.magic + boost.magic
+  };
+}
+
+function decayCombatBoosts(player: PlayerEntity, currentTick: number): PlayerEntity {
+  const boost = player.combatBoosts;
+  if (
+    boost.attack === 0 &&
+    boost.strength === 0 &&
+    boost.defence === 0 &&
+    boost.ranged === 0 &&
+    boost.magic === 0
+  ) return player;
+  if (currentTick < boost.nextDecayTick) return player;
+
+  const steps = Math.max(1, Math.floor((currentTick - boost.nextDecayTick) / 100) + 1);
+  const next = { ...boost };
+  for (let step = 0; step < steps; step += 1) {
+    next.attack = Math.max(0, next.attack - 1);
+    next.strength = Math.max(0, next.strength - 1);
+    next.defence = Math.max(0, next.defence - 1);
+    next.ranged = Math.max(0, next.ranged - 1);
+    next.magic = Math.max(0, next.magic - 1);
+    next.nextDecayTick += 100;
+    if (next.attack === 0 && next.strength === 0 && next.defence === 0 && next.ranged === 0 && next.magic === 0) break;
+  }
+  return { ...player, combatBoosts: next };
+}
+
+function applyPotionBoosts(
+  player: PlayerEntity,
+  item: ReturnType<typeof findConsumable>,
+  currentTick: number
+): PlayerEntity {
+  if (!item?.boostStats?.length) return player;
+  const next = {
+    attack: 0,
+    strength: 0,
+    defence: 0,
+    ranged: 0,
+    magic: 0,
+    nextDecayTick: currentTick + 100
+  };
+  for (const boost of item.boostStats) {
+    next[boost.stat] = Math.floor(levelOf(player.stats, boost.stat) * boost.percent) + boost.flat;
+  }
+  return { ...player, combatBoosts: next };
+}
+
 function laneFromPlayer(player: PlayerEntity): LaneId {
   return player.laneId;
 }
@@ -435,7 +492,7 @@ const clientInputStage: TickStage<SimulationState> = {
       const queue = state.clientCommands[actor.id] ?? [];
       const drained = drainPlayerCommands(queue, state.tick, 10);
       state.clientCommands[actor.id] = drained.queue;
-      let current = tickTargetMemory(expireVengeance(expireGmaulPreload(actor, state.tick), state.tick));
+      let current = decayCombatBoosts(tickTargetMemory(expireVengeance(expireGmaulPreload(actor, state.tick), state.tick)), state.tick);
 
       for (const command of drained.commands) {
         switch (command.kind) {
@@ -951,8 +1008,8 @@ function handleGraniteMaulSpecial(
     const hit = rollAttack({
       style: "crush",
       attackType: actor.attackType,
-      attackerLevels: toCombatLevels(actor.stats),
-      defenderLevels: toCombatLevels(target.stats),
+      attackerLevels: combatLevelsForPlayer(actor),
+      defenderLevels: combatLevelsForPlayer(target),
       attackerBonuses: equipmentBonuses(actor.equipment),
       defenderBonuses: equipmentBonuses(target.equipment),
       defenderPrayers: target.activePrayers,
@@ -1156,13 +1213,10 @@ const combatStage: TickStage<SimulationState> = {
       const prayerBoosts = aggregatePrayerBoosts(actor.activePrayers);
       const targetPrayerBoosts = aggregatePrayerBoosts(currentEnemy.activePrayers);
       const attackStyle = weapon.style ?? "slash";
-      const relevantStatusBoost = actor.statusEffects
-        .filter(effect => effect.style === attackStyle || (attackStyle !== "magic" && attackStyle !== "ranged" && effect.style === "slash"))
-        .reduce((sum, effect) => sum + effect.amount, 0);
       const teamBuff = state.teamBuffs[actor.team];
       const teamBuffMultiplier = teamBuff && teamBuff.expiresAtTick > state.tick ? teamBuff.damageMultiplier : 1;
-      const attackBoostMultiplier = (1 + (attackStyle === "magic" ? prayerBoosts.magic : attackStyle === "ranged" ? prayerBoosts.rangedAttack : prayerBoosts.attack) + relevantStatusBoost) * teamBuffMultiplier;
-      const strengthBoostMultiplier = (1 + (attackStyle === "magic" ? 0 : attackStyle === "ranged" ? prayerBoosts.rangedStrength : prayerBoosts.strength) + relevantStatusBoost) * teamBuffMultiplier;
+      const attackBoostMultiplier = (1 + (attackStyle === "magic" ? prayerBoosts.magic : attackStyle === "ranged" ? prayerBoosts.rangedAttack : prayerBoosts.attack)) * teamBuffMultiplier;
+      const strengthBoostMultiplier = (1 + (attackStyle === "magic" ? 0 : attackStyle === "ranged" ? prayerBoosts.rangedStrength : prayerBoosts.strength)) * teamBuffMultiplier;
       const defenceBoostMultiplier = 1 + targetPrayerBoosts.defence;
 
       const attackerAfterAttack: PlayerEntity = {
@@ -1194,8 +1248,8 @@ const combatStage: TickStage<SimulationState> = {
       const hit = rollAttack({
         style: attackStyle,
         attackType,
-        attackerLevels: toCombatLevels(actor.stats),
-        defenderLevels: toCombatLevels(currentEnemy.stats),
+        attackerLevels: combatLevelsForPlayer(actor),
+        defenderLevels: combatLevelsForPlayer(currentEnemy),
         attackerBonuses: equipmentBonuses(actor.equipment),
         defenderBonuses: equipmentBonuses(currentEnemy.equipment),
         defenderPrayers: currentEnemy.activePrayers,
@@ -1218,8 +1272,8 @@ const combatStage: TickStage<SimulationState> = {
         const claw = rollDragonClawsSpecial({
           style: "slash",
           attackType,
-          attackerLevels: toCombatLevels(actor.stats),
-          defenderLevels: toCombatLevels(currentEnemy.stats),
+          attackerLevels: combatLevelsForPlayer(actor),
+          defenderLevels: combatLevelsForPlayer(currentEnemy),
           attackerBonuses: equipmentBonuses(actor.equipment),
           defenderBonuses: equipmentBonuses(currentEnemy.equipment),
           defenderPrayers: currentEnemy.activePrayers,
@@ -1279,8 +1333,8 @@ const combatStage: TickStage<SimulationState> = {
           const secondaryHit = rollAttack({
             style: attackStyle,
             attackType,
-            attackerLevels: toCombatLevels(actor.stats),
-            defenderLevels: toCombatLevels(secondary.stats),
+            attackerLevels: combatLevelsForPlayer(actor),
+            defenderLevels: combatLevelsForPlayer(secondary),
             attackerBonuses: equipmentBonuses(actor.equipment),
             defenderBonuses: equipmentBonuses(secondary.equipment),
             defenderPrayers: secondary.activePrayers,
@@ -1321,7 +1375,7 @@ const combatStage: TickStage<SimulationState> = {
           targetId: currentEnemy.id,
           style: attackStyle,
           attackType,
-          attackerLevels: toCombatLevels(actor.stats),
+          attackerLevels: combatLevelsForPlayer(actor),
           attackerBonuses: equipmentBonuses(actor.equipment),
           attackBoostMultiplier,
           strengthBoostMultiplier,
@@ -1393,7 +1447,7 @@ function handleTowerAttack(
   const hit = rollAttack({
     style,
     attackType,
-    attackerLevels: toCombatLevels(actor.stats),
+    attackerLevels: combatLevelsForPlayer(actor),
     defenderLevels: towerLevels,
     attackerBonuses: equipmentBonuses(actor.equipment),
     defenderBonuses: { ...equipmentBonuses(actor.equipment), slash_defence_bonus: 40, stab_defence_bonus: 40, crush_defence_bonus: 40 },
@@ -1451,7 +1505,8 @@ function applyConsumableAction(state: SimulationState, actor: PlayerEntity, item
     if (combo ? !item.comboFood : state.tick < actor.eatDelayUntilTick) return actor;
   }
 
-  const updated = consumeItem(actor, item, state.tick);
+  let updated = consumeItem(actor, item, state.tick);
+  if (isPotion) updated = applyPotionBoosts(updated, item, state.tick);
   const currentRemaining = Math.max(
     0,
     actor.attackTimer.lastAttackTick +
@@ -1510,16 +1565,13 @@ function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: Neu
 
   const style = weapon.style ?? "slash";
   const prayerBoosts = aggregatePrayerBoosts(actor.activePrayers);
-  const relevantStatusBoost = actor.statusEffects
-    .filter(effect => effect.style === style || (style !== "magic" && style !== "ranged" && effect.style === "slash"))
-    .reduce((sum, effect) => sum + effect.amount, 0);
-  const attackBoostMultiplier = 1 + (style === "magic" ? prayerBoosts.magic : style === "ranged" ? prayerBoosts.rangedAttack : prayerBoosts.attack) + relevantStatusBoost;
-  const strengthBoostMultiplier = 1 + (style === "magic" ? 0 : style === "ranged" ? prayerBoosts.rangedStrength : prayerBoosts.strength) + relevantStatusBoost;
+  const attackBoostMultiplier = 1 + (style === "magic" ? prayerBoosts.magic : style === "ranged" ? prayerBoosts.rangedAttack : prayerBoosts.attack);
+  const strengthBoostMultiplier = 1 + (style === "magic" ? 0 : style === "ranged" ? prayerBoosts.rangedStrength : prayerBoosts.strength);
   const special = actor.team === "blue" ? undefined : undefined;
   const hit = rollAttack({
     style,
     attackType,
-    attackerLevels: toCombatLevels(actor.stats),
+    attackerLevels: combatLevelsForPlayer(actor),
     defenderLevels: camp.combatLevels,
     attackerBonuses: equipmentBonuses(actor.equipment),
     defenderBonuses: camp.bonuses,
