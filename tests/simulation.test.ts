@@ -19,7 +19,7 @@ import { distanceHitDelay, meleeHitTick, projectileHitTick } from "../combat/pen
 import { rollDragonClawsSpecial } from "../combat/resolve";
 import { zeroBonuses, effectiveDefenceLevel, effectiveAttackLevel } from "../combat/formulas";
 import { drainPlayerCommands, enqueuePlayerCommand, makeStrongCommand } from "../combat/commandQueue";
-import { queueClientCommand } from "../moba/simulation";
+import { combatLevelsForPlayer, queueClientCommand } from "../moba/simulation";
 
 function testPrototypeShape() {
   const state = createPrototypeState();
@@ -280,6 +280,30 @@ function testPotionThenFoodIsBlockedByPotionActionDelay() {
   equal(state.blue.inventory.find(item => item.id === "shark")?.quantity, startingSharks, "normal food should be blocked immediately after a potion");
 }
 
+function testPotionBoostsUseBoostedCombatLevelsAndDecay() {
+  const state = createPvpTestState();
+  state.red = { ...state.red, equipment: { ...state.red.equipment, weapon: undefined } };
+  state.players = state.players.map(player => player.id === state.red.id ? state.red : player);
+  state.humanControl = { attackEnabled: false, laneId: "middle" };
+
+  queueClientCommand(state, { kind: "eat", itemId: "super_combat_potion" }, false);
+  advanceTick(state);
+
+  const base = 40;
+  equal(state.blue.combatBoosts.attack, 11, "level 40 super combat should give +11 Attack");
+  equal(state.blue.combatBoosts.strength, 11, "level 40 super combat should give +11 Strength");
+  equal(state.blue.combatBoosts.defence, 11, "level 40 super combat should give +11 Defence");
+  equal(combatLevelsForPlayer(state.blue).attack, base + 11, "boosted Attack level should feed combat formulas");
+  equal(combatLevelsForPlayer(state.blue).strength, base + 11, "boosted Strength level should feed max-hit formulas");
+
+  state.tick = 99;
+  advanceTick(state);
+  equal(state.blue.combatBoosts.strength, 11, "boost should remain intact before the 60-second decay boundary");
+
+  state.tick = 100;
+  advanceTick(state);
+  equal(state.blue.combatBoosts.strength, 10, "one point of temporary combat boost should decay after 60 seconds");
+}
 function testKarambwanCombo() {
   const state = createPvpTestState();
   state.blue = {
@@ -1110,6 +1134,7 @@ testQueuedHitResolvesOnTargetTurn();
 testGearSwapCanAttackSameTick();
 testFoodAddsToCombatTimer();
 testPotionDoesNotDelayAttackCycle();
+testPotionBoostsUseBoostedCombatLevelsAndDecay();
 testFoodAndPotionCanChainInOneTick();
 testPotionThenFoodIsBlockedByPotionActionDelay();
 testKarambwanCombo();
