@@ -3,7 +3,7 @@ export type MeleeAttackStyle = "accurate" | "aggressive" | "defensive" | "contro
 export type MeleeAttackType = "stab" | "slash" | "crush";
 export interface CombatStance { name: string; attackType: MeleeAttackType; style: MeleeAttackStyle; }
 
-export interface AmmoDefinition { id:string; rangedStrength:number; projectileSpeed:number; }
+export interface AmmoDefinition { id:string; rangedStrength:number; projectileSpeed:number; attackBonus:number; }
 export interface SpellDefinition { id:string; maxHit:number; attackSpeed:number; attackRange:number; magicAttackBonus:number; runes:Record<string,number>; projectileSpeed:number; baseXp:number; }
 
 export interface WeaponDefinition {
@@ -25,7 +25,7 @@ export interface WeaponDefinition {
 }
 
 export const AMMUNITION: Record<string, AmmoDefinition> = {
-  bronze_arrow:{id:"bronze_arrow",rangedStrength:7,projectileSpeed:10},
+  bronze_arrow:{id:"bronze_arrow",rangedStrength:7,projectileSpeed:10,attackBonus:0},
 };
 
 export const SPELLS: Record<string, SpellDefinition> = {
