@@ -1,14 +1,16 @@
 {
   "name": "rs-moba-prototype",
-  "version": "0.1.0",
-  "description": "Prototype 1: one-lane RuneScape-combat MOBA vertical slice (600ms authoritative tick).",
+  "version": "0.2.0",
+  "description": "RuneScape-combat MOBA prototype with a 600ms authoritative tick.",
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "sim": "tsx src/index.ts"
+    "sim": "tsx src/index.ts",
+    "web": "vite web --host 0.0.0.0"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vite": "^7.1.7"
   }
 }
