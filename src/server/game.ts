@@ -169,7 +169,8 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  let damage=0;
  if(rules.hit){
    const ammo=AMMUNITION[a.equipment.ammoId??""]; const spell=SPELLS[a.equipment.spellId??""];
-   const maxHit=ranged?Math.max(0,Math.floor((effectiveLevel(a.ranged,attackerPrayer.rangedStrength,style.strength)*(a.equipment.strengthBonus+(ammo?.rangedStrength??0)+64)/640)+1)):(spell?.maxHit??0);
+   const effectiveRangedStrength=effectiveLevel(a.ranged,attackerPrayer.rangedStrength,style.strength);
+ const maxHit=ranged?Math.max(0,Math.floor((effectiveRangedStrength*(a.equipment.strengthBonus+(ammo?.rangedStrength??0)+64)/640)+1)):(spell?.maxHit??0);
    damage=Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53+d.x*31+d.y*17)*(maxHit+1));
  }
  let resourceOk=false;
