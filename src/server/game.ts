@@ -129,6 +129,14 @@ function consumeResource(p:Player,id:string,amount:number):boolean{
   if(!stack||stack.quantity<amount)return false;
   stack.quantity-=amount;if(stack.quantity===0){const i=p.inventory.slots.indexOf(stack);p.inventory.slots[i]=null;}return true;
 }
+function consumeResources(p:Player,requirements:Record<string,number>):boolean{
+  for(const [id,amount] of Object.entries(requirements)){
+    const stack=p.inventory.slots.find(v=>v?.id===id);
+    if(!stack||stack.quantity<amount)return false;
+  }
+  for(const [id,amount] of Object.entries(requirements))consumeResource(p,id,amount);
+  return true;
+}
 function rangedStyleBonuses(style:RangedStyle):{level:number;defence:number}{
   if(style==="longrange")return {level:0,defence:3};
   return style==="accurate"?{level:3,defence:0}:{level:0,defence:0};
@@ -179,8 +187,11 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
    damage=Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53+d.x*31+d.y*17)*(maxHit+1));
  }
  let resourceOk=false;
- if(ranged) resourceOk=consumeResource(a,a.equipment.ammoId??"bronze_arrow",1);
- else { const fire=a.inventory.slots.find(v=>v?.id==="fire_rune"),air=a.inventory.slots.find(v=>v?.id==="air_rune"); if(fire&&air&&fire.quantity>=1&&air.quantity>=3){consumeResource(a,"fire_rune",1);consumeResource(a,"air_rune",3);resourceOk=true;} }
+ if(ranged) resourceOk=Boolean(a.equipment.ammoId)&&consumeResource(a,a.equipment.ammoId!,1);
+ else {
+   const spell=SPELLS[a.equipment.spellId??""];
+   resourceOk=Boolean(spell)&&consumeResources(a,spell.runes);
+ }
  if(!resourceOk){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.specialQueued=false;event(state,{tick:state.tick,type:"attack_cancelled",attacker:a.id,defender:d.id,reason:ranged?"out_of_ammo":"missing_runes"});return;}
  const attackSpeed=ranged?(a.rangedStyle==="rapid"?Math.max(1,a.equipment.attackSpeed-1):a.rangedStyle==="longrange"?a.equipment.attackSpeed+1:a.equipment.attackSpeed):a.equipment.attackSpeed;
  a.nextAttackTick=state.tick+attackSpeed;a.attackQueuedTick=a.nextAttackTick;
