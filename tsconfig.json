@@ -9,5 +9,13 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "dist"
   },
-  "include": ["src"]
+  "include": [
+    "index.ts",
+    "moba/**/*.ts",
+    "combat/**/*.ts",
+    "engine/**/*.ts",
+    "entity/**/*.ts",
+    "prayer/**/*.ts",
+    "world/**/*.ts"
+  ]
 }
