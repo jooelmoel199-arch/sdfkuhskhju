@@ -227,7 +227,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    const special=hit.special;
    const attackType=hit.attackType;
    const succeeded=hit.succeeded;
-   a.hitQueuedTick=null;a.pendingHit=null;
+   a.hitQueuedTick=null;
    if(p.hp<=0)continue;
    // Protection is evaluated on the defender turn, so prayer flicks affect the queued hit.
    const protectedByPrayer=(attackType==="melee"&&p.prayer==="protect_melee")||(attackType==="ranged"&&p.prayer==="protect_range")||(attackType==="magic"&&p.prayer==="protect_mage");
@@ -235,7 +235,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    if(damage>0){p.hp=Math.max(0,p.hp-damage);awardCombatXp(a,damage,attackType);}
    event(state,{tick:state.tick,type:succeeded?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special,attackType,reason:hit.delivery});
    if(p.hp<=0){
-     p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHit=null;
+     p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;
      a.targetId=null;
      event(state,{tick:state.tick,type:"death",attacker:a.id,defender:p.id});
      break;
