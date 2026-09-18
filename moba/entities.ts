@@ -23,7 +23,8 @@ export interface CombatBoostState {
   readonly defence: number;
   readonly ranged: number;
   readonly magic: number;
-  readonly expiresAtTick: number;
+  /** Next one-point decay boundary. OSRS temporary stat boosts decay once per 60 seconds. */
+  readonly nextDecayTick: number;
 }
 
 export interface StatusEffect {
@@ -221,7 +222,7 @@ export function createPlayer(
       defence: 0,
       ranged: 0,
       magic: 0,
-      expiresAtTick: 0
+      nextDecayTick: 0
     },
     locks: createEntityLockState(),
     attackTimer: createAttackTimerState(),
