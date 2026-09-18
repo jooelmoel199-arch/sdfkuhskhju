@@ -19,6 +19,8 @@ export interface WeaponDefinition {
 }
 
 export const WEAPONS: Record<string, WeaponDefinition> = {
+  shortbow: { id:"shortbow", attackSpeed:4, attackRange:8, attackType:"ranged", attackBonus:29, strengthBonus:10, specialCost:100, specialMultiplier:1.0, stances:[] },
+  fire_strike: { id:"fire_strike", attackSpeed:5, attackRange:10, attackType:"magic", attackBonus:0, strengthBonus:0, specialCost:0, specialMultiplier:1.0, stances:[] },
   rune_scimitar: {
     id: "rune_scimitar",
     attackSpeed: 4,
