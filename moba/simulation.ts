@@ -268,6 +268,16 @@ function gmaulSpecBarVisible(player: PlayerEntity, currentTick: number): boolean
     player.gmaulSpecBarVisibleTick <= currentTick;
 }
 
+function gmaulAutoSpecWindowOpen(
+  player: PlayerEntity,
+  targetId: string,
+  currentTick: number
+): boolean {
+  return isGmaulEquipped(player) &&
+    player.lastGmaulTargetId === targetId &&
+    currentTick - player.lastGmaulAttackTick <= 5;
+}
+
 function expireGmaulPreload(player: PlayerEntity, currentTick: number): PlayerEntity {
   if (!player.gmaulPreloaded) return player;
   if (player.gmaulPreloadExpiresAtTick === undefined || currentTick < player.gmaulPreloadExpiresAtTick) {
@@ -297,6 +307,8 @@ function applyEquipGmaulTiming(
       queuedSpecialTargetId: wasGmaul ? undefined : playerAfter.queuedSpecialTargetId,
       gmaulPreloadExpiresAtTick: wasGmaul ? undefined : playerAfter.gmaulPreloadExpiresAtTick,
       specialActive: wasGmaul ? false : playerAfter.specialActive,
+      lastGmaulTargetId: wasGmaul ? undefined : playerAfter.lastGmaulTargetId,
+      lastGmaulAttackTick: wasGmaul ? -1000 : playerAfter.lastGmaulAttackTick,
       gmaulEquippedTick: undefined,
       gmaulSpecBarVisibleTick: undefined,
       gmaulPreloaded: false
@@ -458,8 +470,8 @@ const clientInputStage: TickStage<SimulationState> = {
 
               if (current.gmaulPreloaded) {
                 // A second special-bar click arms the double-spec preload.
-                // The release is explicit: a third special click while adjacent
-                // or a target click while adjacent consumes the two stored hits.
+                // A target click or third bar click releases it only once
+                // melee reach is actually established.
                 if (adjacent) {
                   const usable = Math.min(2, Math.floor(current.specEnergy / 50));
                   current = {
@@ -481,8 +493,6 @@ const clientInputStage: TickStage<SimulationState> = {
               }
 
               if (current.specialActive) {
-                // Second click: turn the active Gmaul special into a short
-                // double-spec preload. The preload itself is not an attack.
                 current = {
                   ...current,
                   specialActive: false,
@@ -493,8 +503,6 @@ const clientInputStage: TickStage<SimulationState> = {
                 break;
               }
 
-              // First click activates the Gmaul special. The combat stage will
-              // perform the instant hit as soon as the selected target is in reach.
               current = {
                 ...current,
                 specialActive: true,
@@ -503,11 +511,10 @@ const clientInputStage: TickStage<SimulationState> = {
               break;
             }
 
-            // Ordinary special bars are toggles. The attack itself is evaluated
-            // later in the player's combat turn, so toggling does not consume
-            // the attack cycle or special energy.
             current = {
               ...current,
+              queuedSpecialAttacks: 0,
+              queuedSpecialTargetId: undefined,
               specialActive: !current.specialActive
             };
             log(state, current.id + (current.specialActive ? " activates " : " deactivates ") + "special attack");
@@ -528,7 +535,7 @@ const clientInputStage: TickStage<SimulationState> = {
                   : current.queuedSpecialTargetId
             };
 
-            if (isGmaulEquipped(current) && current.gmaulPreloaded) {
+            if (isGmaulEquipped(current)) {
               const target = state.players.find(
                 player => player.id === command.targetId &&
                   player.alive &&
@@ -540,16 +547,30 @@ const clientInputStage: TickStage<SimulationState> = {
                 attackerFrozen: isFrozen(current.locks, state.tick),
                 attackRange: 1
               }).canReach;
-              if (adjacent) {
+
+              if (current.gmaulPreloaded && adjacent) {
                 const usable = Math.min(2, Math.floor(current.specEnergy / 50));
                 current = {
                   ...current,
                   queuedSpecialAttacks: usable,
+                  queuedSpecialTargetId: command.targetId,
                   specialActive: usable > 0,
                   gmaulPreloaded: false,
                   gmaulPreloadExpiresAtTick: undefined
                 };
                 log(state, current.id + " releases Granite maul preload on target click");
+              } else if (
+                !current.gmaulPreloaded &&
+                current.specialActive &&
+                adjacent &&
+                gmaulAutoSpecWindowOpen(current, command.targetId, state.tick)
+              ) {
+                current = {
+                  ...current,
+                  queuedSpecialAttacks: 1,
+                  queuedSpecialTargetId: command.targetId
+                };
+                log(state, current.id + " auto-releases Granite maul special on recent target");
               }
             }
 
@@ -803,17 +824,8 @@ function handleGraniteMaulSpecial(
   });
 
   if (!reach.canReach) {
-    // Current OSRS behaviour does not allow a stale pre-queued maul spec to
-    // persist until the player eventually reaches a target.
-    setPlayer(state, {
-      ...actor,
-      queuedSpecialAttacks: 0,
-      queuedSpecialTargetId: undefined,
-      gmaulPreloadExpiresAtTick: undefined,
-      gmaulPreloaded: false
-    });
-    log(state, actor.id + " fails Granite maul special: target not melee-reachable");
-    return true;
+    // Keep the special armed while movement routes the player into melee.
+    return false;
   }
 
   const specialEnergyCost = actor.equipment.weapon.special?.energyCost ?? 50;
@@ -892,8 +904,11 @@ function handleGraniteMaulSpecial(
       ? actor.gmaulPreloadExpiresAtTick
       : undefined,
     gmaulPreloaded: false,
+    specialActive: false,
     lastCombatTick: state.tick,
-    lastCombatTargetId: target.id
+    lastCombatTargetId: target.id,
+    lastGmaulTargetId: target.id,
+    lastGmaulAttackTick: state.tick
   });
   log(state, actor.id + " uses Granite maul special on " + target.id + " (" + hitsQueued + " instant attack" + (hitsQueued === 1 ? "" : "s") + ")");
   return true;
@@ -967,8 +982,8 @@ const combatStage: TickStage<SimulationState> = {
       const attackType = decision.attackType;
 
       // Granite maul Quick Smash is instant and does not inherit the normal
-      // weapon attack cooldown. First activation fires on reach; double-spec
-      // preload waits for an explicit target release.
+      // seven-tick attack cooldown. One-click auto-release is only available
+      // against a target hit by this Gmaul within the previous five ticks.
       if (weapon.id === "granite_maul") {
         let gmaulActor = actor;
 
@@ -976,6 +991,7 @@ const combatStage: TickStage<SimulationState> = {
           gmaulActor.specialActive &&
           gmaulActor.queuedSpecialAttacks === 0 &&
           !gmaulActor.gmaulPreloaded &&
+          gmaulAutoSpecWindowOpen(gmaulActor, enemy.id, state.tick) &&
           canMeleeReachThisTick({
             attacker: gmaulActor.tile,
             defender: enemy.tile,
@@ -1047,11 +1063,18 @@ const combatStage: TickStage<SimulationState> = {
         lastCombatTargetId: currentEnemy.id,
         queuedSpecialAttacks: actor.queuedSpecialAttacks,
         queuedSpecialTargetId: actor.queuedSpecialTargetId,
-        specialActive: special ? true : actor.specialActive,
+        specialActive: special ? false : actor.specialActive,
         specEnergy: special ? Math.max(0, actor.specEnergy - special.energyCost) : actor.specEnergy,
         lastSpecEnergyUseTick: special ? state.tick : actor.lastSpecEnergyUseTick
       };
-      setPlayer(state, attackerAfterAttack);
+      const combatWithHistory: PlayerEntity = weapon.id === "granite_maul"
+        ? {
+            ...attackerAfterAttack,
+            lastGmaulTargetId: currentEnemy.id,
+            lastGmaulAttackTick: state.tick
+          }
+        : attackerAfterAttack;
+      setPlayer(state, combatWithHistory);
       state.engagedAttackerTeamByLane[actor.laneId] = actor.team;
 
       const hit = rollAttack({
@@ -1450,6 +1473,8 @@ function respawnPlayer(state: SimulationState, victim: PlayerEntity): void {
     specialActive: false,
     gmaulPreloadExpiresAtTick: undefined,
     gmaulEquippedTick: undefined,
+    lastGmaulTargetId: undefined,
+    lastGmaulAttackTick: -1000,
     gmaulSpecBarVisibleTick: undefined,
     gmaulPreloaded: false,
     lastCombatTargetId: undefined,
