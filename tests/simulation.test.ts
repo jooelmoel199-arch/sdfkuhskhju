@@ -689,6 +689,28 @@ function testQueuedMovementAndAttackPreserveFifo() {
   equal(state.humanControl?.moveTargetX, 18, "queued movement should execute after the target command in FIFO order");
 }
 
+function testStrongTargetInterruptsWeakMovementQueue() {
+  const state = createPvpTestState();
+  queueClientCommand(state, { kind: "move", x: 30, y: state.blue.tile.y });
+  queueClientCommand(state, { kind: "attack-target", targetId: state.red.id });
+
+  const queued = state.clientCommands[state.blue.id] ?? [];
+  equal(queued.length, 1, "strong target input should clear stale weak movement commands");
+  equal(queued[0].kind, "attack-target", "the interrupting target command should remain queued");
+}
+
+function testSpellSelectionUsesClientLatency() {
+  const state = createPvpTestState();
+  state.humanControl = { attackEnabled: false, laneId: "middle" };
+  queueClientCommand(state, { kind: "spell-select", spellId: "ice_blitz" });
+
+  advanceTick(state);
+  equal(state.humanControl.spellId, undefined, "spell selection should not apply until the next client-input tick");
+
+  advanceTick(state);
+  equal(state.humanControl.spellId, "ice_blitz", "queued spell selection should apply on the following client-input tick");
+}
+
 function testClientCommandHasOneTickInputLatency() {
   const state = createPvpTestState();
   ok(state.blue.equipment.weapon?.id === "rune_scimitar", "fixture should begin with rune scimitar equipped");
@@ -1149,6 +1171,8 @@ testOsrsHitTiming();
 testPlayerMagicFormula();
 testDragonClawsSpecial();
 testClientCommandQueueIsFifoAndCapped();
+testStrongTargetInterruptsWeakMovementQueue();
+testSpellSelectionUsesClientLatency();
 testClientCommandHasOneTickInputLatency();
 testQueuedAttackTargetHasOneTickLatency();
 testTargetMemoryExpiresAfterFiveTicks();
