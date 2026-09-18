@@ -27,6 +27,31 @@ enqueueInput(earlyPid, { type: "attack", targetId: "opponent" });
 step(earlyPid);
 assert(earlyPid.events.some(e => e.type === "attack"), "early-PID player should attack on its turn");
 assert(earlyPid.events.some(e => e.type === "hit" || e.type === "miss"), "later-PID defender should process the melee hit on the same tick");
+// Protection must be applied exactly once at hit resolution, not when the hit is queued.
+const rawGame = createGame();
+rawGame.players.player.x = 13;
+rawGame.players.opponent.x = 14;
+rawGame.players.player.attack = 1000;
+rawGame.players.player.strength = 1000;
+rawGame.players.opponent.defence = 1;
+enqueueInput(rawGame, { type: "attack", targetId: "opponent" });
+step(rawGame);
+const rawHit = rawGame.events.find(e => e.type === "hit");
+assert(rawHit !== undefined && (rawHit.damage ?? 0) > 0, "high-accuracy melee attack should produce test damage");
+
+const prayerGame = createGame();
+prayerGame.players.player.x = 13;
+prayerGame.players.opponent.x = 14;
+prayerGame.players.player.attack = 1000;
+prayerGame.players.player.strength = 1000;
+prayerGame.players.opponent.defence = 1;
+prayerGame.players.opponent.prayer = "protect_melee";
+enqueueInput(prayerGame, { type: "attack", targetId: "opponent" });
+step(prayerGame);
+const prayerHit = prayerGame.events.find(e => e.type === "hit");
+assert(prayerHit !== undefined, "protected high-accuracy melee attack should still hit");
+assert((prayerHit.damage ?? 0) === Math.floor((rawHit?.damage ?? 0) * 0.6), "protection prayer should reduce queued melee damage by 40% exactly once");
+
 const protectedGame = createGame();
 protectedGame.players.player.id = "z_player";
 protectedGame.players.opponent.id = "a_opponent";
