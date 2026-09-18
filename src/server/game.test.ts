@@ -194,11 +194,17 @@ assert(rangedGame.players.player.equipment.attackType==="ranged","shortbow shoul
 const arrowsBefore=rangedGame.players.player.inventory.slots[4]?.quantity??0;
 enqueueInput(rangedGame,{type:"attack",targetId:"opponent"});
 step(rangedGame);
-assert(rangedGame.events.some(e=>e.type==="projectile"),"ranged attack should emit a projectile event");
+const rangedProjectile=rangedGame.events.find(e=>e.type==="projectile");
+assert(rangedProjectile!==undefined,"ranged attack should emit a projectile event");
 assert((rangedGame.players.player.inventory.slots[4]?.quantity??0)===arrowsBefore-1,"ranged attack should consume one arrow");
 assert(rangedGame.players.opponent.hp===99,"ranged projectile should not resolve on its source tick");
+assert((rangedProjectile.resolveTick??0)===rangedGame.tick+2,"a 4-tile bow shot should have a 2-tick hit delay");
+assert(rangedGame.pendingHits.length===1&&rangedGame.pendingHits[0].delivery==="projectile","projectile should live in the state combat queue");
 step(rangedGame);
-assert(rangedGame.events.some(e=>e.type==="hit"||e.type==="miss"),"ranged projectile should resolve after travel");
+assert(rangedGame.events.filter(e=>e.type==="hit"||e.type==="miss").length===0,"ranged projectile should still be travelling after one tick");
+step(rangedGame);
+assert(rangedGame.events.some(e=>e.type==="hit"||e.type==="miss"),"ranged projectile should resolve at its arrival tick");
+assert(rangedGame.pendingHits.length===0,"resolved projectile should leave the combat queue");
 
 const rangedProtected=createGame();
 rangedProtected.players.player.x=10;rangedProtected.players.player.y=10;
@@ -217,10 +223,15 @@ assert(magicGame.players.player.equipment.attackType==="magic","fire strike shou
 const fireBefore=magicGame.players.player.inventory.slots[5]?.quantity??0;
 const airBefore=magicGame.players.player.inventory.slots[6]?.quantity??0;
 enqueueInput(magicGame,{type:"attack",targetId:"opponent"});step(magicGame);
-assert(magicGame.events.some(e=>e.type==="spell"),"magic attack should emit a spell event");
+const magicSpell=magicGame.events.find(e=>e.type==="spell");
+assert(magicSpell!==undefined,"magic attack should emit a spell event");
 assert((magicGame.players.player.inventory.slots[5]?.quantity??0)===fireBefore-1,"magic attack should consume one fire rune");
 assert((magicGame.players.player.inventory.slots[6]?.quantity??0)===airBefore-3,"magic attack should consume three air runes");
+assert((magicSpell.resolveTick??0)===magicGame.tick+2,"a 4-tile standard spell should have a 2-tick hit delay");
 step(magicGame);
-assert(magicGame.events.some(e=>e.type==="hit"||e.type==="miss"),"spell should resolve after travel");
+assert(magicGame.events.filter(e=>e.type==="hit"||e.type==="miss").length===0,"magic spell should still be travelling after one tick");
+step(magicGame);
+assert(magicGame.events.some(e=>e.type==="hit"||e.type==="miss"),"spell should resolve at its arrival tick");
+assert(magicGame.pendingHits.length===0,"resolved spell should leave the combat queue");
 
 console.log("ranged and magic combat queue tests passed");
