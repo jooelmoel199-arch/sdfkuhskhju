@@ -2,8 +2,8 @@ import { parseRuneScript, RuneScriptRuntime, type Value } from "../runescript";
 import type { CombatEvent } from "./game";
 
 const COMBAT_RULES = `
-proc on_attack(attacker_id, defender_id, attack_roll, defence_roll) {
-  if (attack_roll > defence_roll) {
+proc on_attack(attacker_id, defender_id, accuracy_roll, hit_chance) {
+  if (accuracy_roll < hit_chance) {
     call event_log("combat_hit", attacker_id, defender_id);
     return 1;
   }
@@ -20,7 +20,7 @@ export interface CombatRules {
 export function createCombatRules(): CombatRules {
   const program = parseRuneScript(COMBAT_RULES);
   return {
-    onAttack(attackerId, defenderId, attackRoll, defenceRoll) {
+    onAttack(attackerId, defenderId, accuracyRoll, hitChance, attackRoll, defenceRoll) {
       const events: CombatEvent[] = [];
       const runtime = new RuneScriptRuntime({
         event_log: (...values:Value[]) => {
@@ -40,7 +40,7 @@ export function createCombatRules(): CombatRules {
         }
       });
       const result=runtime.call(program, runtime.createContext(), "on_attack",
-        [attackerId, defenderId, attackRoll, defenceRoll]);
+        [attackerId, defenderId, accuracyRoll, hitChance]);
       return { hit:result===1, events };
     }
   };
