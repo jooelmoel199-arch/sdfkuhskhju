@@ -64,6 +64,7 @@ export function stepSimulation() {
 
 export function setMoveTarget(x) {
   state.humanControl.moveTargetX = Math.max(2, Math.min(38, x));
+  delete state.humanControl.attackTargetId;
 }
 
 export function stopMovement() {
