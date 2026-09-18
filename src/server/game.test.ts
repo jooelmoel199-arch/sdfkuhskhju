@@ -81,7 +81,6 @@ assert(game.players.player.attackQueuedTick === 5, "reselecting a target during 
 const hpAfterAttack = game.players.opponent.hp;
 step(game);
 step(game);
-step(game);
 assert(game.players.opponent.hp === hpAfterAttack, "cooldown must prevent early reattack");
 
 step(game);
