@@ -132,6 +132,8 @@ export function createPrototypeState(): SimulationState {
     ],
     projectiles: [],
     pendingHits: [],
+    pidOrder: players.map(player => player.id),
+    nextPidShuffleTick: 45,
     jungleCamps: [
       makeJungleCamp("camp-top-west", "Hill giant camp", 12, 5, 120, 220),
       makeJungleCamp("camp-top-east", "Hill giant camp", 28, 5, 120, 220),
