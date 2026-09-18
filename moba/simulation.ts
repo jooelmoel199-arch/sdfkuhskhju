@@ -345,6 +345,7 @@ const combatStage: TickStage<SimulationState> = {
         defenceBoostMultiplier,
         accuracyMultiplier: special?.accuracyMultiplier,
         damageMultiplier: special?.damageMultiplier,
+        maxMagicDamage: weapon.spell?.maxHit,
         rng: state.rng
       });
 
@@ -365,6 +366,7 @@ const combatStage: TickStage<SimulationState> = {
         landed: hit.landed,
         hitChance: hit.hitChance,
         rawDamage: hit.finalDamage,
+        freezeTicks: attackStyle === "magic" ? weapon.spell?.freezeTicks : undefined,
         createdTick: state.tick
       });
 
