@@ -81,6 +81,7 @@ export interface PlayerEntity {
 export interface MinionEntity {
   readonly id: string;
   readonly kind: "minion";
+  readonly npcId: number;
   readonly team: Team;
   readonly laneId: LaneId;
   readonly pid: number;
@@ -116,6 +117,7 @@ export interface ProjectileEntity {
 export interface NeutralCampEntity {
   readonly id: string;
   readonly kind: "neutral_camp";
+  readonly npcId: number;
   readonly name: string;
   readonly tile: TilePosition;
   currentHp: number;
@@ -136,6 +138,7 @@ export interface NeutralCampEntity {
 export interface TowerEntity {
   readonly id: string;
   readonly kind: "tower";
+  readonly npcId: number;
   readonly team: Team;
   readonly laneId: LaneId;
   readonly tile: TilePosition;
@@ -152,6 +155,12 @@ let pidCounter = 0;
 export function nextPid(): number {
   pidCounter += 1;
   return pidCounter;
+}
+
+let npcIdCounter = 0;
+export function nextNpcId(): number {
+  npcIdCounter += 1;
+  return npcIdCounter;
 }
 
 export function createPlayer(
