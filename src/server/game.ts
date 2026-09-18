@@ -12,7 +12,8 @@ export type InputCommand =
   | { type: "move"; x: number; y: number }
   | { type: "prayer"; prayer: Prayer }
   | { type: "attack_style"; style: AttackStyle }
-  | { type: "item_action"; slot:number; action:ItemAction }\n  | { type: "eat" }
+  | { type: "item_action"; slot:number; action:ItemAction }
+  | { type: "eat" }
   | { type: "special" }
   | { type: "stop_attack" };
 
@@ -26,7 +27,7 @@ export interface Player {
   hp:number; maxHp:number; prayerPoints:number; maxPrayerPoints:number;
   attack:number; strength:number; defence:number; equipment:Equipment; inventory:Inventory;
   prayer:Prayer; attackStyle:AttackStyle; targetId:string|null; nextAttackTick:number;
-  attackQueuedTick:number|null; specialQueued:boolean; path:Tile[];
+  attackQueuedTick:number|null; hitQueuedTick:number|null; pendingHitDamage:number; pendingHitRoll:number; pendingDefenceRoll:number; pendingSpecial:boolean; specialQueued:boolean; path:Tile[];
 }
 export interface CombatEvent {
   tick:number; type:"attack_queued"|"attack_cancelled"|"attack"|"hit"|"miss"|"eat"|"special_queued"|"special"|"move"|"prayer"|"attack_style"|"death";
@@ -62,15 +63,28 @@ function processInput(state:GameState,command:InputCommand):void{
   case "attack_style":p.attackStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,style:p.attackStyle});return;
   case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
   case "item_action":{const stack=p.inventory.slots[command.slot];if(!stack||stack.quantity<=0)return;if(command.action==="eat"&&stack.id==="lobster"&&p.hp<p.maxHp){stack.quantity--;p.inventory.food=Math.max(0,p.inventory.food-1);p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});if(stack.quantity===0)p.inventory.slots[command.slot]=null;return;}if(command.action==="equip"&&stack.id==="rune_scimitar"){p.equipment.weapon="rune_scimitar";p.equipment.attackSpeed=4;p.equipment.attackBonus=45;p.equipment.strengthBonus=44;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped rune scimitar"});return;}return;}
-  case "eat":{const slot=p.inventory.slots.findIndex(v=>v?.id==="lobster");if(slot>=0)processInput(state,{type:"item_action",slot,action:"eat"});return;}\n  case "special":if(p.targetId&&p.inventory.specialEnergy>=p.equipment.specialCost&&p.attackQueuedTick!==null){p.specialQueued=true;event(state,{tick:state.tick,type:"special_queued",attacker:p.id,defender:p.targetId,special:true});}return;
+  case "eat":{const slot=p.inventory.slots.findIndex(v=>v?.id==="lobster");if(slot>=0)processInput(state,{type:"item_action",slot,action:"eat"});return;}
+  case "special":if(p.targetId&&p.inventory.specialEnergy>=p.equipment.specialCost&&p.attackQueuedTick!==null){p.specialQueued=true;event(state,{tick:state.tick,type:"special_queued",attacker:p.id,defender:p.targetId,special:true});}return;
  }
 }
 function deterministicRoll(seed:number):number{const x=Math.sin(seed*12.9898)*43758.5453;return x-Math.floor(x);}
 function inMeleeRange(a:Player,b:Player):boolean{return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y))<=1;}
+function nearestMeleeTile(from:Tile,target:Tile):Tile {
+  const candidates:Tile[]=[
+    {x:target.x-1,y:target.y},{x:target.x+1,y:target.y},
+    {x:target.x,y:target.y-1},{x:target.x,y:target.y+1}
+  ].filter(t=>t.x>=1&&t.x<MAP_WIDTH-1&&t.y>=1&&t.y<MAP_HEIGHT-1);
+  let best=candidates[0]??target,bestLen=Number.POSITIVE_INFINITY;
+  for(const tile of candidates){
+    const path=findPath(from,tile);
+    if(path.length<bestLen){best=tile;bestLen=path.length;}
+  }
+  return best;
+}
 function resolveAttack(state:GameState,a:Player):void{
  if(!a.targetId||a.attackQueuedTick===null||state.tick<a.nextAttackTick)return;
  const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingSpecial=false;a.specialQueued=false;return;}
- if(!inMeleeRange(a,d)){setDestination(a,d.x,d.y);return;}
+ if(!inMeleeRange(a,d)){setDestination(a.x===d.x&&a.y===d.y?{x:a.x,y:a.y}:{x:a.x,y:a.y},nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y}).x,nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y}).y);return;}
  const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
  const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+8;
  const attackRoll=effectiveAttack*(a.equipment.attackBonus+64), defenceRoll=effectiveDefence*(64+styleBonus[d.attackStyle].defence*4);
@@ -116,7 +130,7 @@ function resolveQueuedHits(state:GameState):void{
 }
 export function step(state:GameState):void{
  state.tick++;
- const inputs=state.pendingInputs.splice(0).sort((a,b)=>a.sequence-b.sequence);for(const input of inputs)processInput(state,input.command);
+ const inputs=state.pendingInputs.splice(0).sort((a,b)=>a.sequence-b.sequence).slice(0,10);for(const input of inputs)processInput(state,input.command);
  resolveQueuedHits(state);
  movementStage(state);prayerStage(state);for(const p of Object.values(state.players))resolveAttack(state,p);
 }
