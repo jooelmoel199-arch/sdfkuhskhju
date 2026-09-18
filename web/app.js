@@ -1,7 +1,7 @@
 import {
   state, stepSimulation, setMoveTarget, stopMovement, setLane, setAttackTarget, clearAttackTarget,
   setAttackEnabled, resetSimulation, maxHitpoints, TICK_MS, togglePrayer,
-  useConsumable, useComboFood, equipItem, investAll, useSpecial, buyBestAffordableUpgrade, buyConsumables, cycleAttackType
+  useConsumable, useComboFood, equipItem, setSpell, investAll, useSpecial, buyBestAffordableUpgrade, buyConsumables, cycleAttackType
 } from "./simState.js";
 import { levelOf, maxPrayerPoints } from "../moba/stats.ts";
 import { accountLevelFromXp } from "../moba/xp.ts";
@@ -138,7 +138,7 @@ function renderAccountPanel() {
       '<button data-prayer="protect_from_missiles">RANGE</button>' +
       '<button data-prayer="smite">SMITE</button>' +
       '<button data-spec="1">SPEC</button>' +
-      '<button data-style="1">STYLE</button>' +
+      '<button data-style="1">STYLE</button><button data-spell="ice_barrage">BARRAGE</button><button data-spell="ice_blitz">BLITZ</button><button data-spell="ice_burst">BURST</button><button data-spell="ice_rush">RUSH</button>' +
     '</div>' +
     '<div class="account-grid">' + equipment + '</div>' +
     '<div class="inv-row" style="margin-top:7px">' + (inventory || "Inventory empty") + '</div>';
@@ -153,6 +153,8 @@ document.querySelector("#account").addEventListener("click", event => {
   if (prayer) togglePrayer(prayer.dataset.prayer);
   if (event.target.closest("[data-spec]")) useSpecial();
   if (event.target.closest("[data-style]")) cycleAttackType();
+  const spell = event.target.closest("[data-spell]");
+  if (spell) setSpell(spell.dataset.spell);
 });
 
 function renderCombatHud() {
