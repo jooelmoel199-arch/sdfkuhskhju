@@ -7,7 +7,7 @@ import type { PrayerId } from "../prayer/prayers";
 import type { LaneId } from "./lane";
 import type { PendingHit } from "../combat/pendingHits";
 import type { StatBlock } from "./stats";
-import { createStatBlock, maxHitpoints, maxPrayerPoints } from "./stats";
+import { createStatBlock, levelOf, maxHitpoints, maxPrayerPoints } from "./stats";
 import type { BonusTable, CombatLevels, CombatStyle } from "../combat/formulas";
 import { emptyEquipmentBonuses } from "./economy";
 import type { ShopItem, ConsumableDef } from "./economy";
@@ -323,11 +323,8 @@ export function consumeItem(player: PlayerEntity, item: ConsumableDef, currentTi
   const maxHp = maxHitpoints(player.stats);
   const currentHp = item.healAmount ? Math.min(maxHp, player.currentHp + item.healAmount) : player.currentHp;
   const prayerPoints = item.restorePrayer ? Math.min(maxPrayerPoints(player.stats), player.prayerPoints + item.restorePrayer) : player.prayerPoints;
-  const statusEffects = item.boostStat
-    ? [...player.statusEffects, { ...item.boostStat, expiresAtTick: currentTick + item.boostStat.durationTicks }]
-    : player.statusEffects;
   const inventory = player.inventory
     .map(entry => entry.id === item.id ? { ...entry, quantity: entry.quantity - 1 } : entry)
     .filter(entry => entry.quantity > 0);
-  return { ...player, inventory, currentHp, prayerPoints, statusEffects };
+  return { ...player, inventory, currentHp, prayerPoints };
 }
