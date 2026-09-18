@@ -87,7 +87,7 @@ function resolveAttack(state:GameState,a:Player):void{
  const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingHitSucceeded=false;a.pendingHitTargetId=null;a.pendingAttackType=null;a.pendingSpecial=false;a.specialQueued=false;return;}
  if(!inMeleeRange(a,d)){const goal=nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y});setDestination(a,goal.x,goal.y);return;}
  const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
- const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+8;
+ const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+styleBonus[d.attackStyle].defence+8;
  const attackBonus=weaponAttackBonus(WEAPONS[a.equipment.weapon] ?? WEAPONS.rune_scimitar, a.attackStyle);
  const attackRoll=effectiveAttack*(attackBonus+64), defenceRoll=effectiveDefence*(d.equipment.defenceBonus+64);
  const hitChance=attackRoll<=defenceRoll
