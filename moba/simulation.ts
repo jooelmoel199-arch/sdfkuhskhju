@@ -135,6 +135,11 @@ function opponentOf(state: SimulationState, id: string): PlayerEntity {
   return enemies[0] ?? (actor.team === "blue" ? state.red : state.blue);
 }
 
+function effectiveWeaponCooldown(weapon: NonNullable<PlayerEntity["equipment"]["weapon"]>, attackType: PlayerEntity["attackType"]): number {
+  const base = weapon.cooldownTicks ?? 4;
+  return weapon.style === "ranged" && attackType === "rapid_ranged" ? Math.max(1, base - 1) : base;
+}
+
 function setPlayer(state: SimulationState, player: PlayerEntity): void {
   state.players = state.players.map(current => current.id === player.id ? player : current);
   if (state.blue.id === player.id) state.blue = player;
