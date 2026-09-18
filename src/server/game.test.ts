@@ -1,5 +1,5 @@
 import { createGame, enqueueInput, step } from "./game";
-import { hitChanceFromRolls, magicMaxHit, playerMagicDefenceLevel, standardMaxHit } from "./combat-formulas";
+import { hitChanceFromRolls, magicMaxHit, playerMagicDefenceLevel, projectileHitDelay, standardMaxHit } from "./combat-formulas";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -157,6 +157,8 @@ assert(Math.abs(hitChanceFromRolls(100,200)-(100/(2*201)))<1e-12,"under-roll acc
 assert(Math.abs(hitChanceFromRolls(300,200)-(1-(202/(2*301))))<1e-12,"over-roll accuracy formula should match OSRS");
 assert(magicMaxHit(8,0.20)===9,"Mystic Might's 20% magic damage should raise Fire Strike max hit to 9");
 assert(playerMagicDefenceLevel(75,70,1.15,1)===89,"magic defence should weight boosted Magic at 70% and Defence at 30%");
+assert(projectileHitDelay("ranged",1)===1 && projectileHitDelay("ranged",8)===2 && projectileHitDelay("ranged",9)===3,"bow hit-delay breakpoints should match modern distance table");
+assert(projectileHitDelay("magic",1)===1 && projectileHitDelay("magic",2)===2 && projectileHitDelay("magic",5)===3 && projectileHitDelay("magic",10)===4,"standard magic projectile hit-delay breakpoints should match modern distance table");
 console.log("server combat queue tests passed");
 
 const xpGame = createGame();
