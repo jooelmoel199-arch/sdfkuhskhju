@@ -84,6 +84,9 @@ export function togglePrayer(prayerId) {
 export function useConsumable(itemId) {
   state.humanControl.consumeItemId = itemId;
 }
+export function useComboFood(itemId) {
+  state.humanControl.comboConsumableId = itemId;
+}
 
 export function investAll(stat) {
   state.humanControl.investStat = stat;
