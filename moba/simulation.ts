@@ -322,7 +322,7 @@ const clientInputStage: TickStage<SimulationState> = {
               : compatiblePrayerSet([...current.activePrayers, command.prayerId]);
             current = {
               ...current,
-              activePrayers: current.prayerPoints > 0 ? active : [],
+              activePrayers: current.prayerPoints > 0 ? [...active] : [],
               lastPrayerToggleTick: state.tick
             };
             break;
