@@ -483,6 +483,57 @@ function testClientCommandHasOneTickInputLatency() {
   equal(state.blue.equipment.weapon?.id, "abyssal_whip", "the queued client command should execute on the following server tick");
 }
 
+function testStandardSpecialQueuesUntilAttackCycleIsReady() {
+  const state = createPvpTestState();
+  state.red = { ...state.red, equipment: { ...state.red.equipment, weapon: undefined } };
+  state.players = state.players.map(player => player.id === state.red.id ? state.red : player);
+  state.blue = {
+    ...state.blue,
+    equipment: {
+      ...state.blue.equipment,
+      weapon: shopCatalog.find(item => item.id === "armadyl_godsword")
+    },
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 6, additiveAttackDelayTicks: 0 },
+    specEnergy: 100
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.humanControl = { attackEnabled: true, laneId: "middle", attackTargetId: state.red.id };
+  queueClientCommand(state, { kind: "special" });
+
+  advanceTick(state);
+  equal(state.blue.queuedSpecialAttacks, 1, "a standard special should remain queued while the weapon is on cooldown");
+  equal(state.blue.specEnergy, 100, "queued special should not spend energy before the attack is actually dispatched");
+
+  for (let tick = 0; tick < 5; tick += 1) advanceTick(state);
+  equal(state.blue.queuedSpecialAttacks, 0, "queued standard special should be consumed when the attack cycle becomes ready");
+  equal(state.blue.specEnergy, 50, "queued standard special should spend energy when the special attack executes");
+}
+
+function testGraniteMaulSpecialDoesNotPersistOutOfReach() {
+  const state = createPvpTestState();
+  state.red = {
+    ...state.red,
+    equipment: { ...state.red.equipment, weapon: undefined },
+    tile: { x: 35, y: state.red.tile.y }
+  };
+  state.blue = {
+    ...state.blue,
+    tile: { x: 5, y: state.blue.tile.y },
+    equipment: {
+      ...state.blue.equipment,
+      weapon: shopCatalog.find(item => item.id === "granite_maul")
+    }
+  };
+  state.players = state.players.map(player =>
+    player.id === state.blue.id ? state.blue :
+    player.id === state.red.id ? state.red : player
+  );
+  state.humanControl = { attackEnabled: true, laneId: "middle", attackTargetId: state.red.id };
+  queueClientCommand(state, { kind: "special" });
+  advanceTick(state);
+  equal(state.blue.queuedSpecialAttacks, 0, "an out-of-range Granite maul command should not remain as a stale prequeue");
+}
+
 function testGraniteMaulSpecialIgnoresAttackCooldown() {
   const state = createPvpTestState();
   state.blue = {
@@ -711,6 +762,8 @@ testClientCommandHasOneTickInputLatency();
 testQueuedAttackTargetHasOneTickLatency();
 testQueuedMovementAndAttackPreserveFifo();
 testGraniteMaulSpecialIgnoresAttackCooldown();
+testStandardSpecialQueuesUntilAttackCycleIsReady();
+testGraniteMaulSpecialDoesNotPersistOutOfReach();
 testPidTurnPreventsDeadPlayerAction();
 testPidTurnRunsPrayerBeforeIncomingImpact();
 testPvPDummyProvidesIncomingPressure();
