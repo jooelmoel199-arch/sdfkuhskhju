@@ -61,9 +61,12 @@ function testGearSwapCanAttackSameTick() {
   const state = createPvpTestState();
   state.blue = {
     ...state.blue,
+    tile: { x: 19, y: state.blue.tile.y },
     attackTimer: { lastAttackTick: -10, weaponCooldownTicks: 0, additiveAttackDelayTicks: 0 }
   };
   state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.red = { ...state.red, tile: { x: 20, y: state.red.tile.y } };
+  state.players = state.players.map(player => player.id === state.red.id ? state.red : player);
   state.humanControl = {
     attackEnabled: true,
     laneId: "middle",
