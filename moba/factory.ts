@@ -26,7 +26,8 @@ export function buildStartingLoadout(
   };
 
   let player = createPlayer(playerId, team, tile, laneId, positionRole);
-  player = { ...player, zone: zoneAt(tile), gp: 0 };
+  // Give the prototype account enough starting GP to actually equip its test loadout.
+  player = { ...player, zone: zoneAt(tile), gp: 300 };
 
   const loadouts: Record<StartingRole, string[]> = {
     melee: ["rune_scimitar", "rune_defender", "fighter_torso", "berserker_helm"],
