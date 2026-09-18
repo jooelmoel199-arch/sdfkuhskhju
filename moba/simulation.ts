@@ -52,6 +52,7 @@ export interface CombatEvent {
   readonly damage: number;
   readonly landed: boolean;
   readonly special?: boolean;
+  readonly vengeance?: boolean;
   readonly freezeTicks?: number;
 }
 
@@ -293,6 +294,17 @@ function expireGmaulPreload(player: PlayerEntity, currentTick: number): PlayerEn
   };
 }
 
+function expireVengeance(player: PlayerEntity, currentTick: number): PlayerEntity {
+  if (!player.vengeanceActive || player.vengeanceExpiresAtTick === undefined || currentTick < player.vengeanceExpiresAtTick) {
+    return player;
+  }
+  return {
+    ...player,
+    vengeanceActive: false,
+    vengeanceExpiresAtTick: undefined
+  };
+}
+
 function applyEquipGmaulTiming(
   playerBefore: PlayerEntity,
   playerAfter: PlayerEntity,
@@ -356,7 +368,7 @@ function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerE
     // AI remains a desired-state system and continues to use its own decision.
     activatePrayer: actor.id === state.blue.id ? undefined : ai.activatePrayer,
     eatItemId: actor.id === state.blue.id ? undefined : ai.eatItemId,
-    useSpecial: actor.id === state.blue.id ? actor.queuedSpecialAttacks > 0 : ai.useSpecial,
+    useSpecial: actor.id === state.blue.id ? actor.specialActive : ai.useSpecial,
     investStat: state.humanControl.investStat,
     buyItemId: state.humanControl.buyItemId,
     buyConsumableId: state.humanControl.buyConsumableId,
@@ -414,7 +426,7 @@ const clientInputStage: TickStage<SimulationState> = {
       const queue = state.clientCommands[actor.id] ?? [];
       const drained = drainPlayerCommands(queue, state.tick, 10);
       state.clientCommands[actor.id] = drained.queue;
-      let current = expireGmaulPreload(actor, state.tick);
+      let current = expireVengeance(expireGmaulPreload(actor, state.tick), state.tick);
 
       for (const command of drained.commands) {
         switch (command.kind) {
@@ -519,6 +531,26 @@ const clientInputStage: TickStage<SimulationState> = {
             };
             log(state, current.id + (current.specialActive ? " activates " : " deactivates ") + "special attack");
             break;
+          }
+          case "vengeance": {
+            if (current.vengeanceActive) {
+              break;
+            }
+            const cooldownReady = state.tick >= current.vengeanceCooldownUntilTick;
+            if (!cooldownReady) {
+              log(state, current.id + " fails Vengeance: cooldown");
+              break;
+            }
+            current = {
+              ...current,
+              vengeanceActive: true,
+              vengeanceCooldownUntilTick: state.tick + 50,
+              vengeanceExpiresAtTick: state.tick + 50,
+              lastVengeanceCastTick: state.tick
+            };
+            log(state, current.id + " casts Vengeance");
+            break;
+
           }
           case "attack-target": {
             const validTarget =
@@ -761,6 +793,47 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
         locks: applyFreeze(resolvedTarget.locks, state.tick, hit.freezeTicks, hit.attackerId)
       };
     }
+    if (impactDamage > 0 &&
+        resolvedTarget.vengeanceActive &&
+        attacker &&
+        attacker.id !== resolvedTarget.id &&
+        attacker.currentHp > 0) {
+      const vengeanceDamage = Math.min(
+        attacker.currentHp,
+        Math.trunc(impactDamage * 0.75)
+      );
+      resolvedTarget = {
+        ...resolvedTarget,
+        vengeanceActive: false,
+        vengeanceExpiresAtTick: undefined
+      };
+      if (vengeanceDamage > 0) {
+        const reflected = state.players.find(player => player.id === attacker.id);
+        if (reflected && reflected.alive) {
+          const reflectedHp = Math.max(0, reflected.currentHp - vengeanceDamage);
+          setPlayer(state, {
+            ...reflected,
+            currentHp: reflectedHp,
+            lastCombatTick: state.tick,
+            lastDamagedByPlayerId: resolvedTarget.id
+          });
+          pushCombatEvent(state, {
+            tick: state.tick,
+            attackerId: resolvedTarget.id,
+            targetId: reflected.id,
+            style: "melee",
+            damage: vengeanceDamage,
+            landed: true,
+            vengeance: true
+          });
+          log(state, resolvedTarget.id + " reflects " + vengeanceDamage + " Vengeance damage to " + reflected.id);
+          if (reflectedHp <= 0) {
+            schedulePlayerDeath(state, reflected.id, resolvedTarget.id);
+          }
+        }
+      }
+    }
+
     if (impactDamage > 0 && resolvedTarget.activePrayers.includes("smite")) {
       resolvedTarget = {
         ...resolvedTarget,
@@ -1475,6 +1548,10 @@ function respawnPlayer(state: SimulationState, victim: PlayerEntity): void {
     gmaulEquippedTick: undefined,
     lastGmaulTargetId: undefined,
     lastGmaulAttackTick: -1000,
+    vengeanceActive: false,
+    vengeanceExpiresAtTick: undefined,
+    vengeanceCooldownUntilTick: Math.max(victim.vengeanceCooldownUntilTick, state.tick),
+    lastVengeanceCastTick: victim.lastVengeanceCastTick,
     gmaulSpecBarVisibleTick: undefined,
     gmaulPreloaded: false,
     lastCombatTargetId: undefined,
