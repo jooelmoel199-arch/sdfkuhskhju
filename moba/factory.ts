@@ -167,7 +167,7 @@ export function createPvpTestState(): SimulationState {
   const red = buildStartingLoadout("red-dummy", "red", "melee", "middle", "middle");
 
   const pvpGear = [
-    "abyssal_whip", "dragon_claws", "armadyl_godsword", "armadyl_crossbow",
+    "abyssal_whip", "dragon_claws", "granite_maul", "armadyl_godsword", "armadyl_crossbow",
     "ancient_staff", "kodai_wand", "rune_defender", "fighter_torso",
     "rune_platelegs", "berserker_helm", "black_dhide_body", "archer_helm",
     "mystic_robe_top", "ancestral_hat", "amulet_of_glory", "berserker_ring"
