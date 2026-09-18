@@ -59,6 +59,91 @@ function testSameTickPrayerFlickConsumesNoPrayer() {
   ok(!state.blue.activePrayers.includes("protect_from_melee"), "same-tick prayer flick should finish inactive");
 }
 
+function testVengeanceCastIsIndependentOfAttackCycle() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    attackTimer: { lastAttackTick: 0, weaponCooldownTicks: 6, additiveAttackDelayTicks: 0 },
+    vengeanceActive: false,
+    vengeanceCooldownUntilTick: 0
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  queueClientCommand(state, { kind: "vengeance" });
+  advanceTick(state);
+  equal(state.blue.vengeanceActive, false, "Vengeance command should still be in client delivery on the first tick");
+
+  advanceTick(state);
+  equal(state.blue.vengeanceActive, true, "Vengeance should activate on its client-input tick");
+  equal(state.blue.attackTimer.lastAttackTick, 0, "Vengeance cast should not alter the attack cycle");
+  equal(state.blue.vengeanceCooldownUntilTick, 51, "Vengeance should set a 50-tick cooldown from its cast tick");
+}
+
+function testVengeanceReflectsAndConsumesOnImpact() {
+  const state = createPvpTestState();
+  state.red = {
+    ...state.red,
+    equipment: { ...state.red.equipment, weapon: undefined },
+    activePrayers: [],
+    currentHp: 99,
+    vengeanceActive: true,
+    vengeanceCooldownUntilTick: 999,
+    vengeanceExpiresAtTick: 50
+  };
+  state.blue = {
+    ...state.blue,
+    equipment: { ...state.blue.equipment, weapon: undefined },
+    currentHp: 99
+  };
+  state.players = state.players.map(player =>
+    player.id === state.red.id ? state.red :
+    player.id === state.blue.id ? state.blue : player
+  );
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+  state.pendingHits.push({
+    id: "vengeance-impact-test",
+    dueTick: 0,
+    attackerId: state.blue.id,
+    targetId: state.red.id,
+    attackerPid: state.blue.pid,
+    targetPid: state.red.pid,
+    style: "slash",
+    attackType: "aggressive",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 20,
+    createdTick: 0
+  });
+
+  advanceTick(state);
+
+  equal(state.red.currentHp, 79, "Vengeance should not reduce the damage taken by its owner");
+  equal(state.blue.currentHp, 84, "Vengeance should reflect 75 percent of actual damage");
+  equal(state.red.vengeanceActive, false, "Vengeance should be consumed by the first successful damaging hit");
+  ok(
+    state.combatEvents.some(event =>
+      event.vengeance === true &&
+      event.attackerId === state.red.id &&
+      event.targetId === state.blue.id &&
+      event.damage === 15
+    ),
+    "Vengeance reflection should be represented as a reactive combat event"
+  );
+}
+
+function testVengeanceCooldownBlocksRecast() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    vengeanceActive: false,
+    vengeanceCooldownUntilTick: 20
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  queueClientCommand(state, { kind: "vengeance" }, false);
+  advanceTick(state);
+  equal(state.blue.vengeanceActive, false, "Vengeance should not reactivate while its cooldown is running");
+  equal(state.blue.vengeanceCooldownUntilTick, 20, "failed Vengeance cast should preserve its cooldown");
+}
+
 function testHumanPrayerInputIsOneShot() {
   const state = createPvpTestState();
   state.humanControl = {
@@ -936,6 +1021,9 @@ function testCampRespawnSchedule() {
 testPrototypeShape();
 testPvpTestLane();
 testAuthoritativeStageOrder();
+testVengeanceCastIsIndependentOfAttackCycle();
+testVengeanceReflectsAndConsumesOnImpact();
+testVengeanceCooldownBlocksRecast();
 testHumanPrayerInputIsOneShot();
 testSameTickPrayerFlickConsumesNoPrayer();
 testQueuedHitResolvesOnTargetTurn();
