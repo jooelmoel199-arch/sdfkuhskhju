@@ -1050,6 +1050,32 @@ function testNpcHitQueuesIntoPlayerTurn() {
   equal(state.blue.currentHp, 79, "queued NPC damage should resolve during the player's turn");
 }
 
+function testPlayerRangedNpcImpactUsesProjectileDelay() {
+  const state = createPrototypeState();
+  const targetTower = state.towers.find(tower => tower.team === "red" && tower.laneId === "middle")!;
+  const acb = shopCatalog.find(item => item.id === "armadyl_crossbow");
+  ok(acb, "Armadyl crossbow should exist");
+  state.blue = {
+    ...state.blue,
+    tile: { x: 30, y: 20 },
+    equipment: { ...state.blue.equipment, weapon: acb },
+    attackTimer: { lastAttackTick: -10, weaponCooldownTicks: 6, additiveAttackDelayTicks: 0 },
+    attackType: "accurate"
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.humanControl = {
+    attackEnabled: true,
+    laneId: "middle",
+    attackTargetId: targetTower.id
+  };
+
+  advanceTick(state);
+
+  const queued = state.pendingNpcHits.find(hit => hit.attackerId === state.blue.id && hit.targetId === targetTower.id);
+  ok(queued, "ranged NPC attack should create a queued NPC impact");
+  equal(queued.dueTick - queued.createdTick, 4, "four-square ranged NPC attack should include projectile delay plus NPC processing order");
+}
+
 function testPlayerNpcImpactWaitsForNpcTurn() {
   // PVP fixtures have no towers, so use the prototype fixture for an actual NPC.
   const prototype = createPrototypeState();
@@ -1264,6 +1290,7 @@ testFoodAndPrayerCanPrecedeImpact();
 testFoodDelayExpiresAfterOneAttackCycle();
 testNpcHitQueuesIntoPlayerTurn();
 testPlayerNpcImpactWaitsForNpcTurn();
+testPlayerRangedNpcImpactUsesProjectileDelay();
 testQueuedHitUsesImpactPrayer();
 testLethalHitQueuesDeathForNextTick();
 testQueuedHitBeatsPrayerDrain();
