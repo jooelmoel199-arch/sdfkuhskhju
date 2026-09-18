@@ -125,15 +125,21 @@ function renderAccountPanel() {
     const item = player.equipment[slot];
     return '<div class="slot"><b>' + slot.toUpperCase() + '</b>' + (item ? item.name : "Empty") + '</div>';
   }).join("");
-  const inventory = player.inventory
-    .map(entry => {
-      const item = state.blue.inventory.find(candidate => candidate.id === entry.id);
-      const isGear = state.blue.equipment[entry.id] !== undefined;
-      return '<button class="invItem" data-equip="' + entry.id + '">' + entry.id.replaceAll("_", " ") + ' x' + entry.quantity + '</button>';
-    })
-    .join("");
+  const consumables = new Set(["shark", "anglerfish", "karambwan", "prayer_potion", "super_restore", "super_combat_potion", "ranging_potion", "magic_potion"]);
+  const inventory = player.inventory.map(entry => {
+    const action = consumables.has(entry.id) ? 'data-consume="' + entry.id + '"' : 'data-equip="' + entry.id + '"';
+    return '<button class="invItem" ' + action + '>' + entry.id.replaceAll("_", " ") + ' x' + entry.quantity + '</button>';
+  }).join("");
   document.querySelector("#account").innerHTML =
     '<div>Account level <b>' + accountLevelFromXp(player.stats.xp) + '</b> · Unallocated XP <b>' + Math.floor(player.stats.unallocatedXp) + '</b></div>' +
+    '<div class="prayer-row">' +
+      '<button data-prayer="protect_from_melee">MELEE</button>' +
+      '<button data-prayer="protect_from_magic">MAGIC</button>' +
+      '<button data-prayer="protect_from_missiles">RANGE</button>' +
+      '<button data-prayer="smite">SMITE</button>' +
+      '<button data-spec="1">SPEC</button>' +
+      '<button data-style="1">STYLE</button>' +
+    '</div>' +
     '<div class="account-grid">' + equipment + '</div>' +
     '<div class="inv-row" style="margin-top:7px">' + (inventory || "Inventory empty") + '</div>';
 }
@@ -141,6 +147,12 @@ function renderAccountPanel() {
 document.querySelector("#account").addEventListener("click", event => {
   const button = event.target.closest("[data-equip]");
   if (button) equipItem(button.dataset.equip);
+  const consume = event.target.closest("[data-consume]");
+  if (consume) useConsumable(consume.dataset.consume);
+  const prayer = event.target.closest("[data-prayer]");
+  if (prayer) togglePrayer(prayer.dataset.prayer);
+  if (event.target.closest("[data-spec]")) useSpecial();
+  if (event.target.closest("[data-style]")) cycleAttackType();
 });
 
 function renderCombatHud() {
