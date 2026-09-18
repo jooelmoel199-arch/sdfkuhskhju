@@ -79,6 +79,7 @@ export interface SimulationState {
     laneId: LaneId;
     attackTargetId?: string;
     consumeItemId?: string;
+    comboConsumableId?: string;
     equipItemId?: string;
 investStat?: "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints" | "prayer";
     buyItemId?: string;
