@@ -127,9 +127,10 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    const attackRoll=a.pendingHitRoll;
    const defenceRoll=a.pendingDefenceRoll;
    const special=a.pendingSpecial;
+   const attackType=a.pendingAttackType;
    a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingHitTargetId=null;a.pendingAttackType=null;a.pendingSpecial=false;
    if(p.hp<=0)continue;
-   const damage=(rawDamage>0&&a.pendingAttackType==="melee"&&p.prayer==="protect_melee")?Math.floor(rawDamage*0.6):rawDamage;
+   const damage=(rawDamage>0&&attackType==="melee"&&p.prayer==="protect_melee")?Math.floor(rawDamage*0.6):rawDamage;
    if(damage>0)p.hp=Math.max(0,p.hp-damage);
    event(state,{tick:state.tick,type:damage>0?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special});
    if(p.hp<=0){
