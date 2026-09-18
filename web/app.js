@@ -106,7 +106,7 @@ function renderActionbar() {
     '<button class="actionButton" data-action="buy"><span class="key">B</span>BUY AT BASE</button>' +
     '</div>';
 }
-\nfunction drawHpBar(x, y, width, hp, maxHp, fill) {
+\n\nfunction drawHpBar(x, y, width, hp, maxHp, fill) {
   ctx.fillStyle = "rgba(0,0,0,.75)";
   ctx.fillRect(x - width / 2, y, width, 6);
   ctx.fillStyle = fill;
