@@ -377,7 +377,7 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
       lastDamagedByPlayerId: hit.attackerId
     };
 
-    if (hit.freezeTicks) {
+    if (hit.landed && hit.freezeTicks) {
       resolvedTarget = {
         ...resolvedTarget,
         locks: applyFreeze(resolvedTarget.locks, state.tick, hit.freezeTicks, hit.attackerId)
@@ -563,7 +563,7 @@ const combatStage: TickStage<SimulationState> = {
             attackType,
             landed: claw.landed,
             hitChance: 0,
-            rawDamage: claw.damages[strike],
+            rawDamage: claw.rawDamages[strike],
             createdTick: state.tick
           });
         }
@@ -861,18 +861,26 @@ function handlePlayerDeath(state: SimulationState, victim: PlayerEntity, killer:
     setPlayer(state, killerWithXp);
   }
 
-  if (victim.activePrayers.includes("retribution") && killerCurrent) {
-    const distance = Math.max(
-      Math.abs(victim.tile.x - killerCurrent.tile.x),
-      Math.abs(victim.tile.y - killerCurrent.tile.y)
-    );
-    if (distance <= 15) {
-      const retaliation = Math.floor(maxHitpoints(victim.stats) * 0.1);
+  if (victim.activePrayers.includes("retribution")) {
+    // Retribution is an area effect: every eligible nearby enemy player can be
+    // hit, not just the final killer. The killer is included naturally.
+    const retaliation = Math.floor(maxHitpoints(victim.stats) * 0.1);
+    const nearby = state.players.filter(player => {
+      if (!player.alive || player.team === victim.team) return false;
+      const distance = Math.max(
+        Math.abs(victim.tile.x - player.tile.x),
+        Math.abs(victim.tile.y - player.tile.y)
+      );
+      return distance <= 15;
+    });
+    for (const target of nearby) {
+      const current = state.players.find(player => player.id === target.id);
+      if (!current) continue;
       setPlayer(state, {
-        ...killerCurrent,
-        currentHp: Math.max(0, killerCurrent.currentHp - retaliation)
+        ...current,
+        currentHp: Math.max(0, current.currentHp - retaliation)
       });
-      log(state, victim.id + " triggers Retribution for " + retaliation);
+      log(state, victim.id + " triggers Retribution on " + target.id + " for " + retaliation);
     }
   }
 
