@@ -328,6 +328,34 @@ const clientInputStage: TickStage<SimulationState> = {
             queuedSpecialTargetId: command.targetId
           };
           break;
+        case "attack-target":
+          if (state.players.some(player => player.id === command.targetId && player.alive && player.team !== current.team) ||
+              state.jungleCamps.some(camp => camp.id === command.targetId && camp.alive) ||
+              state.towers.some(tower => tower.id === command.targetId && tower.alive && tower.team !== current.team)) {
+            state.humanControl = {
+              ...(state.humanControl ?? { attackEnabled: true, laneId: current.laneId }),
+              attackTargetId: command.targetId
+            };
+          }
+          break;
+        case "clear-attack-target":
+          if (state.humanControl) delete state.humanControl.attackTargetId;
+          current = { ...current, queuedSpecialTargetId: undefined };
+          break;
+        case "move":
+          if (state.humanControl) {
+            state.humanControl.moveTargetX = Math.max(1, Math.min(39, command.x));
+            state.humanControl.moveTargetY = command.y;
+          }
+          break;
+        case "stop-movement":
+          if (state.humanControl) {
+            delete state.humanControl.moveTargetX;
+            delete state.humanControl.moveTargetY;
+            delete state.humanControl.attackTargetId;
+          }
+          current = { ...current, queuedSpecialTargetId: undefined };
+          break;
       }
     }
 
