@@ -39,13 +39,52 @@ export type PlayerCommand =
       readonly sequence: number;
       readonly issuedTick: number;
       readonly executeTick: number;
+    }
+  | {
+      readonly kind: "attack-target";
+      readonly targetId: string;
+      readonly priority: CommandPriority;
+      readonly id: string;
+      readonly sequence: number;
+      readonly issuedTick: number;
+      readonly executeTick: number;
+    }
+  | {
+      readonly kind: "clear-attack-target";
+      readonly priority: CommandPriority;
+      readonly id: string;
+      readonly sequence: number;
+      readonly issuedTick: number;
+      readonly executeTick: number;
+    }
+  | {
+      readonly kind: "move";
+      readonly x: number;
+      readonly y: number;
+      readonly priority: CommandPriority;
+      readonly id: string;
+      readonly sequence: number;
+      readonly issuedTick: number;
+      readonly executeTick: number;
+    }
+  | {
+      readonly kind: "stop-movement";
+      readonly priority: CommandPriority;
+      readonly id: string;
+      readonly sequence: number;
+      readonly issuedTick: number;
+      readonly executeTick: number;
     };
 
 export type PlayerCommandInput =
   | { readonly kind: "equip"; readonly itemId: string }
   | { readonly kind: "eat"; readonly itemId: string; readonly combo?: boolean }
   | { readonly kind: "prayer"; readonly prayerId: PrayerId }
-  | { readonly kind: "special"; readonly targetId?: string };
+  | { readonly kind: "special"; readonly targetId?: string }
+  | { readonly kind: "attack-target"; readonly targetId: string }
+  | { readonly kind: "clear-attack-target" }
+  | { readonly kind: "move"; readonly x: number; readonly y: number }
+  | { readonly kind: "stop-movement" };
 
 export function enqueuePlayerCommand(
   queue: readonly PlayerCommand[],
@@ -104,5 +143,13 @@ export function makeStrongCommand(
       return { ...base, kind: "prayer", prayerId: input.prayerId };
     case "special":
       return { ...base, kind: "special", targetId: input.targetId };
+    case "attack-target":
+      return { ...base, kind: "attack-target", targetId: input.targetId };
+    case "clear-attack-target":
+      return { ...base, kind: "clear-attack-target" };
+    case "move":
+      return { ...base, kind: "move", x: input.x, y: input.y };
+    case "stop-movement":
+      return { ...base, kind: "stop-movement" };
   }
 }
