@@ -92,37 +92,59 @@ export function rollDragonClawsSpecial(input: HitRollInput): ClawSpecialResult {
 
   let firstSuccessfulStrike = -1;
   for (let strike = 0; strike < 4; strike += 1) {
-    if (firstSuccessfulStrike >= 0 || rng() < chance) {
-      firstSuccessfulStrike = firstSuccessfulStrike >= 0 ? firstSuccessfulStrike : strike;
+    if (rng() < chance) {
+      firstSuccessfulStrike = strike;
       break;
     }
   }
 
-  if (firstSuccessfulStrike < 0) {
-    // OSRS claws can still produce a tiny 0/2 result after four failed accuracy rolls.
-    const fallback = rng() < 0.5 ? 0 : 2;
-    const protectedFallback = applyProtectionDamageReduction({ damage: fallback, attackStyle: "slash", defenderPrayers: input.defenderPrayers ?? [], attackerIsPlayer: input.attackerIsPlayer });
-    return { landed: protectedFallback > 0, damages: protectedFallback ? [protectedFallback, 0, 0, 0] : [0, 0, 0, 0], firstSuccessfulStrike: -1 };
-  }
-
-  const ordinaryMax = Math.max(1, maxDamage({
+  const ordinaryMax = Math.max(1, Math.floor(maxDamage({
     ...input,
     style: "slash",
     damageMultiplier: 1
-  }));
+  })));
 
-  const maxMultiplier = [2, 1.75, 1.5, 1.25][firstSuccessfulStrike];
-  const minMultiplier = [1, 0.75, 0.5, 0.25][firstSuccessfulStrike];
-  const totalMax = Math.max(1, Math.floor(ordinaryMax * maxMultiplier));
-  const totalMin = Math.floor(ordinaryMax * minMultiplier);
-  const total = totalMin + Math.floor(rng() * Math.max(1, totalMax - totalMin + 1));
-  const hits = Math.max(1, firstSuccessfulStrike + 1);
-  const damages = Array.from({ length: 4 }, (_, index) => {
-    if (index >= hits) return 0;
-    const base = Math.floor(total / hits);
-    const remainder = total % hits;
-    return base + (index < remainder ? 1 : 0);
-  });
+  let damages: number[];
+  if (firstSuccessfulStrike < 0) {
+    // Four failed accuracy rolls can still produce a 2, split randomly across
+    // two hitsplats. The live game uses this as a small fallback.
+    if (rng() < 2 / 3) {
+      const pairs = [[0, 1], [2, 3], [0, 2], [1, 3]];
+      const pair = pairs[Math.floor(rng() * pairs.length)];
+      damages = [0, 0, 0, 0];
+      damages[pair[0]] = 1;
+      damages[pair[1]] = 1;
+    } else {
+      damages = [0, 0, 0, 0];
+    }
+  } else if (firstSuccessfulStrike === 0) {
+    // 4-2-1-1. The first hit rolls from half max to max-1, then the
+    // following hits are derived from it.
+    const first = Math.floor(ordinaryMax / 2) +
+      Math.floor(rng() * Math.max(1, ordinaryMax - Math.floor(ordinaryMax / 2)));
+    const second = Math.floor(first / 2);
+    const third = Math.floor(second / 2);
+    damages = [first, second, third, third + 1];
+  } else if (firstSuccessfulStrike === 1) {
+    // 0-4-2-2. The second hit rolls from 3/8 to 7/8 of ordinary max.
+    const min = Math.floor(ordinaryMax * 3 / 8);
+    const max = Math.floor(ordinaryMax * 7 / 8);
+    const second = min + Math.floor(rng() * Math.max(1, max - min + 1));
+    const third = Math.floor(second / 2);
+    damages = [0, second, third, third + 1];
+  } else if (firstSuccessfulStrike === 2) {
+    // 0-0-3-3.
+    const min = Math.floor(ordinaryMax / 4);
+    const max = Math.floor(ordinaryMax * 3 / 4);
+    const third = min + Math.floor(rng() * Math.max(1, max - min + 1));
+    damages = [0, 0, third, third + 1];
+  } else {
+    // 0-0-0-5.
+    const min = Math.floor(ordinaryMax / 4);
+    const max = Math.floor(ordinaryMax * 5 / 4);
+    const fourth = min + Math.floor(rng() * Math.max(1, max - min + 1));
+    damages = [0, 0, 0, fourth];
+  }
 
   const protectedDamages = damages.map(damage => applyProtectionDamageReduction({
     damage,
@@ -130,5 +152,10 @@ export function rollDragonClawsSpecial(input: HitRollInput): ClawSpecialResult {
     defenderPrayers: input.defenderPrayers ?? [],
     attackerIsPlayer: input.attackerIsPlayer
   }));
-  return { landed: true, damages: protectedDamages, firstSuccessfulStrike };
-}
+
+  return {
+    landed: protectedDamages.some(damage => damage > 0),
+    damages: protectedDamages,
+    firstSuccessfulStrike
+  };
+}\n
