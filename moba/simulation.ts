@@ -779,7 +779,7 @@ function resolvePendingHitsForPlayer(state: SimulationState, targetId: string): 
     if (!hit.landed) {
       setPlayer(state, { ...target, lastCombatTick: state.tick });
       pushCombatEvent(state, { tick: state.tick, attackerId: hit.attackerId, targetId: target.id,
-        style: eventStyle(hit.style), damage: 0, landed: false });
+        style: eventStyle(hit.style), damage: 0, landed: false, special: Boolean(hit.special) });
       log(state, hit.attackerId + " misses " + target.id + " (" + hit.style + " " + hit.attackType + ")");
       continue;
     }
