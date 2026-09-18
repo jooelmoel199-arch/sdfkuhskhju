@@ -50,6 +50,7 @@ export interface SimulationState {
   towers: TowerEntity[];
   jungleCamps: NeutralCampEntity[];
   engagedAttackerTeamByLane: Partial<Record<LaneId, "blue" | "red">>;
+  teamBuffs: Partial<Record<"blue" | "red", { name: string; expiresAtTick: number; damageMultiplier: number }>>;
   log: SimulationLogEntry[];
   rng: () => number;
   humanControl?: {
@@ -281,8 +282,10 @@ const combatStage: TickStage<SimulationState> = {
       const relevantStatusBoost = actor.statusEffects
         .filter(effect => effect.style === attackStyle || (attackStyle !== "magic" && attackStyle !== "ranged" && effect.style === "slash"))
         .reduce((sum, effect) => sum + effect.amount, 0);
-      const attackBoostMultiplier = 1 + (attackStyle === "magic" ? prayerBoosts.magic : attackStyle === "ranged" ? prayerBoosts.rangedAttack : prayerBoosts.attack) + relevantStatusBoost;
-      const strengthBoostMultiplier = 1 + (attackStyle === "magic" ? 0 : attackStyle === "ranged" ? prayerBoosts.rangedStrength : prayerBoosts.strength) + relevantStatusBoost;
+      const teamBuff = state.teamBuffs[actor.team];
+      const teamBuffMultiplier = teamBuff && teamBuff.expiresAtTick > state.tick ? teamBuff.damageMultiplier : 1;
+      const attackBoostMultiplier = (1 + (attackStyle === "magic" ? prayerBoosts.magic : attackStyle === "ranged" ? prayerBoosts.rangedAttack : prayerBoosts.attack) + relevantStatusBoost) * teamBuffMultiplier;
+      const strengthBoostMultiplier = (1 + (attackStyle === "magic" ? 0 : attackStyle === "ranged" ? prayerBoosts.rangedStrength : prayerBoosts.strength) + relevantStatusBoost) * teamBuffMultiplier;
       const defenceBoostMultiplier = 1 + targetPrayerBoosts.defence;
 
       const attackerAfterAttack: PlayerEntity = {
@@ -471,6 +474,14 @@ function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: Neu
       gp: rewardPlayer.gp + currentCamp.rewardGp,
       stats: grantUnallocatedXp(rewardPlayer.stats, currentCamp.rewardXp)
     });
+    if (currentCamp.id === "river-chaos-elemental") {
+      state.teamBuffs[actor.team] = {
+        name: "Elemental surge",
+        expiresAtTick: state.tick + 100,
+        damageMultiplier: 1.10
+      };
+      log(state, actor.team + " gains Elemental surge for 60s");
+    }
     log(state, actor.id + " clears " + currentCamp.name + " for " + currentCamp.rewardGp + " GP");
   } else {
     state.jungleCamps[index] = { ...currentCamp, currentHp: newHp, aggroTargetId: actor.id };
