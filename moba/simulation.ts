@@ -288,6 +288,7 @@ const combatStage: TickStage<SimulationState> = {
       }
 
       const weapon = actor.equipment.weapon;
+      const attackType = decision.attackType;
       const gateResult = dispatchAttack({
         currentTick: state.tick,
         attackerTile: actor.tile,
@@ -314,7 +315,6 @@ const combatStage: TickStage<SimulationState> = {
       const prayerBoosts = aggregatePrayerBoosts(actor.activePrayers);
       const targetPrayerBoosts = aggregatePrayerBoosts(currentEnemy.activePrayers);
       const attackStyle = weapon.style ?? "slash";
-      const attackType = decision.attackType;
       const relevantStatusBoost = actor.statusEffects
         .filter(effect => effect.style === attackStyle || (attackStyle !== "magic" && attackStyle !== "ranged" && effect.style === "slash"))
         .reduce((sum, effect) => sum + effect.amount, 0);
