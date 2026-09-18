@@ -1,4 +1,5 @@
 import { createGame, enqueueInput, step } from "./game";
+import { hitChanceFromRolls, magicMaxHit, playerMagicDefenceLevel, standardMaxHit } from "./combat-formulas";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -150,6 +151,12 @@ for(let i=0;i<3;i++) step(prayed);
 assert(prayed.players.player.prayerPoints===prayerBefore,"prayer should not drain before the configured resistance is reached");
 step(prayed);
 assert(prayed.players.player.prayerPoints===prayerBefore-1,"active prayer should drain after five active ticks at zero prayer bonus");
+// Pure formula regressions keep the engine tied to the modern OSRS equations.
+assert(standardMaxHit(83,44)===14,"rune-scimitar style baseline should use the 0.5 max-hit formula");
+assert(Math.abs(hitChanceFromRolls(100,200)-(100/(2*201)))<1e-12,"under-roll accuracy formula should match OSRS");
+assert(Math.abs(hitChanceFromRolls(300,200)-(1-(202/(2*301))))<1e-12,"over-roll accuracy formula should match OSRS");
+assert(magicMaxHit(8,0.20)===9,"Mystic Might's 20% magic damage should raise Fire Strike max hit to 9");
+assert(playerMagicDefenceLevel(75,70,1.15,1)===80,"magic defence should weight boosted Magic at 70% and Defence at 30%");
 console.log("server combat queue tests passed");
 
 const xpGame = createGame();
@@ -211,6 +218,13 @@ assert(rangedProjectile!==undefined,"ranged attack should emit a projectile even
 assert((rangedGame.players.player.inventory.slots[4]?.quantity??0)===arrowsBefore-1,"ranged attack should consume one arrow");
 assert(rangedGame.players.opponent.hp===99,"ranged projectile should not resolve on its source tick");
 assert((rangedProjectile.resolveTick??0)===rangedGame.tick+2,"a 4-tile bow shot should have a 2-tick hit delay");
+const rangedPidDelay=createGame();
+rangedPidDelay.players.player.x=10;rangedPidDelay.players.opponent.x=14;
+rangedPidDelay.players.player.pid=2;rangedPidDelay.players.opponent.pid=1;
+enqueueInput(rangedPidDelay,{type:"item_action",slot:3,action:"equip"});step(rangedPidDelay);
+enqueueInput(rangedPidDelay,{type:"attack",targetId:"opponent"});step(rangedPidDelay);
+const rangedPidProjectile=rangedPidDelay.events.find(e=>e.type==="projectile");
+assert(rangedPidProjectile!==undefined && (rangedPidProjectile.resolveTick??0)===rangedPidDelay.tick+3,"projectile impact should gain one processing-order tick when the defender has earlier PID");
 assert(rangedGame.pendingHits.length===1&&rangedGame.pendingHits[0].delivery==="projectile","projectile should live in the state combat queue");
 step(rangedGame);
 assert(rangedGame.events.filter(e=>e.type==="hit"||e.type==="miss").length===0,"ranged projectile should still be travelling after one tick");
