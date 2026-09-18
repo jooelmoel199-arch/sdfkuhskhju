@@ -59,6 +59,8 @@ function testHumanPrayerInputIsOneShot() {
 
 function testQueuedHitResolvesOnTargetTurn() {
   const state = createPvpTestState();
+  state.red = { ...state.red, equipment: { ...state.red.equipment, weapon: undefined }, activePrayers: [] };
+  state.players = state.players.map(player => player.id === state.red.id ? state.red : player);
   state.pendingHits.push({
     id: "test-hit",
     dueTick: 0,
@@ -332,6 +334,8 @@ function testFoodAndPrayerCanPrecedeImpact() {
 
 function testRedemptionSavesLethalHit() {
   const state = createPvpTestState();
+  state.red = { ...state.red, equipment: { ...state.red.equipment, weapon: undefined } };
+  state.players = state.players.map(player => player.id === state.red.id ? state.red : player);
   state.red = {
     ...state.red,
     currentHp: 5,
