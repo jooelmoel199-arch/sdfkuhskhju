@@ -651,7 +651,60 @@ const lockDecayStage: TickStage<SimulationState> = {
   }
 };
 
-// --- 8. Respawns ---
+
+// --- 8. Neutral jungle camp AI and respawns ---
+const jungleStage: TickStage<SimulationState> = {
+  name: "jungle",
+  run: state => {
+    for (let index = 0; index < state.jungleCamps.length; index += 1) {
+      const camp = state.jungleCamps[index];
+
+      if (!camp.alive) {
+        if (camp.respawnAtTick !== undefined && state.tick >= camp.respawnAtTick) {
+          state.jungleCamps[index] = { ...camp, currentHp: camp.maxHp, alive: true, attackTimer: createAttackTimerState(), respawnAtTick: undefined, aggroTargetId: undefined };
+          log(state, camp.name + " respawns");
+        }
+        continue;
+      }
+
+      let target = camp.aggroTargetId
+        ? [state.blue, state.red].find(player => player.id === camp.aggroTargetId && player.alive)
+        : undefined;
+
+      if (!target) {
+        target = [state.blue, state.red]
+          .filter(player => player.alive && Math.hypot(player.tile.x - camp.tile.x, player.tile.y - camp.tile.y) <= camp.attackRange + 2)
+          .sort((a, b) =>
+            Math.hypot(a.tile.x - camp.tile.x, a.tile.y - camp.tile.y) -
+            Math.hypot(b.tile.x - camp.tile.x, b.tile.y - camp.tile.y)
+          )[0];
+      }
+
+      if (!target) continue;
+      const distance = Math.hypot(target.tile.x - camp.tile.x, target.tile.y - camp.tile.y);
+      if (distance > camp.attackRange || !canAttackTimer(camp.attackTimer, state.tick)) continue;
+
+      const hit = rollAttack({
+        style: camp.style,
+        attackType: "accurate",
+        attackerLevels: camp.combatLevels,
+        defenderLevels: toCombatLevels(target.stats),
+        attackerBonuses: camp.bonuses,
+        defenderBonuses: equipmentBonuses(target.equipment),
+        defenderPrayers: target.activePrayers,
+        attackerIsPlayer: false,
+        rng: state.rng
+      });
+
+      state.jungleCamps[index] = { ...camp, attackTimer: { ...camp.attackTimer, lastAttackTick: state.tick, weaponCooldownTicks: 5 }, aggroTargetId: target.id };
+      const newHp = Math.max(0, target.currentHp - hit.finalDamage);
+      setPlayer(state, { ...target, currentHp: newHp, lastCombatTick: state.tick, lastDamagedByPlayerId: camp.id });
+      log(state, hit.landed ? camp.name + " hits " + target.id + " for " + hit.finalDamage : camp.name + " misses " + target.id);
+      if (newHp <= 0) handleEnvironmentalDeath(state, { ...target, currentHp: 0 }, camp.name);
+    }
+  }
+};
+// --- 9. Respawns ---
 const respawnStage: TickStage<SimulationState> = {
   name: "respawns",
   run: state => {
