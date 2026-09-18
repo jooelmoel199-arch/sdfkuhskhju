@@ -26,6 +26,7 @@ export interface PendingHit { sourceTick:number; resolveTick:number; sequence:nu
 export interface Equipment {
   weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number;
   specialCost: number; specialMultiplier: number; defenceBonus: number; defenceStab: number; defenceSlash: number; defenceCrush: number;
+  ammoId?: string; spellId?: string;
 }
 export interface Player {
   id:string; name:string; team:Team; x:number; y:number; destinationX:number; destinationY:number;
@@ -47,7 +48,7 @@ const styleBonus=MELEE_STYLE_BONUS;
 function makePlayer(id:string,name:string,team:Team,x:number,y:number):Player{
   return {id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
     attack:75,strength:75,defence:70,xp:{attack:0,strength:0,defence:0,ranged:0,magic:0,hitpoints:0},equipment:{...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
-    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},null,null,null,null,null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,pendingHit:null,specialQueued:false,path:[]};
+    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},{id:"shortbow",quantity:1},{id:"bronze_arrow",quantity:250},{id:"fire_rune",quantity:100},{id:"air_rune",quantity:300},null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,pendingHit:null,specialQueued:false,path:[]};
 }
 
 export function createGame():GameState{
@@ -79,7 +80,12 @@ function processInput(state:GameState,command:InputCommand):void{
   case "move":setDestination(p,command.x,command.y);p.targetId=null;p.attackQueuedTick=null;p.specialQueued=false;event(state,{tick:state.tick,type:"move",attacker:p.id,x:p.destinationX,y:p.destinationY});return;
   case "attack_style":p.attackStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,style:p.attackStyle});return;\n  case "ranged_style":p.rangedStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"ranged:"+p.rangedStyle});return;\n  case "magic_style":p.magicStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"magic:"+p.magicStyle});return;
   case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
-  case "item_action":{const stack=p.inventory.slots[command.slot];if(!stack||stack.quantity<=0)return;if(command.action==="eat"&&stack.id==="lobster"&&p.hp<p.maxHp){stack.quantity--;p.inventory.food=Math.max(0,p.inventory.food-1);p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});if(stack.quantity===0)p.inventory.slots[command.slot]=null;return;}if(command.action==="equip"&&stack.id==="rune_scimitar"){Object.assign(p.equipment, WEAPONS.rune_scimitar);event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped rune scimitar"});return;}return;}
+  case "item_action":{const stack=p.inventory.slots[command.slot];if(!stack||stack.quantity<=0)return;if(command.action==="eat"&&stack.id==="lobster"&&p.hp<p.maxHp){stack.quantity--;p.inventory.food=Math.max(0,p.inventory.food-1);p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});if(stack.quantity===0)p.inventory.slots[command.slot]=null;return;}if(command.action==="equip"){
+      if(stack.id==="rune_scimitar"){Object.assign(p.equipment,{...WEAPONS.rune_scimitar,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0});delete p.equipment.ammoId;delete p.equipment.spellId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped rune scimitar"});return;}
+      if(stack.id==="shortbow"){Object.assign(p.equipment,{...WEAPONS.shortbow,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0,ammoId:"bronze_arrow"});delete p.equipment.spellId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped shortbow"});return;}
+      if(stack.id==="fire_strike"){Object.assign(p.equipment,{...WEAPONS.fire_strike,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0,spellId:"fire_strike"});delete p.equipment.ammoId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"selected fire strike"});return;}
+      return;
+    }return;}
   case "eat":{const slot=p.inventory.slots.findIndex(v=>v?.id==="lobster");if(slot>=0)processInput(state,{type:"item_action",slot,action:"eat"});return;}
   case "special":if(p.targetId&&p.inventory.specialEnergy>=p.equipment.specialCost&&p.attackQueuedTick!==null){p.specialQueued=true;event(state,{tick:state.tick,type:"special_queued",attacker:p.id,defender:p.targetId,special:true});}return;
  }
@@ -100,41 +106,76 @@ function nearestMeleeTile(from:Tile,target:Tile,range:number):Tile {
   }
   return best;
 }
-function resolveAttack(state:GameState,a:Player):void{
- if(!a.targetId||a.attackQueuedTick===null||state.tick<a.attackQueuedTick)return;
- const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.pendingHit=null;a.specialQueued=false;return;}
- if(!inMeleeRange(a,d)){const goal=nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y},a.equipment.attackRange);setDestination(a,goal.x,goal.y);return;}
- const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
- const attackerPrayer=prayerModifiers(a), defenderPrayer=prayerModifiers(d);
- const effectiveAttack=effectiveLevel(a.attack,attackerPrayer.attack,bonus.attack);
- const effectiveDefence=effectiveLevel(d.defence,defenderPrayer.defence,styleBonus[d.attackStyle].defence);
- const weapon=WEAPONS[a.equipment.weapon] ?? WEAPONS.rune_scimitar;
- const stance=weaponStance(weapon, a.attackStyle);
- const attackBonus=weaponAttackBonus(weapon, a.attackStyle);
+function combatDistance(a:Player,b:Player):number{return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y));}
+function inAttackRange(a:Player,b:Player):boolean{return combatDistance(a,b)>0&&combatDistance(a,b)<=a.equipment.attackRange;}
+function consumeResource(p:Player,id:string,amount:number):boolean{
+  const stack=p.inventory.slots.find(v=>v?.id===id);
+  if(!stack||stack.quantity<amount)return false;
+  stack.quantity-=amount;if(stack.quantity===0){const i=p.inventory.slots.indexOf(stack);p.inventory.slots[i]=null;}return true;
+}
+function rangedStyleBonuses(style:RangedStyle):{attack:number;strength:number;defence:number}{
+  if(style==="longrange")return {attack:0,strength:0,defence:3};
+  return style==="accurate"?{attack:3,strength:0,defence:0}:{attack:0,strength:0,defence:0};
+}
+function magicStyleBonuses(style:MagicStyle):{attack:number;strength:number;defence:number}{return style==="defensive"?{attack:0,strength:0,defence:3}:{attack:0,strength:0,defence:0};}
+function awardCombatXp(a:Player,damage:number,attackType:AttackType):void{
+ if(damage<=0)return;
+ const units=damage*4/3;
+ if(attackType==="melee"){switch(a.attackStyle){case "accurate":a.xp.attack+=units;break;case "aggressive":a.xp.strength+=units;break;case "defensive":a.xp.defence+=units;break;case "controlled":a.xp.attack+=units/3;a.xp.strength+=units/3;a.xp.defence+=units/3;break;}}
+ else if(attackType==="ranged"){if(a.rangedStyle==="longrange"){a.xp.ranged+=damage*2;a.xp.defence+=damage*2;}else a.xp.ranged+=damage*4;}
+ else {a.xp.magic+=a.magicStyle==="defensive"?damage*4/3:damage*2;if(a.magicStyle==="defensive")a.xp.defence+=damage*4/3;}
+ a.xp.hitpoints+=units/3;
+}
+function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
+ const special=a.specialQueued, bonus=styleBonus[a.attackStyle], attackerPrayer=prayerModifiers(a), defenderPrayer=prayerModifiers(d);
+ const effectiveAttack=effectiveLevel(a.attack,attackerPrayer.attack,bonus.attack), effectiveDefence=effectiveLevel(d.defence,defenderPrayer.defence,styleBonus[d.attackStyle].defence);
+ const weapon=WEAPONS[a.equipment.weapon]??WEAPONS.rune_scimitar, stance=weaponStance(weapon,a.attackStyle), attackBonus=weaponAttackBonus(weapon,a.attackStyle);
  const defenceBonus=stance.attackType==="stab"?d.equipment.defenceStab:stance.attackType==="crush"?d.equipment.defenceCrush:d.equipment.defenceSlash;
- const attackRoll=effectiveAttack*(attackBonus+64), defenceRoll=effectiveDefence*(defenceBonus+64);
- const hitChance=attackRoll<=defenceRoll
-   ? attackRoll/(2*(defenceRoll+1))
-   : 1-(defenceRoll+2)/(2*(attackRoll+1));
- const accuracyRoll=deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17);
- const rules=state.combatRules.onAttack(a.id,d.id,accuracyRoll,hitChance,attackRoll,defenceRoll);
- // OSRS max-hit formula: floor((effective strength * (strength bonus + 64) + 320) / 640).
+ const attackRoll=effectiveAttack*(attackBonus+64),defenceRoll=effectiveDefence*(defenceBonus+64);
+ const hitChance=attackRoll<=defenceRoll?attackRoll/(2*(defenceRoll+1)):1-(defenceRoll+2)/(2*(attackRoll+1));
+ const rules=state.combatRules.onAttack(a.id,d.id,deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17),hitChance,attackRoll,defenceRoll);
  const effectiveStrength=effectiveLevel(a.strength,attackerPrayer.strength,bonus.strength);
  const baseMaxHit=Math.max(1,Math.floor((effectiveStrength*(weapon.strengthBonus+64)+320)/640));
  const maxHit=special?Math.max(1,Math.floor(baseMaxHit*a.equipment.specialMultiplier)):baseMaxHit;
- let damage=rules.hit?Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1)):0;
- a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=state.tick+a.equipment.attackSpeed;
- // Standard melee has no projectile travel delay; PvP processing order can add one tick.
- // If the defender has already taken their turn, the queued hit waits for their next turn.
- const hitTick=a.id.localeCompare(d.id)<0?state.tick:state.tick+1;
- a.hitQueuedTick=hitTick;
+ const damage=rules.hit?Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1)):0;
+ a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=a.nextAttackTick;
+ const hitTick=a.id.localeCompare(d.id)<0?state.tick:state.tick+1;a.hitQueuedTick=hitTick;
  if(special){a.inventory.specialEnergy-=a.equipment.specialCost;event(state,{tick:state.tick,type:"special",attacker:a.id,defender:d.id,special:true});}
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,special});
- a.pendingHit={sourceTick:state.tick,resolveTick:hitTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:weapon.attackType,attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special};
+ a.pendingHit={sourceTick:state.tick,resolveTick:hitTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:"melee",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special};
+}
+function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
+ const ranged=a.equipment.attackType==="ranged", style=ranged?rangedStyleBonuses(a.rangedStyle):magicStyleBonuses(a.magicStyle);
+ const attackerPrayer=prayerModifiers(a),defenderPrayer=prayerModifiers(d);
+ const effectiveAttack=effectiveLevel(ranged?a.attack:a.magic,attackerPrayer.attack,style.attack);
+ const effectiveDefence=effectiveLevel(d.defence,defenderPrayer.defence,styleBonus[d.attackStyle].defence+style.defence);
+ const attackBonus=a.equipment.attackBonus, defenceBonus=d.equipment.defenceBonus;
+ const attackRoll=effectiveAttack*(attackBonus+64),defenceRoll=effectiveDefence*(defenceBonus+64);
+ const hitChance=attackRoll<=defenceRoll?attackRoll/(2*(defenceRoll+1)):1-(defenceRoll+2)/(2*(attackRoll+1));
+ const rules=state.combatRules.onAttack(a.id,d.id,deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17),hitChance,attackRoll,defenceRoll);
+ let damage=0;
+ if(rules.hit){
+   const maxHit=ranged?Math.max(1,Math.floor((effectiveLevel(a.strength,1,style.strength)*(a.equipment.strengthBonus+64)+320)/640)):8;
+   damage=Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53+d.x*31+d.y*17)*(maxHit+1));
+ }
+ const resourceOk=ranged?consumeResource(a,a.equipment.ammoId??"bronze_arrow",1):consumeResource(a,"fire_rune",1)&&consumeResource(a,"air_rune",3);
+ if(!resourceOk)return;
+ a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=a.nextAttackTick;
+ const travelTick=state.tick+1;
+ event(state,{tick:state.tick,type:ranged?"projectile":"spell",attacker:a.id,defender:d.id,x:d.x,y:d.y,reason:ranged?"arrow":"fire_strike"});
+ event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance});
+ a.hitQueuedTick=travelTick;
+ a.pendingHit={sourceTick:state.tick,resolveTick:travelTick,sequence:state.nextCombatSequence++,attackerId:a.id,defenderId:d.id,attackType:ranged?"ranged":"magic",attackStyle:a.attackStyle,attackRoll,defenceRoll,hitChance,succeeded:rules.hit,rawDamage:damage,special:false};
+}
+function resolveAttack(state:GameState,a:Player):void{
+ if(!a.targetId||a.attackQueuedTick===null||state.tick<a.attackQueuedTick)return;
+ const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.pendingHit=null;a.specialQueued=false;return;}
+ if(!inAttackRange(a,d)){if(a.equipment.attackType==="melee"){const goal=nearestMeleeTile({x:a.x,y:a.y},{x:d.x,y:d.y},a.equipment.attackRange);setDestination(a,goal.x,goal.y);}return;}
+ if(a.equipment.attackType==="melee")resolveMeleeAttack(state,a,d);else resolveRangedOrMagicAttack(state,a,d);
 }
 function movementStageForPlayer(state:GameState,p:Player):void{
  if(p.hp<=0)return;
- if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&!inMeleeRange(p,t)){const goal=nearestMeleeTile({x:p.x,y:p.y},{x:t.x,y:t.y},p.equipment.attackRange);setDestination(p,goal.x,goal.y);}}
+ if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&p.equipment.attackType==="melee"&&!inAttackRange(p,t)){const goal=nearestMeleeTile({x:p.x,y:p.y},{x:t.x,y:t.y},p.equipment.attackRange);setDestination(p,goal.x,goal.y);}}
  if(p.path.length){const next=p.path.shift()!;p.x=next.x;p.y=next.y;}
 }
 function prayerModifiers(p:Player):{attack:number;strength:number;defence:number}{
@@ -180,9 +221,9 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    a.hitQueuedTick=null;a.pendingHit=null;
    if(p.hp<=0)continue;
    // Protection is evaluated on the defender turn, so prayer flicks affect the queued hit.
-   const protectedByPrayer=(attackType==="melee"&&p.prayer==="protect_melee");
+   const protectedByPrayer=(attackType==="melee"&&p.prayer==="protect_melee")||(attackType==="ranged"&&p.prayer==="protect_range")||(attackType==="magic"&&p.prayer==="protect_mage");
    const damage=protectedByPrayer?Math.floor(rawDamage*0.6):rawDamage;
-   if(damage>0){p.hp=Math.max(0,p.hp-damage);awardMeleeXp(a,damage);}
+   if(damage>0){p.hp=Math.max(0,p.hp-damage);awardCombatXp(a,damage,attackType);}
    event(state,{tick:state.tick,type:succeeded?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special});
    if(p.hp<=0){
      p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHit=null;
@@ -194,7 +235,8 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
 }
 export function step(state:GameState):void{
  state.tick++;
- const inputs=state.pendingInputs.splice(0).sort((a,b)=>a.sequence-b.sequence).slice(0,10);
+ state.pendingInputs.sort((a,b)=>a.sequence-b.sequence);
+ const inputs=state.pendingInputs.splice(0,10);
  for(const input of inputs)processInput(state,input.command);
  // Player turns are deliberately ordered by stable player id. A hit is queued
  // onto the defender and resolves when that defender reaches their turn, which
