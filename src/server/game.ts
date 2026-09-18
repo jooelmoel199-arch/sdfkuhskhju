@@ -133,7 +133,7 @@ function rangedStyleBonuses(style:RangedStyle):{level:number;defence:number}{
   if(style==="longrange")return {level:0,defence:3};
   return style==="accurate"?{level:3,defence:0}:{level:0,defence:0};
 }
-function magicStyleBonuses(style:MagicStyle):{attack:number;defence:number}{return style==="defensive"?{attack:0,defence:3}:{attack:0,defence:0};}
+function magicStyleBonuses(style:MagicStyle):{level:number;defence:number}{return style==="defensive"?{level:0,defence:3}:{level:0,defence:0};}
 function awardCombatXp(a:Player,damage:number,attackType:AttackType,baseXp=0):void{
  if(attackType==="magic"&&baseXp>0)a.xp.magic+=baseXp;
  if(damage<=0)return;
@@ -163,7 +163,7 @@ function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
 function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const ranged=a.equipment.attackType==="ranged", style=ranged?rangedStyleBonuses(a.rangedStyle):magicStyleBonuses(a.magicStyle);
  const attackerPrayer=prayerModifiers(a),defenderPrayer=prayerModifiers(d);
- const effectiveAttack=effectiveLevel(ranged?a.ranged:a.magic,ranged?attackerPrayer.rangedAttack:attackerPrayer.magicAttack,style.attack);
+ const effectiveAttack=effectiveLevel(ranged?a.ranged:a.magic,ranged?attackerPrayer.rangedAttack:attackerPrayer.magicAttack,style.level);
  const effectiveDefence=effectiveLevel(d.defence,defenderPrayer.defence,styleBonus[d.attackStyle].defence+style.defence);
  const attackBonus=ranged?a.equipment.attackBonus+(AMMUNITION[a.equipment.ammoId??""]?.attackBonus??0):(a.equipment.magicAttackBonus??0), defenceBonus=d.equipment.defenceBonus;
  const effectiveMagicDefence=playerMagicDefenceLevel(d.magic,d.defence,defenderPrayer.magicDefence,defenderPrayer.defence);
