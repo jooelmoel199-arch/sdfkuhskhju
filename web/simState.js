@@ -21,27 +21,23 @@ export function stepSimulation() {
 }
 
 export function setMoveTarget(x, y = state.blue.tile.y) {
-  state.humanControl.moveTargetX = Math.max(1, Math.min(39, x));
-  state.humanControl.moveTargetY = y;
-  delete state.humanControl.attackTargetId;
+  queueClientCommand(state, {
+    kind: "move",
+    x: Math.max(1, Math.min(39, x)),
+    y
+  });
 }
 
 export function stopMovement() {
-  delete state.humanControl.moveTargetX;
-  delete state.humanControl.moveTargetY;
-  delete state.humanControl.attackTargetId;
+  queueClientCommand(state, { kind: "stop-movement" });
 }
 
 export function setAttackTarget(targetId) {
-  state.humanControl.attackTargetId = targetId;
-  const tower = state.towers.find(candidate => candidate.id === targetId && candidate.alive);
-  if (tower) {
-    state.humanControl.laneId = tower.laneId;
-  }
+  queueClientCommand(state, { kind: "attack-target", targetId });
 }
 
 export function clearAttackTarget() {
-  delete state.humanControl.attackTargetId;
+  queueClientCommand(state, { kind: "clear-attack-target" });
 }
 
 export function setLane(laneId) {
