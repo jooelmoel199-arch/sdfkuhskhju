@@ -64,13 +64,15 @@ export function stepSimulation() {
   advanceTick(state);
 }
 
-export function setMoveTarget(x) {
+export function setMoveTarget(x, y = state.blue.tile.y) {
   state.humanControl.moveTargetX = Math.max(2, Math.min(38, x));
+  state.humanControl.moveTargetY = y;
   delete state.humanControl.attackTargetId;
 }
 
 export function stopMovement() {
   delete state.humanControl.moveTargetX;
+  delete state.humanControl.moveTargetY;
   delete state.humanControl.attackTargetId;
 }
 
