@@ -835,7 +835,8 @@ function testFoodDelayExpiresAfterOneAttackCycle() {
   };
   state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
   state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
-  for (let i = 0; i < 7; i += 1) advanceTick(state);
+  // tick 7 is the first ready tick; execute that authoritative turn as well.
+  for (let i = 0; i < 8; i += 1) advanceTick(state);
   equal(state.blue.attackTimer.additiveAttackDelayTicks, 0,
     "expired food delay must be consumed instead of persisting into future attack cycles");
 }
