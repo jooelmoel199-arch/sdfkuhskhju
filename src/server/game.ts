@@ -67,7 +67,7 @@ function deterministicRoll(seed:number):number{const x=Math.sin(seed*12.9898)*43
 function inMeleeRange(a:Player,b:Player):boolean{return Math.max(Math.abs(a.x-b.x),Math.abs(a.y-b.y))<=1;}
 function resolveAttack(state:GameState,a:Player):void{
  if(!a.targetId||a.attackQueuedTick===null||state.tick<a.nextAttackTick)return;
- const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.specialQueued=false;return;}
+ const d=state.players[a.targetId];if(!d||d.hp<=0){a.targetId=null;a.attackQueuedTick=null;a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingSpecial=false;a.specialQueued=false;return;}
  if(!inMeleeRange(a,d)){setDestination(a,d.x,d.y);return;}
  const special=a.specialQueued, bonus=styleBonus[a.attackStyle];
  const effectiveAttack=a.attack+bonus.attack+8, effectiveDefence=d.defence+8;
@@ -83,8 +83,6 @@ function resolveAttack(state:GameState,a:Player):void{
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,special});
  a.pendingHitDamage=damage;a.pendingHitRoll=attackRoll;a.pendingDefenceRoll=defenceRoll;a.pendingSpecial=special;
  a.hitQueuedTick=state.tick+1;
-
- if(d.hp<=0){d.targetId=null;d.attackQueuedTick=null;a.targetId=null;event(state,{tick:state.tick,type:"death",attacker:a.id,defender:d.id});}
 }
 function movementStage(state:GameState):void{
  for(const p of Object.values(state.players)){
