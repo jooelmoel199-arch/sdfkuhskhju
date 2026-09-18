@@ -167,3 +167,10 @@ enqueueInput(boosted, { type: "attack", targetId: "opponent" });
 step(boosted);
 const boostedAttack = boosted.events.find(e => e.type === "attack");
 assert(boostedAttack !== undefined && (boostedAttack.attackRoll ?? 0) > 0, "prayer-boosted attack should produce an attack roll");
+
+
+const minions=createGame();
+assert(minions.players.goblin_guard_1 !== undefined, "goblin guard minion should spawn");
+assert(minions.players.goblin_guard_1.hp === 40, "goblin guard should use simple minion stats");
+step(minions);
+assert(minions.players.goblin_guard_1.targetId === "player", "goblin guard should automatically target the player");
