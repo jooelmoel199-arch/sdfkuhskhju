@@ -293,6 +293,7 @@ const combatStage: TickStage<SimulationState> = {
     for (const snapshot of actors) {
       const actor = state.players.find(player => player.id === snapshot.id);
       if (!actor) continue;
+      if (state.pvpTest && actor.team === "red") continue;
       if (!actor.alive || !actor.equipment.weapon) continue;
 
       const enemy = opponentOf(state, actor.id);
