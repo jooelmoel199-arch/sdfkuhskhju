@@ -118,16 +118,6 @@ function projectileHitDelay(attackType:AttackType,distance:number):number{
  if(attackType==="ranged"){if(d<=2)return 1;if(d<=8)return 2;return 3;}
  return Math.floor((d+1)/3)+1;
 }
-function projectileHitDelay(attackType:AttackType,distance:number):number{
- const d=Math.max(1,Math.min(15,distance));
- if(attackType==="melee")return 0;
- if(attackType==="ranged"){
-   if(d<=2)return 1;
-   if(d<=8)return 2;
-   return 3;
- }
- return Math.floor((d+1)/3)+1;
-}
 function consumeResource(p:Player,id:string,amount:number):boolean{
   const stack=p.inventory.slots.find(v=>v?.id===id);
   if(!stack||stack.quantity<amount)return false;
