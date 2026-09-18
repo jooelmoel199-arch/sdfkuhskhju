@@ -202,6 +202,36 @@ function clearLaneEngagementForPlayer(state: SimulationState, team: "blue" | "re
   }
 }
 
+// --- 0. Client input ---
+// Inputs are applied before player movement/interaction, matching the server
+// model used by OSRS: inventory/equipment commands can affect the same tick's
+// player turn, while food delays the combat/skilling timer.
+const clientInputStage: TickStage<SimulationState> = {
+  name: "client-input",
+  run: state => {
+    if (!state.humanControl) return;
+    const actor = state.players.find(player => player.id === state.blue.id);
+    if (!actor || !actor.alive) return;
+
+    if (state.humanControl.equipItemId) {
+      const equipped = equipOwnedItem(actor, state.humanControl.equipItemId);
+      if (equipped !== actor) {
+        setPlayer(state, equipped);
+      }
+    }
+
+    let current = state.players.find(player => player.id === actor.id) ?? actor;
+    if (state.humanControl.consumeItemId) {
+      current = applyConsumableAction(state, current, state.humanControl.consumeItemId);
+      setPlayer(state, current);
+    }
+    if (state.humanControl.comboConsumableId) {
+      current = applyConsumableAction(state, current, state.humanControl.comboConsumableId, true);
+      setPlayer(state, current);
+    }
+  }
+};
+
 // --- 1. Movement / target lane routing ---
 const movementStage: TickStage<SimulationState> = {
   name: "movement",
@@ -305,26 +335,6 @@ const combatStage: TickStage<SimulationState> = {
 
       const enemy = opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
-
-      if (actor.id === state.blue.id && state.humanControl?.consumeItemId) {
-        const updated = applyConsumableAction(state, actor, state.humanControl.consumeItemId);
-        setPlayer(state, updated);
-        if (updated !== actor) {
-          if (state.humanControl?.comboConsumableId) {
-            const combo = applyConsumableAction(state, updated, state.humanControl.comboConsumableId, true);
-            setPlayer(state, combo);
-          }
-          continue;
-        }
-      }
-
-      if (actor.id === state.blue.id && state.humanControl?.equipItemId) {
-        const equipped = equipOwnedItem(actor, state.humanControl.equipItemId);
-        if (equipped !== actor) {
-          setPlayer(state, equipped);
-          continue;
-        }
-      }
 
       if (!decision.attackStyle) continue;
 
@@ -1179,6 +1189,7 @@ const respawnStage: TickStage<SimulationState> = {
 };
 
 export const tickRunner = createTickStageRunner<SimulationState>([
+  clientInputStage,
   movementStage,
   prayerStage,
   combatStage,
