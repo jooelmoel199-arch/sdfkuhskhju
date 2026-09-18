@@ -79,8 +79,12 @@ function testQueuedHitResolvesOnTargetTurn() {
   });
   state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
   advanceTick(state);
-  equal(state.red.alive, false, "queued hit should kill before the target's combat turn");
-  equal(state.red.kills, 0, "dead target must not retaliate after its queued death");
+  equal(state.red.alive, true, "lethal hitsplat should leave death queued until the following tick");
+  equal(state.red.currentHp, 0, "lethal hitsplat should set HP to zero before death resolves");
+  equal(state.red.kills, 0, "zero-HP queued-death target must not retaliate");
+
+  advanceTick(state);
+  equal(state.red.alive, false, "queued death should resolve before the target's next combat turn");
 }
 
 function testGearSwapCanAttackSameTick() {
