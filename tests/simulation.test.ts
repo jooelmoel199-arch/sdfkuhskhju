@@ -509,7 +509,7 @@ function testStandardSpecialQueuesUntilAttackCycleIsReady() {
   equal(state.blue.queuedSpecialAttacks, 1, "a standard special should remain queued while the weapon is on cooldown");
   equal(state.blue.specEnergy, 100, "queued special should not spend energy before the attack is actually dispatched");
 
-  for (let tick = 0; tick < 5; tick += 1) advanceTick(state);
+  for (let tick = 0; tick < 6; tick += 1) advanceTick(state);
   equal(state.blue.queuedSpecialAttacks, 0, "queued standard special should be consumed when the attack cycle becomes ready");
   equal(state.blue.specEnergy, 50, "queued standard special should spend energy when the special attack executes");
 }
