@@ -11,7 +11,7 @@ import { applyProtectionDamageReduction, type PrayerId } from "../prayer/prayers
 
 export interface HitRollInput {
   readonly style: CombatStyle;
-  readonly attackType?: "accurate" | "aggressive" | "controlled" | "rapid_ranged" | "long_ranged";
+  readonly attackType?: "accurate" | "aggressive" | "defensive" | "controlled" | "rapid_ranged" | "long_ranged";
   readonly attackerLevels: CombatLevels;
   readonly defenderLevels: CombatLevels;
   readonly attackerBonuses: BonusTable;
