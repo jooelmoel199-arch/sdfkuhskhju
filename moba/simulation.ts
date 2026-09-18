@@ -242,7 +242,20 @@ const clientInputStage: TickStage<SimulationState> = {
   }
 };
 
-// --- 1. Movement / target lane routing ---
+// --- 1. Target-turn queued-hit resolution ---
+const queuedHitTurnStage: TickStage<SimulationState> = {
+  name: "queued-hit-turns",
+  run: state => {
+    const actors = [...state.players]
+      .sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id));
+    for (const actor of actors) {
+      if (!actor.alive) continue;
+      resolvePendingHitsForPlayer(state, actor.id);
+    }
+  }
+};
+
+// --- 2. Movement / target lane routing ---
 const movementStage: TickStage<SimulationState> = {
   name: "movement",
   run: state => {
@@ -402,7 +415,6 @@ const combatStage: TickStage<SimulationState> = {
     const actors = [...state.players].sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id));
 
     for (const snapshot of actors) {
-      resolvePendingHitsForPlayer(state, snapshot.id);
       const actor = state.players.find(player => player.id === snapshot.id);
       if (!actor) continue;
       if (!actor.alive || !actor.equipment.weapon) continue;
@@ -1200,8 +1212,9 @@ const respawnStage: TickStage<SimulationState> = {
 
 export const tickRunner = createTickStageRunner<SimulationState>([
   clientInputStage,
-  movementStage,
   prayerStage,
+  queuedHitTurnStage,
+  movementStage,
   combatStage,
   effectsStage,
   pendingHitStage,
