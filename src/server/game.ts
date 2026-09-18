@@ -186,7 +186,7 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  a.nextAttackTick=state.tick+attackSpeed;a.attackQueuedTick=a.nextAttackTick;
   const distance=combatDistance(a,d);
   const travelTicks=projectileHitDelay(ranged?"ranged":"magic",distance);
-  const travelTick=state.tick+travelTicks;
+  const travelTick=state.tick+travelTicks+(d.pid<a.pid?1:0);
   event(state,{tick:state.tick,type:ranged?"projectile":"spell",attacker:a.id,defender:d.id,x:d.x,y:d.y,sourceX:a.x,sourceY:a.y,reason:ranged?(a.equipment.ammoId??"projectile"):(a.equipment.spellId??"spell"),resolveTick:travelTick,attackType:ranged?"ranged":"magic"});
  event(state,{tick:state.tick,type:"attack",attacker:a.id,defender:d.id,attackRoll,defenceRoll,hitChance,attackType:ranged?"ranged":"magic"});
  a.hitQueuedTick=travelTick;
