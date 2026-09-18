@@ -45,6 +45,19 @@ function testPvpTestLane() {
   ok(state.blue.inventory.some(item => item.id === "ancient_staff"), "PvP test loadout should contain an ice spell weapon");
 }
 
+function testSameTickPrayerFlickConsumesNoPrayer() {
+  const state = createPvpTestState();
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+  queueClientCommand(state, { kind: "prayer", prayerId: "protect_from_melee" });
+  queueClientCommand(state, { kind: "prayer", prayerId: "protect_from_melee" });
+
+  const before = state.blue.prayerPoints;
+  advanceTick(state);
+
+  equal(state.blue.prayerPoints, before, "activating and deactivating a prayer within one client tick should not drain prayer");
+  ok(!state.blue.activePrayers.includes("protect_from_melee"), "same-tick prayer flick should finish inactive");
+}
+
 function testHumanPrayerInputIsOneShot() {
   const state = createPvpTestState();
   state.humanControl = {
@@ -795,6 +808,7 @@ testPrototypeShape();
 testPvpTestLane();
 testAuthoritativeStageOrder();
 testHumanPrayerInputIsOneShot();
+testSameTickPrayerFlickConsumesNoPrayer();
 testQueuedHitResolvesOnTargetTurn();
 testGearSwapCanAttackSameTick();
 testFoodAddsToCombatTimer();
