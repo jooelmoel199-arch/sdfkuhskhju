@@ -45,6 +45,8 @@ function testProjectileDelay() {
     attackType: "rapid_ranged"
   };
   state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.players = state.players.map(player => player.id === state.red.id ? { ...player, tile: { x: 15, y: 20 }, zone: "lane" } : player);
+  state.red = state.players.find(player => player.id === state.red.id)!;
   state.humanControl = {
     attackEnabled: true,
     laneId: "middle",
