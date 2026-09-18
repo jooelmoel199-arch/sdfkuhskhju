@@ -235,10 +235,10 @@ function testQueuedHitUsesImpactPrayer() {
   state.pendingHits.push({
     id: "impact-prayer-test",
     dueTick: 1,
-    attackerId: state.blue.id,
-    targetId: state.red.id,
-    attackerPid: state.blue.pid,
-    targetPid: state.red.pid,
+    attackerId: state.red.id,
+    targetId: state.blue.id,
+    attackerPid: state.red.pid,
+    targetPid: state.blue.pid,
     style: "ranged",
     attackType: "rapid_ranged",
     landed: true,
@@ -252,7 +252,7 @@ function testQueuedHitUsesImpactPrayer() {
   state.humanControl.activatePrayer = "protect_from_missiles";
   advanceTick(state);
 
-  equal(state.red.currentHp, 87, "missile protection should reduce a queued 20 damage hit to 12 at impact");
+  equal(state.blue.currentHp, 87, "missile protection should reduce a queued 20 damage hit to 12 at impact");
 }
 
 function testCampRespawnSchedule() {
