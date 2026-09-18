@@ -181,20 +181,24 @@ function testProjectileDelay() {
       " gate context logs=" + state.log.slice(-12).map(entry => "[" + entry.tick + "] " + entry.message).join(" | ")
     );
   }
-  equal(state.projectiles[0].hitTick - state.projectiles[0].createdTick, 2, "8-tile bow projectile should use a 2-tick hit delay");
+  equal(state.projectiles[0].hitTick - state.projectiles[0].createdTick, 3, "8-tile bow projectile should use a 3-tick hit delay");
 }
 
 function testOsrsHitTiming() {
-  equal(distanceHitDelay("ranged", 1), 1, "bows should hit in 1 tick at distance 1");
-  equal(distanceHitDelay("ranged", 8), 2, "bows should hit in 2 ticks at distance 8");
-  equal(distanceHitDelay("ranged", 9), 3, "bows should hit in 3 ticks at distance 9");
-  equal(distanceHitDelay("magic", 1), 1, "magic should hit in 1 tick at distance 1");
-  equal(distanceHitDelay("magic", 4), 2, "magic should hit in 2 ticks at distance 4");
-  equal(distanceHitDelay("magic", 5), 3, "magic should hit in 3 ticks at distance 5");
+  equal(distanceHitDelay("ranged", 1), 2, "bows should hit in 2 ticks at distance 1");
+  equal(distanceHitDelay("ranged", 8), 3, "bows should hit in 3 ticks at distance 8");
+  equal(distanceHitDelay("ranged", 9), 4, "bows should hit in 4 ticks at distance 9");
+  equal(distanceHitDelay("ranged", 2), 2, "bows should hit in 2 ticks at distance 2");
+  equal(distanceHitDelay("ranged", 3), 3, "bows should hit in 3 ticks at distance 3");
+  equal(distanceHitDelay("magic", 2), 3, "magic should hit in 3 ticks at distance 2");
+  equal(distanceHitDelay("magic", 8), 5, "magic should hit in 5 ticks at distance 8");
+  equal(distanceHitDelay("magic", 1), 2, "magic should hit in 2 ticks at distance 1");
+  equal(distanceHitDelay("magic", 4), 3, "magic should hit in 3 ticks at distance 4");
+  equal(distanceHitDelay("magic", 5), 4, "magic should hit in 4 ticks at distance 5");
   equal(meleeHitTick(10, 1, 2), 10, "higher-priority attacker should land melee damage on the same tick");
   equal(meleeHitTick(10, 2, 1), 11, "lower-priority attacker should incur a one-tick processing delay");
-  equal(projectileHitTick(10, "ranged", 8, 1, 2), 12, "higher-priority ranged attack uses base projectile delay");
-  equal(projectileHitTick(10, "ranged", 8, 2, 1), 13, "lower-priority ranged attack gets the processing-order tick");
+  equal(projectileHitTick(10, "ranged", 8, 1, 2), 13, "higher-priority ranged attack uses the 3-tick projectile delay");
+  equal(projectileHitTick(10, "ranged", 8, 2, 1), 14, "lower-priority ranged attack gets the processing-order tick");
 }
 
 function testPlayerMagicFormula() {
