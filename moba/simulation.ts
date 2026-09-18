@@ -5,7 +5,7 @@ import { dispatchAttack } from "../combat/attackGate";
 import { rollAttack } from "../combat/resolve";
 import { compatiblePrayerSet, type PrayerId } from "../prayer/prayers";
 import type { PlayerEntity, MinionEntity, TowerEntity } from "./entities";
-import { consumeItem, equipItem, equipmentBonuses, nextPid, inventoryCount } from "./entities";
+import { consumeItem, equipItem, equipmentBonuses, nextPid, inventoryCount, addInventoryItem } from "./entities";
 import { toCombatLevels, grantUnallocatedXp, investXp, maxHitpoints, levelOf } from "./stats";
 import { gpRewards, xpRewards, shopCatalog } from "./economy";
 import { decideAction, findConsumable } from "./ai";
@@ -57,6 +57,8 @@ export interface SimulationState {
     investStat?: "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints";
     buyItemId?: string;
     useSpecial?: boolean;
+    buyConsumableId?: string;
+    buyConsumableQuantity?: number;
   };
 }
 
@@ -94,7 +96,9 @@ function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerE
     eatItemId: state.humanControl.consumeItemId,
     useSpecial: Boolean(state.humanControl.useSpecial),
     investStat: state.humanControl.investStat,
-    buyItemId: state.humanControl.buyItemId
+    buyItemId: state.humanControl.buyItemId,
+    buyConsumableId: state.humanControl.buyConsumableId,
+    buyConsumableQuantity: state.humanControl.buyConsumableQuantity
   };
 }
 
@@ -331,6 +335,16 @@ const effectsStage: TickStage<SimulationState> = {
         }
       }
 
+      if (decision.buyConsumableId && updated.zone === "base") {
+        const item = findConsumable(decision.buyConsumableId);
+        const quantity = Math.max(1, Math.trunc(decision.buyConsumableQuantity ?? 1));
+        const totalCost = item ? item.cost * quantity : Infinity;
+        if (item && updated.gp >= totalCost) {
+          updated = addInventoryItem(updated, item.id, quantity);
+          updated = { ...updated, gp: updated.gp - totalCost };
+          log(state, `${updated.id} buys ${quantity}x ${item.name}`);
+        }
+      }
       updated = {
         ...updated,
         statusEffects: updated.statusEffects.filter(effect => effect.expiresAtTick > state.tick),
@@ -562,6 +576,8 @@ export function advanceTick(state: SimulationState): void {
     delete state.humanControl.investStat;
     delete state.humanControl.buyItemId;
     delete state.humanControl.useSpecial;
+    delete state.humanControl.buyConsumableId;
+    delete state.humanControl.buyConsumableQuantity;
   }
   state.tick += 1;
 }
