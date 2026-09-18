@@ -1,11 +1,11 @@
-import { createPrototypeState } from "../moba/factory.ts";
+import { createPrototypeState, createPvpTestState } from "../moba/factory.ts";
 import { advanceTick, TICK_MS } from "../moba/simulation.ts";
 import { maxHitpoints } from "../moba/stats.ts";
 import { LANE_Y, zoneAt } from "../moba/lane.ts";
 import { shopCatalog } from "../moba/economy.ts";
 
 let state = {
-  ...createPrototypeState(),
+  ...createPvpTestState(),
   humanControl: { attackEnabled: true, laneId: "middle" }
 };
 
@@ -116,5 +116,5 @@ export function buyConsumables(itemId, quantity = 1) {
 }
 
 export function resetSimulation() {
-  state = { ...createPrototypeState(), humanControl: { attackEnabled: true, laneId: "middle" } };
+  state = { ...createPvpTestState(), humanControl: { attackEnabled: true, laneId: "middle" } };
 }
