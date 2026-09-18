@@ -308,6 +308,13 @@ function drawMinimap() {
     mini.fillRect((minion.tile.x / 40) * 180 + 3, miniLaneY[minion.laneId] - 1, 2, 2);
   }
 
+  for (const camp of state.jungleCamps) {
+    const x = (camp.tile.x / 40) * 180 + 3;
+    const y = (camp.tile.y / 40) * 85 + 18;
+    mini.fillStyle = camp.alive ? "#d9ad4f" : "#6c6655";
+    mini.fillRect(x - 2, y - 2, 4, 4);
+  }
+
   for (const player of [state.blue, state.red]) {
     if (!player.alive) continue;
     mini.fillStyle = player.team === "blue" ? "#4da2ff" : "#ff5d5d";
