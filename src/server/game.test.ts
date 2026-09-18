@@ -155,10 +155,16 @@ assert(prayed.players.player.prayerPoints===prayerBefore-1,"active prayer should
 assert(standardMaxHit(83,44)===14,"rune-scimitar style baseline should use the 0.5 max-hit formula");
 assert(Math.abs(hitChanceFromRolls(100,200)-(100/(2*201)))<1e-12,"under-roll accuracy formula should match OSRS");
 assert(Math.abs(hitChanceFromRolls(300,200)-(1-(202/(2*301))))<1e-12,"over-roll accuracy formula should match OSRS");
-assert(magicMaxHit(8,0.20)===9,"Mystic Might's 20% magic damage should raise Fire Strike max hit to 9");
+assert(magicMaxHit(8,0.02)===8,"Mystic Might's current 2% magic damage bonus should be applied after the spell base hit");
 assert(playerMagicDefenceLevel(75,70,1.15,1)===89,"magic defence should weight boosted Magic at 70% and Defence at 30%");
 assert(projectileHitDelay("ranged",1)===1 && projectileHitDelay("ranged",8)===2 && projectileHitDelay("ranged",9)===3,"bow hit-delay breakpoints should match modern distance table");
 assert(projectileHitDelay("magic",1)===1 && projectileHitDelay("magic",2)===2 && projectileHitDelay("magic",5)===3 && projectileHitDelay("magic",10)===4,"standard magic projectile hit-delay breakpoints should match modern distance table");
+const prayerStack=createGame();
+prayerStack.players.player.prayerPoints=20;
+enqueueInput(prayerStack,{type:"prayer",prayer:"eagle_eye"});step(prayerStack);
+enqueueInput(prayerStack,{type:"prayer",prayer:"protect_range"});step(prayerStack);
+assert(prayerStack.players.player.activePrayers.includes("eagle_eye") && prayerStack.players.player.activePrayers.includes("protect_range"),"offensive and overhead prayers should coexist");
+assert(prayerStack.players.player.prayer==="protect_range","latest selected prayer should remain exposed for client compatibility");
 console.log("server combat queue tests passed");
 
 const xpGame = createGame();
