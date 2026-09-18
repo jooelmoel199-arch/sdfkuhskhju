@@ -504,17 +504,17 @@ const combatStage: TickStage<SimulationState> = {
           landed: hit.landed,
           hitChance: hit.hitChance,
           rawDamage: hit.finalDamage,
-          freezeTicks: attackStyle === "magic" ? weapon.spell?.freezeTicks : undefined,
+          freezeTicks: attackStyle === "magic" ? spellProfile(state.humanControl?.spellId).freezeTicks : undefined,
           createdTick: state.tick
         });
       }
 
-      if (attackStyle === "magic" && weapon.spell?.aoeRadius && currentEnemy.zone !== "lane") {
+      if (attackStyle === "magic" && spellProfile(state.humanControl?.spellId).aoeRadius && currentEnemy.zone !== "lane") {
         const secondaryTargets = state.players.filter(target =>
           target.alive &&
           target.team !== actor.team &&
           target.id !== currentEnemy.id &&
-          Math.max(Math.abs(target.tile.x - currentEnemy.tile.x), Math.abs(target.tile.y - currentEnemy.tile.y)) <= weapon.spell!.aoeRadius
+          Math.max(Math.abs(target.tile.x - currentEnemy.tile.x), Math.abs(target.tile.y - currentEnemy.tile.y)) <= spellProfile(state.humanControl?.spellId).aoeRadius
         );
         for (const secondary of secondaryTargets) {
           const secondaryPrayer = aggregatePrayerBoosts(secondary.activePrayers);
@@ -530,7 +530,7 @@ const combatStage: TickStage<SimulationState> = {
             attackBoostMultiplier,
             strengthBoostMultiplier,
             defenceBoostMultiplier: 1 + secondaryPrayer.defence,
-            maxMagicDamage: weapon.spell.maxHit,
+            maxMagicDamage: spellProfile(state.humanControl?.spellId).maxHit,
             accuracyMultiplier: special?.accuracyMultiplier,
             damageMultiplier: special?.damageMultiplier,
             rng: state.rng
@@ -548,7 +548,7 @@ const combatStage: TickStage<SimulationState> = {
             landed: secondaryHit.landed,
             hitChance: secondaryHit.hitChance,
             rawDamage: secondaryHit.finalDamage,
-            freezeTicks: weapon.spell.freezeTicks,
+            freezeTicks: spellProfile(state.humanControl?.spellId).freezeTicks,
             createdTick: state.tick
           });
         }
