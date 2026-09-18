@@ -259,6 +259,20 @@ function testQueuedHitUsesImpactPrayer() {
 
 
 
+
+function testPvPDummyProvidesIncomingPressure() {
+  const state = createPvpTestState();
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+  advanceTick(state);
+  ok(state.red.activePrayers.includes("protect_from_melee"), "dummy should use a defensive prayer for its melee weapon");
+  for (let i = 0; i < 5; i += 1) advanceTick(state);
+  ok(
+    state.pendingHits.some(hit => hit.attackerId === state.red.id) ||
+    state.combatEvents.some(event => event.attackerId === state.red.id),
+    "active PvP dummy should eventually produce incoming damage"
+  );
+}
+
 function testMissedFreezeDoesNotApply() {
   const state = createPvpTestState();
   state.pendingHits.push({
@@ -388,6 +402,7 @@ testProjectileDelay();
 testOsrsHitTiming();
 testPlayerMagicFormula();
 testDragonClawsSpecial();
+testPvPDummyProvidesIncomingPressure();
 testMissedFreezeDoesNotApply();
 testDragonClawsExposeRawDamageForImpactPrayer();
 testFoodAndPrayerCanPrecedeImpact();
