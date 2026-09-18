@@ -74,5 +74,8 @@ export function dispatchAttack(input: AttackGateInput): { readonly gate: AttackG
   if (!gate.canAttack) {
     return { gate, attackTimer: input.attackTimer };
   }
-  return { gate, attackTimer: updateLastAttack(input.attackTimer, input.currentTick, input.weapon.cooldownTicks) };
+  const cooldown = input.weapon.attackType === "rapid_ranged"
+    ? Math.max(1, input.weapon.cooldownTicks - 1)
+    : input.weapon.cooldownTicks;
+  return { gate, attackTimer: updateLastAttack(input.attackTimer, input.currentTick, cooldown) };
 }
