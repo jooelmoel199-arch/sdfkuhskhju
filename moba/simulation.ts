@@ -1125,6 +1125,20 @@ const minionStage: TickStage<SimulationState> = {
     const sorted = [...alive].sort((a, b) => a.pid - b.pid);
 
     for (const minion of sorted) {
+      const queued = resolvePendingNpcHits(state, minion.id);
+      for (const hit of queued) {
+        if (!minion.alive || !hit.landed) continue;
+        minion.currentHp = Math.max(0, minion.currentHp - hit.rawDamage);
+        log(state, `${hit.attackerId} hits ${minion.id} for ${hit.rawDamage}`);
+        if (minion.currentHp <= 0) {
+          minion.alive = false;
+          const killer = state.players.find(player => player.id === hit.attackerId);
+          if (killer) rewardNearestPlayer(state, killer as unknown as MinionEntity);
+          log(state, `${minion.id} is destroyed`);
+        }
+      }
+      if (!minion.alive) continue;
+
       const enemyMinions = alive
         .filter(other => other.alive && other.team !== minion.team && other.laneId === minion.laneId)
         .map(other => ({ other, dist: Math.abs(other.tile.x - minion.tile.x) }))
@@ -1183,12 +1197,20 @@ const minionStage: TickStage<SimulationState> = {
             });
             log(state, `${minion.id} queues ${currentTarget.id} for ${damage} damage`);
           } else {
-            target.entity.currentHp = Math.max(0, target.entity.currentHp - damage);
-            if (target.entity.currentHp <= 0) {
-              target.entity.alive = false;
-              log(state, `${minion.id} destroys ${target.entity.id}`);
-              if (target.kind === "minion") rewardNearestPlayer(state, minion);
-            }
+            enqueuePendingNpcHit(state, {
+              id: `npc-target-hit-${minion.id}-${state.tick}-${state.pendingHitSequence + 1}`,
+              dueTick: state.tick + 1,
+              attackerId: minion.id,
+              targetId: target.entity.id,
+              attackerPid: minion.pid,
+              targetPid: -1,
+              style: minion.style,
+              attackType: "accurate",
+              landed: true,
+              hitChance: 1,
+              rawDamage: damage,
+              createdTick: state.tick
+            });
           }
         }
       } else {
