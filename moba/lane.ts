@@ -11,7 +11,7 @@ export const RED_BASE_X = LANE_LENGTH;
 export const BLUE_TOWER_X = 6;
 export const RED_TOWER_X = LANE_LENGTH - 6;
 
-export const LANE_Y: Record<LaneId, number> = { top: 0, middle: 10, bottom: 20 };
+export const LANE_Y: Record<LaneId, number> = { top: 0, middle: 20, bottom: 40 };
 
 export function laneIndex(lane: LaneId): number {
   return LANES.indexOf(lane);
@@ -36,7 +36,10 @@ export function zoneAt(tile: TilePosition): ZoneKind {
   const laneOffset = Math.abs(tile.y - LANE_Y[lane]);
   if (tile.x <= 1 || tile.x >= LANE_LENGTH - 1) return "base";
   if (laneOffset <= 1 && tile.x >= LANE_CORE_START && tile.x <= LANE_CORE_END) return "lane";
-  return "river";
+  const betweenTopMiddle = tile.y >= 8 && tile.y <= 12;
+  const betweenMiddleBottom = tile.y >= 28 && tile.y <= 32;
+  if (betweenTopMiddle || betweenMiddleBottom) return "river";
+  return "jungle";
 }
 
 export function isSingles(zone: ZoneKind): boolean {
