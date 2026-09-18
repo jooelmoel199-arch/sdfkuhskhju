@@ -260,6 +260,91 @@ function testQueuedHitUsesImpactPrayer() {
 
 
 
+
+function testPidTurnPreventsDeadPlayerAction() {
+  const state = createPvpTestState();
+  const redWeapon = state.red.equipment.weapon;
+  ok(redWeapon, "red dummy should start with a weapon");
+  state.blue = {
+    ...state.blue,
+    tile: { x: 19, y: state.blue.tile.y },
+    attackTimer: { lastAttackTick: -10, weaponCooldownTicks: 4, additiveAttackDelayTicks: 0 }
+  };
+  state.red = {
+    ...state.red,
+    tile: { x: 20, y: state.red.tile.y },
+    attackTimer: { lastAttackTick: -10, weaponCooldownTicks: 4, additiveAttackDelayTicks: 0 },
+    currentHp: 1
+  };
+  state.players = state.players.map(player =>
+    player.id === state.blue.id ? state.blue :
+    player.id === state.red.id ? state.red : player
+  );
+  state.pidOrder = [state.blue.id, state.red.id];
+  state.pendingHits.push({
+    id: "pid-turn-lethal",
+    dueTick: 0,
+    attackerId: state.blue.id,
+    targetId: state.red.id,
+    attackerPid: state.blue.pid,
+    targetPid: state.red.pid,
+    style: "slash",
+    attackType: "aggressive",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 10,
+    createdTick: 0
+  });
+  state.humanControl = {
+    attackEnabled: true,
+    laneId: "middle",
+    attackTargetId: state.red.id
+  };
+
+  advanceTick(state);
+
+  ok(!state.red.alive, "lower-PID red player should die on its own target turn");
+  ok(
+    !state.combatEvents.some(event => event.tick === 0 && event.attackerId === state.red.id),
+    "a player killed during its PID turn must not execute combat later that tick"
+  );
+}
+
+function testPidTurnRunsPrayerBeforeIncomingImpact() {
+  const state = createPvpTestState();
+  state.blue = { ...state.blue, currentHp: 99, tile: { x: 19, y: state.blue.tile.y }, activePrayers: [] };
+  state.red = { ...state.red, tile: { x: 20, y: state.red.tile.y } };
+  state.players = state.players.map(player =>
+    player.id === state.blue.id ? state.blue :
+    player.id === state.red.id ? state.red : player
+  );
+  state.pidOrder = [state.red.id, state.blue.id];
+  state.pendingHits.push({
+    id: "pid-prayer-order",
+    dueTick: 0,
+    attackerId: state.red.id,
+    targetId: state.blue.id,
+    attackerPid: state.red.pid,
+    targetPid: state.blue.pid,
+    style: "ranged",
+    attackType: "rapid_ranged",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 20,
+    createdTick: 0
+  });
+  state.humanControl = {
+    attackEnabled: false,
+    laneId: "middle",
+    attackTargetId: state.red.id,
+    activatePrayer: "protect_from_missiles"
+  };
+
+  advanceTick(state);
+
+  equal(state.blue.currentHp, 87, "the target's prayer command must execute before its queued impact on its PID turn");
+}
+
 function testPvPDummyProvidesIncomingPressure() {
   const state = createPvpTestState();
   state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
@@ -402,6 +487,8 @@ testProjectileDelay();
 testOsrsHitTiming();
 testPlayerMagicFormula();
 testDragonClawsSpecial();
+testPidTurnPreventsDeadPlayerAction();
+testPidTurnRunsPrayerBeforeIncomingImpact();
 testPvPDummyProvidesIncomingPressure();
 testMissedFreezeDoesNotApply();
 testDragonClawsExposeRawDamageForImpactPrayer();
