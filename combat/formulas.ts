@@ -32,7 +32,7 @@ export interface StyleEvInput {
   readonly defenderLevels: CombatLevels;
   readonly attackerBonuses: BonusTable;
   readonly defenderBonuses: BonusTable;
-  readonly attackType?: "accurate" | "aggressive" | "controlled" | "rapid_ranged" | "long_ranged";
+  readonly attackType?: "accurate" | "aggressive" | "defensive" | "controlled" | "rapid_ranged" | "long_ranged";
   readonly attackBoostMultiplier?: number;
   readonly defenceBoostMultiplier?: number;
   readonly magicDefenceBoostMultiplier?: number;
@@ -253,6 +253,9 @@ function accuracyStyleBonus(
   }
   if (style === "magic") {
     return attackType === undefined ? 0 : 1;
+  }
+  if (attackType === "defensive") {
+    return 3;
   }
   if (attackType === "controlled" || attackType === "long_ranged") {
     return 1;
