@@ -254,7 +254,6 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
      break;
    }
  }
- state.pendingHits=state.pendingHits.filter(hit=>hit.resolveTick>state.tick);
 }
 export function step(state:GameState):void{
  state.tick++;
@@ -271,4 +270,5 @@ export function step(state:GameState):void{
    movementStageForPlayer(state,p);
    resolveAttack(state,p);
  }
+ state.pendingHits=state.pendingHits.filter(hit=>hit.resolveTick>state.tick);
 }
