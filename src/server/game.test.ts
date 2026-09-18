@@ -174,3 +174,12 @@ assert(minions.players.goblin_guard_1 !== undefined, "goblin guard minion should
 assert(minions.players.goblin_guard_1.hp === 40, "goblin guard should use simple minion stats");
 step(minions);
 assert(minions.players.goblin_guard_1.targetId === "player", "goblin guard should automatically target the player");
+
+
+// More than the per-tick processing budget remains queued rather than being dropped.
+const inputBacklog=createGame();
+for(let i=0;i<12;i++) enqueueInput(inputBacklog,{type:"move",x:2+i%10,y:2});
+step(inputBacklog);
+assert(inputBacklog.pendingInputs.length===2,"input backlog must survive the per-tick processing cap");
+step(inputBacklog);
+assert(inputBacklog.pendingInputs.length===0,"queued inputs should drain on later ticks");
