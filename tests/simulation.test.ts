@@ -255,6 +255,81 @@ function testQueuedHitUsesImpactPrayer() {
   equal(state.blue.currentHp, 87, "missile protection should reduce a queued 20 damage hit to 12 at impact");
 }
 
+
+
+function testMissedFreezeDoesNotApply() {
+  const state = createPvpTestState();
+  state.pendingHits.push({
+    id: "missed-freeze-test",
+    dueTick: 1,
+    attackerId: state.blue.id,
+    targetId: state.red.id,
+    attackerPid: state.blue.pid,
+    targetPid: state.red.pid,
+    style: "magic",
+    attackType: "accurate",
+    landed: false,
+    hitChance: 0,
+    rawDamage: 0,
+    freezeTicks: 20,
+    createdTick: 0
+  });
+  state.humanControl = { attackEnabled: false, laneId: "middle", attackTargetId: state.red.id };
+  advanceTick(state);
+  advanceTick(state);
+  equal(state.red.locks.freezeUntilTick, -1, "a missed ice spell must not freeze its target");
+}
+
+function testDragonClawsExposeRawDamageForImpactPrayer() {
+  const result = rollDragonClawsSpecial({
+    style: "slash",
+    attackType: "aggressive",
+    attackerLevels: { attack: 99, strength: 99, defence: 99, ranged: 99, magic: 99 },
+    defenderLevels: { attack: 1, strength: 1, defence: 1, ranged: 1, magic: 1 },
+    attackerBonuses: { ...zeroBonuses, slash_attack_bonus: 132, melee_strength_bonus: 114 },
+    defenderBonuses: { ...zeroBonuses },
+    defenderPrayers: ["protect_from_melee"],
+    attackerIsPlayer: true,
+    rng: () => 0
+  });
+  equal(result.rawDamages.length, 4, "Dragon claws should expose four raw impact values");
+  equal(result.damages.reduce((sum, damage) => sum + damage, 0),
+    result.rawDamages.reduce((sum, damage) => sum + Math.floor(damage * 0.6), 0),
+    "launch-time prayer view should remain consistent with raw claws damage");
+}
+
+function testFoodAndPrayerCanPrecedeImpact() {
+  const state = createPvpTestState();
+  state.blue = { ...state.blue, currentHp: 60 };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.pendingHits.push({
+    id: "food-prayer-impact-test",
+    dueTick: 1,
+    attackerId: state.red.id,
+    targetId: state.blue.id,
+    attackerPid: state.red.pid,
+    targetPid: state.blue.pid,
+    style: "ranged",
+    attackType: "rapid_ranged",
+    landed: true,
+    hitChance: 1,
+    rawDamage: 20,
+    createdTick: 0
+  });
+  state.humanControl = {
+    attackEnabled: false,
+    laneId: "middle",
+    attackTargetId: state.red.id,
+    consumeItemId: "shark"
+  };
+  advanceTick(state);
+  const healed = state.blue.currentHp;
+  state.humanControl.activatePrayer = "protect_from_missiles";
+  advanceTick(state);
+  equal(state.blue.currentHp, healed - 12, "impact should use the current protection prayer after the food tick");
+  ok(state.blue.attackTimer.additiveAttackDelayTicks >= 3, "food should still delay the next attack cycle");
+}
+
 function testRedemptionSavesLethalHit() {
   const state = createPvpTestState();
   state.red = {
@@ -309,6 +384,9 @@ testProjectileDelay();
 testOsrsHitTiming();
 testPlayerMagicFormula();
 testDragonClawsSpecial();
+testMissedFreezeDoesNotApply();
+testDragonClawsExposeRawDamageForImpactPrayer();
+testFoodAndPrayerCanPrecedeImpact();
 testQueuedHitUsesImpactPrayer();
 testRedemptionSavesLethalHit();
 testCampRespawnSchedule();
