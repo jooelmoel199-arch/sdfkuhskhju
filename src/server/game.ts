@@ -26,7 +26,7 @@ export interface Inventory { slots:Array<ItemStack|null>; food: number; specialE
 export interface CombatXp { attack:number; strength:number; defence:number; ranged:number; magic:number; hitpoints:number; }
 export interface PendingHit { sourceTick:number; resolveTick:number; sequence:number; attackerId:string; defenderId:string; attackType:AttackType; attackStyle:AttackStyle; attackRoll:number; defenceRoll:number; hitChance:number; succeeded:boolean; rawDamage:number; special:boolean; baseXp:number; delivery:"melee"|"projectile"|"spell"; }
 export interface Equipment {
-  weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number; magicAttackBonus?: number;
+  weapon: string; attackType: AttackType; attackRange: number; attackSpeed: number; attackBonus: number; strengthBonus: number; magicAttackBonus?: number; magicDamageBonus?: number; prayerBonus?: number;
   specialCost: number; specialMultiplier: number; defenceBonus: number; defenceStab: number; defenceSlash: number; defenceCrush: number;
   ammoId?: string; spellId?: string;
 }
@@ -34,7 +34,7 @@ export interface Player {
   pid:number; id:string; name:string; team:Team; x:number; y:number; destinationX:number; destinationY:number;
   hp:number; maxHp:number; prayerPoints:number; maxPrayerPoints:number;
   attack:number; strength:number; defence:number; ranged:number; magic:number; xp:CombatXp; equipment:Equipment; inventory:Inventory;
-  prayer:Prayer; prayerNextDrainTick:number|null; attackStyle:AttackStyle; rangedStyle:RangedStyle; magicStyle:MagicStyle; targetId:string|null; nextAttackTick:number;
+  prayer:Prayer; prayerNextDrainTick:number|null; prayerDrainCounter:number; attackStyle:AttackStyle; rangedStyle:RangedStyle; magicStyle:MagicStyle; targetId:string|null; nextAttackTick:number;
   attackQueuedTick:number|null; hitQueuedTick:number|null; specialQueued:boolean; path:Tile[];
 }
 export interface CombatEvent {
@@ -46,11 +46,16 @@ export interface QueuedInput { sequence:number; receivedTick:number; command:Inp
 export interface GameState { tick:number; nextInputSequence:number; nextCombatSequence:number; players:Record<string,Player>; pendingInputs:QueuedInput[]; pendingHits:PendingHit[]; events:CombatEvent[]; readonly combatRules:CombatRules; }
 
 const styleBonus=MELEE_STYLE_BONUS;
+const PRAYER_DRAIN_EFFECT:Record<Exclude<Prayer,null>,number>={
+ protect_melee:12,protect_mage:12,protect_range:12,
+ eagle_eye:12,mystic_might:12,
+ burst_of_strength:1,clarity_of_thought:1,superhuman_strength:6,improved_reflexes:6,incredible_reflexes:12,ultimate_strength:12,steel_skin:12
+};
 
 function makePlayer(pid:number,id:string,name:string,team:Team,x:number,y:number):Player{
   return {pid,id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
     attack:75,strength:75,defence:70,ranged:75,magic:75,xp:{attack:0,strength:0,defence:0,ranged:0,magic:0,hitpoints:0},equipment:{weapon:WEAPONS.rune_scimitar.id,...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
-    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},{id:"shortbow",quantity:1},{id:"bronze_arrow",quantity:250},{id:"fire_rune",quantity:100},{id:"air_rune",quantity:300},{id:"fire_strike",quantity:1},null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,prayerNextDrainTick:null,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,specialQueued:false,path:[]};
+    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},{id:"shortbow",quantity:1},{id:"bronze_arrow",quantity:250},{id:"fire_rune",quantity:100},{id:"air_rune",quantity:300},{id:"fire_strike",quantity:1},null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,prayerNextDrainTick:null,prayerDrainCounter:0,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,specialQueued:false,path:[]};
 }
 
 export function createGame():GameState{
@@ -83,7 +88,7 @@ function processInput(state:GameState,command:InputCommand):void{
   case "attack_style":p.attackStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,style:p.attackStyle});return;
   case "ranged_style":p.rangedStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"ranged:"+p.rangedStyle});return;
   case "magic_style":p.magicStyle=command.style;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"magic:"+p.magicStyle});return;
-  case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;p.prayerNextDrainTick=command.prayer===null?null:state.tick+1;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
+  case "prayer":if(command.prayer!==null&&p.prayerPoints<=0)return;p.prayer=command.prayer;p.prayerNextDrainTick=null;if(command.prayer!==null)p.prayerDrainCounter=0;event(state,{tick:state.tick,type:"prayer",attacker:p.id,prayer:p.prayer});return;
   case "item_action":{const stack=p.inventory.slots[command.slot];if(!stack||stack.quantity<=0)return;if(command.action==="eat"&&stack.id==="lobster"&&p.hp<p.maxHp){stack.quantity--;p.inventory.food=Math.max(0,p.inventory.food-1);p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});if(stack.quantity===0)p.inventory.slots[command.slot]=null;return;}if(command.action==="equip"){
       if(stack.id==="rune_scimitar"){Object.assign(p.equipment,{...WEAPONS.rune_scimitar,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0});delete p.equipment.ammoId;delete p.equipment.spellId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped rune scimitar"});return;}
       if(stack.id==="shortbow"){Object.assign(p.equipment,{...WEAPONS.shortbow,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0,ammoId:"bronze_arrow"});delete p.equipment.spellId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped shortbow"});return;}
@@ -123,11 +128,11 @@ function consumeResource(p:Player,id:string,amount:number):boolean{
   if(!stack||stack.quantity<amount)return false;
   stack.quantity-=amount;if(stack.quantity===0){const i=p.inventory.slots.indexOf(stack);p.inventory.slots[i]=null;}return true;
 }
-function rangedStyleBonuses(style:RangedStyle):{attack:number;strength:number;defence:number}{
-  if(style==="longrange")return {attack:0,strength:0,defence:3};
-  return style==="accurate"?{attack:3,strength:0,defence:0}:{attack:0,strength:0,defence:0};
+function rangedStyleBonuses(style:RangedStyle):{level:number;defence:number}{
+  if(style==="longrange")return {level:0,defence:3};
+  return style==="accurate"?{level:3,defence:0}:{level:0,defence:0};
 }
-function magicStyleBonuses(style:MagicStyle):{attack:number;strength:number;defence:number}{return style==="defensive"?{attack:0,strength:0,defence:3}:{attack:0,strength:0,defence:0};}
+function magicStyleBonuses(style:MagicStyle):{attack:number;defence:number}{return style==="defensive"?{attack:0,defence:3}:{attack:0,defence:0};}
 function awardCombatXp(a:Player,damage:number,attackType:AttackType,baseXp=0):void{
  if(attackType==="magic"&&baseXp>0)a.xp.magic+=baseXp;
  if(damage<=0)return;
@@ -145,7 +150,7 @@ function resolveMeleeAttack(state:GameState,a:Player,d:Player):void{
  const hitChance=attackRoll<=defenceRoll?attackRoll/(2*(defenceRoll+1)):1-(defenceRoll+2)/(2*(attackRoll+1));
  const rules=state.combatRules.onAttack(a.id,d.id,deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17),hitChance,attackRoll,defenceRoll);
  const effectiveStrength=effectiveLevel(a.strength,attackerPrayer.strength,bonus.strength);
- const baseMaxHit=Math.max(0,Math.floor((effectiveStrength*(weapon.strengthBonus+64)/640)+1));
+ const baseMaxHit=Math.floor(0.5+effectiveStrength*(weapon.strengthBonus+64)/640);
  const maxHit=special?Math.max(1,Math.floor(baseMaxHit*a.equipment.specialMultiplier)):baseMaxHit;
  const damage=rules.hit?Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53)*(maxHit+1)):0;
  a.nextAttackTick=state.tick+a.equipment.attackSpeed;a.attackQueuedTick=a.nextAttackTick;
@@ -160,8 +165,8 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const effectiveAttack=effectiveLevel(ranged?a.ranged:a.magic,ranged?attackerPrayer.rangedAttack:attackerPrayer.magicAttack,style.attack);
  const effectiveDefence=effectiveLevel(d.defence,defenderPrayer.defence,styleBonus[d.attackStyle].defence+style.defence);
  const attackBonus=ranged?a.equipment.attackBonus+(AMMUNITION[a.equipment.ammoId??""]?.attackBonus??0):(a.equipment.magicAttackBonus??0), defenceBonus=d.equipment.defenceBonus;
- const baseMagicDefence=Math.floor((d.magic*0.7+d.defence*0.3));
- const effectiveMagicDefence=effectiveLevel(baseMagicDefence,defenderPrayer.magicDefence,styleBonus[d.attackStyle].defence+style.defence);
+ const baseMagicDefence=Math.floor(d.magic*0.7*defenderPrayer.magicDefence+d.defence*0.3*defenderPrayer.defence);
+ const effectiveMagicDefence=baseMagicDefence+8;
  const rangedDefence=effectiveDefence, magicDefence=effectiveMagicDefence;
  const attackRoll=effectiveAttack*(attackBonus+64),defenceRoll=(ranged?rangedDefence:magicDefence)*(defenceBonus+64);
  const hitChance=attackRoll<=defenceRoll?attackRoll/(2*(defenceRoll+1)):1-(defenceRoll+2)/(2*(attackRoll+1));
@@ -169,8 +174,8 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  let damage=0;
  if(rules.hit){
    const ammo=AMMUNITION[a.equipment.ammoId??""]; const spell=SPELLS[a.equipment.spellId??""];
-   const effectiveRangedStrength=effectiveLevel(a.ranged,attackerPrayer.rangedStrength,style.strength);
- const maxHit=ranged?Math.max(0,Math.floor((effectiveRangedStrength*(a.equipment.strengthBonus+(ammo?.rangedStrength??0)+64)/640)+1)):(spell?.maxHit??0);
+   const effectiveRangedStrength=effectiveLevel(a.ranged,attackerPrayer.rangedStrength,style.level);
+ const maxHit=ranged?Math.floor(0.5+effectiveRangedStrength*(a.equipment.strengthBonus+(ammo?.rangedStrength??0)+64)/640):Math.floor((spell?.maxHit??0)*(1+(a.equipment.magicDamageBonus??0)+attackerPrayer.magicDamage));
    damage=Math.floor(deterministicRoll(state.tick*1009+a.x*97+a.y*53+d.x*31+d.y*17)*(maxHit+1));
  }
  let resourceOk=false;
@@ -199,24 +204,28 @@ function movementStageForPlayer(state:GameState,p:Player):void{
  if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&p.equipment.attackType==="melee"&&!inAttackRange(p,t)){const goal=nearestMeleeTile({x:p.x,y:p.y},{x:t.x,y:t.y},p.equipment.attackRange);setDestination(p,goal.x,goal.y);}}
  if(p.path.length){const next=p.path.shift()!;p.x=next.x;p.y=next.y;}
 }
-function prayerModifiers(p:Player):{attack:number;strength:number;defence:number;rangedAttack:number;rangedStrength:number;magicAttack:number;magicDefence:number}{
+function prayerModifiers(p:Player):{attack:number;strength:number;defence:number;rangedAttack:number;rangedStrength:number;magicAttack:number;magicDefence:number;magicDamage:number}{
  switch(p.prayer){
-  case "eagle_eye": return {attack:1,strength:1,defence:1,rangedAttack:1.15,rangedStrength:1.15,magicAttack:1,magicDefence:1};
-  case "mystic_might": return {attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1.15,magicDefence:1.15};
-  case "burst_of_strength": return {attack:1,strength:1.05,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
-  case "clarity_of_thought": return {attack:1.05,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
-  case "superhuman_strength": return {attack:1,strength:1.1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
-  case "improved_reflexes": return {attack:1.1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
-  case "incredible_reflexes": return {attack:1.15,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
-  case "ultimate_strength": return {attack:1,strength:1.15,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
-  case "steel_skin": return {attack:1,strength:1,defence:1.15,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
-  default: return {attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
+  case "eagle_eye": return {attack:1,strength:1,defence:1,rangedAttack:1.15,rangedStrength:1.15,magicAttack:1,magicDefence:1,magicDamage:0};
+  case "mystic_might": return {attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1.15,magicDefence:1.15,magicDamage:0.20};
+  case "burst_of_strength": return {attack:1,strength:1.05,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
+  case "clarity_of_thought": return {attack:1.05,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
+  case "superhuman_strength": return {attack:1,strength:1.1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
+  case "improved_reflexes": return {attack:1.1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
+  case "incredible_reflexes": return {attack:1.15,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
+  case "ultimate_strength": return {attack:1,strength:1.15,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
+  case "steel_skin": return {attack:1,strength:1,defence:1.15,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
+  default: return {attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1,magicDamage:0};
  }
 }
 function effectiveLevel(base:number,multiplier:number,style:number):number{return Math.floor(base*multiplier)+style+8;}
 function prayerStageForPlayer(state:GameState,p:Player):void{
- if(!p.prayer||p.prayerNextDrainTick===null)return;
- if(state.tick>=p.prayerNextDrainTick){p.prayerPoints=Math.max(0,p.prayerPoints-1);p.prayerNextDrainTick=state.tick+2;if(p.prayerPoints===0){p.prayer=null;p.prayerNextDrainTick=null;}}
+ if(!p.prayer)return;
+ const effect=PRAYER_DRAIN_EFFECT[p.prayer];
+ p.prayerDrainCounter+=effect;
+ const resistance=60+2*(p.equipment.prayerBonus??0);
+ while(p.prayerDrainCounter>=resistance&&p.prayerPoints>0){p.prayerDrainCounter-=resistance;p.prayerPoints--;}
+ if(p.prayerPoints<=0){p.prayerPoints=0;p.prayer=null;p.prayerDrainCounter=0;p.prayerNextDrainTick=null;}
 }
 function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
  const incoming=state.pendingHits
