@@ -6,7 +6,7 @@ import { shopCatalog } from "../moba/economy.ts";
 
 let state = {
   ...createPvpTestState(),
-  humanControl: { attackEnabled: true, laneId: "middle" }
+  humanControl: { attackEnabled: true, laneId: "middle", attackTargetId: "red-dummy" }
 };
 
 export { state, TICK_MS, maxHitpoints };
