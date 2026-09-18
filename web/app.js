@@ -243,7 +243,7 @@ function draw() {
   }
 
 
-  // Neutral jungle camps.
+  // Neutral jungle and river objectives.
   for (const camp of state.jungleCamps) {
     const p = worldToScreen(simToWorldX(camp.tile.x), simToWorldY(camp.tile.y));
     const radius = 18 * camera.zoom;
