@@ -34,6 +34,12 @@ export interface SimulationState {
   engagedAttackerTeam?: "blue" | "red"; // whoever currently "owns" the active singles fight
   log: SimulationLogEntry[];
   rng: () => number;
+  /** Browser/local-client command for the human-controlled blue player. */
+  humanControl?: {
+    moveTargetX?: number;
+    attackEnabled: boolean;
+    activatePrayer?: PrayerId;
+  };
 }
 
 function log(state: SimulationState, message: string): void {
@@ -52,6 +58,29 @@ function setPlayer(state: SimulationState, player: PlayerEntity): void {
   }
 }
 
+function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerEntity) {
+  const ai = decisionFor(state, actor, enemy);
+  if (actor.team !== "blue" || !state.humanControl) return ai;
+
+  const targetX = state.humanControl.moveTargetX;
+  const moveDelta = targetX === undefined || Math.abs(targetX - actor.tile.x) < 0.01
+    ? 0
+    : targetX > actor.tile.x ? 1 : -1;
+  const activatePrayer = state.humanControl.activatePrayer;
+  const attackStyle = state.humanControl.attackEnabled ? actor.equipment.weapon?.style : undefined;
+
+  return {
+    ...ai,
+    moveDelta: moveDelta as -1 | 0 | 1,
+    attackStyle,
+    activatePrayer,
+    eatItemId: undefined,
+    useSpecial: false,
+    investStat: undefined,
+    buyItemId: undefined
+  };
+}
+
 // --- Stage 1: decide + apply movement (PID order matters: an earlier freeze can cancel a later move) ---
 const movementStage: TickStage<SimulationState> = {
   name: "movement",
@@ -60,7 +89,7 @@ const movementStage: TickStage<SimulationState> = {
     for (const actor of actors) {
       if (!actor.alive) continue;
       const enemy = opponentOf(state, actor.id);
-      const decision = decideAction(actor, enemy, state.tick);
+      const decision = decisionFor(state, actor, enemy);
       const frozen = isFrozen(actor.locks, state.tick);
       if (!frozen && decision.moveDelta !== 0) {
         const nextTile: TilePosition = { x: actor.tile.x + decision.moveDelta, y: actor.tile.y };
@@ -77,7 +106,7 @@ const prayerStage: TickStage<SimulationState> = {
     for (const actor of [state.blue, state.red]) {
       if (!actor.alive) continue;
       const enemy = opponentOf(state, actor.id);
-      const decision = decideAction(actor, enemy, state.tick);
+      const decision = decisionFor(state, actor, enemy);
       const requested = decision.activatePrayer as PrayerId | undefined;
       const activePrayers = requested ? compatiblePrayerSet([...actor.activePrayers, requested]) : actor.activePrayers;
       // Simplified flat drain: 1 prayer point per active prayer per tick while any prayer is on.
@@ -99,7 +128,7 @@ const combatStage: TickStage<SimulationState> = {
       const enemy = opponentOf(state, actor.id);
       if (!enemy.alive) continue;
 
-      const decision = decideAction(actor, enemy, state.tick);
+      const decision = decisionFor(state, actor, enemy);
       if (!decision.attackStyle || !actor.equipment.weapon) continue;
 
       const zone = zoneAt(actor.tile);
@@ -203,7 +232,7 @@ const effectsStage: TickStage<SimulationState> = {
     for (const actor of [state.blue, state.red]) {
       if (!actor.alive) continue;
       const enemy = opponentOf(state, actor.id);
-      const decision = decideAction(actor, enemy, state.tick);
+      const decision = decisionFor(state, actor, enemy);
       let updated = actor;
 
       if (decision.eatItemId) {
