@@ -34,7 +34,7 @@ export const shopCatalog: readonly ShopItem[] = [
   { id: "berserker_helm", name: "Berserker helm", cost: 130, slot: "head", bonuses: { melee_strength_bonus: 4, stab_defence_bonus: 9, slash_defence_bonus: 9, crush_defence_bonus: 9 } },
   // Ranged
   { id: "magic_shortbow", name: "Magic shortbow", cost: 200, slot: "weapon", style: "ranged", defaultAttackType: "rapid_ranged", attackTypes: ["accurate", "rapid_ranged", "long_ranged"], cooldownTicks: 4, attackRange: 7, bonuses: { range_attack_bonus: 69 } },
-  { id: "toxic_blowpipe", name: "Toxic blowpipe", cost: 1500, slot: "weapon", style: "ranged", defaultAttackType: "rapid_ranged", attackTypes: ["accurate", "rapid_ranged"], cooldownTicks: 2, attackRange: 5, bonuses: { range_attack_bonus: 30, ranged_strength_bonus: 30 } },
+  { id: "toxic_blowpipe", name: "Toxic blowpipe", cost: 1500, slot: "weapon", style: "ranged", defaultAttackType: "rapid_ranged", attackTypes: ["accurate", "rapid_ranged"], cooldownTicks: 4, attackRange: 5, bonuses: { range_attack_bonus: 30, ranged_strength_bonus: 30 } },
   { id: "armadyl_crossbow", name: "Armadyl crossbow", cost: 1700, slot: "weapon", style: "ranged", defaultAttackType: "rapid_ranged", attackTypes: ["accurate", "rapid_ranged", "long_ranged"], cooldownTicks: 6, attackRange: 8, bonuses: { range_attack_bonus: 94, ranged_strength_bonus: 5 },
     special: { energyCost: 50, damageMultiplier: 1, accuracyMultiplier: 2 } },
   { id: "black_dhide_body", name: "Black d'hide body", cost: 220, slot: "body", bonuses: { range_defence_bonus: 65 } },
