@@ -99,7 +99,7 @@ export type PlayerCommandInput =
   | { readonly kind: "prayer"; readonly prayerId: PrayerId }
   | { readonly kind: "special"; readonly targetId?: string }
   | { readonly kind: "vengeance" }
-  | { readonly kind: "spell-select"; readonly spellId: "ice_rush" | "ice_burst" | "ice_blitz" | "ice_barrage" };
+  | { readonly kind: "spell-select"; readonly spellId: "ice_rush" | "ice_burst" | "ice_blitz" | "ice_barrage" }
   | { readonly kind: "attack-target"; readonly targetId: string }
   | { readonly kind: "clear-attack-target" }
   | { readonly kind: "move"; readonly x: number; readonly y: number }
