@@ -21,6 +21,8 @@ assert(game.players.player.nextAttackTick === 5, "rune scimitar should use a 4-t
 const earlyPid = createGame();
 earlyPid.players.player.id = "a_player";
 earlyPid.players.opponent.id = "z_opponent";
+earlyPid.players.player.x = 13;
+earlyPid.players.opponent.x = 14;
 enqueueInput(earlyPid, { type: "attack", targetId: "opponent" });
 step(earlyPid);
 assert(earlyPid.events.some(e => e.type === "attack"), "early-PID player should attack on its turn");
