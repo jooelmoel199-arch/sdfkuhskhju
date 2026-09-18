@@ -201,7 +201,8 @@ function draw() {
   }
 
   if (state.humanControl?.moveTargetX !== undefined && state.blue.alive) {
-    const p = worldToScreen(simToWorldX(state.humanControl.moveTargetX), laneToWorldY(state.blue.laneId));
+    const targetY = state.humanControl.moveTargetY ?? state.blue.tile.y;
+    const p = worldToScreen(simToWorldX(state.humanControl.moveTargetX), simToWorldY(targetY));
     ctx.strokeStyle = "rgba(255,232,130,.95)";
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -233,7 +234,7 @@ function draw() {
 
   for (const player of [state.blue, state.red]) {
     if (!player.alive) continue;
-    const p = worldToScreen(simToWorldX(player.tile.x), laneToWorldY(player.laneId));
+    const p = worldToScreen(simToWorldX(player.tile.x), simToWorldY(player.tile.y));
     const radius = 25 * camera.zoom;
     ctx.fillStyle = player.team === "blue" ? "#4da2ff" : "#ff5d5d";
     ctx.beginPath();
