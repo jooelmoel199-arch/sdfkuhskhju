@@ -173,7 +173,8 @@ function clearLaneEngagementForPlayer(state: SimulationState, team: "blue" | "re
 const movementStage: TickStage<SimulationState> = {
   name: "movement",
   run: state => {
-    refreshPid(state);\n    const actors = [...state.players].sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id));
+    refreshPid(state);
+    const actors = [...state.players].sort((a, b) => playerPriority(state, a.id) - playerPriority(state, b.id));
 
     for (const actor of actors) {
       if (!actor.alive) continue;
