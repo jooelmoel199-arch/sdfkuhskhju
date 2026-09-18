@@ -1,6 +1,7 @@
 import { createPlayer, equipItem, addInventoryItem, type TowerEntity, type NeutralCampEntity, type PlayerRole } from "./entities";
 import { createAttackTimerState } from "../combat/timers";
 import { shopCatalog } from "./economy";
+import { xpForLevel } from "./xp";
 import { LANE_Y, LANES, BLUE_TOWER_X, RED_TOWER_X, BLUE_BASE_X, RED_BASE_X, zoneAt, type LaneId } from "./lane";
 import { zeroBonuses } from "../combat/formulas";
 import type { SimulationState } from "./simulation";
@@ -148,6 +149,76 @@ export function createPrototypeState(): SimulationState {
     ],
     engagedAttackerTeamByLane: {},
     teamBuffs: {},
+    combatEvents: [],
+    log: [],
+    rng: Math.random
+  };
+}
+
+
+export function createPvpTestState(): SimulationState {
+  const blue = buildStartingLoadout("blue-pk", "blue", "melee", "middle", "middle");
+  const red = buildStartingLoadout("red-dummy", "red", "melee", "middle", "middle");
+
+  const pvpGear = [
+    "abyssal_whip", "dragon_claws", "armadyl_godsword", "armadyl_crossbow",
+    "ancient_staff", "kodai_wand", "rune_defender", "fighter_torso",
+    "rune_platelegs", "berserker_helm", "black_dhide_body", "archer_helm",
+    "mystic_robe_top", "ancestral_hat", "amulet_of_glory", "berserker_ring"
+  ];
+
+  function prepare(player: typeof blue, x: number) {
+    let prepared = {
+      ...player,
+      tile: { x, y: LANE_Y.middle },
+      zone: "lane" as const,
+      gp: 0,
+      stats: {
+        xp: {
+          ...player.stats.xp,
+          attack: xpForLevel(75),
+          strength: xpForLevel(99),
+          defence: xpForLevel(70),
+          ranged: xpForLevel(99),
+          magic: xpForLevel(99),
+          hitpoints: xpForLevel(99),
+          prayer: xpForLevel(99)
+        },
+        unallocatedXp: 0
+      },
+      currentHp: 99,
+      prayerPoints: 99,
+      specEnergy: 100
+    };
+
+    for (const id of pvpGear) prepared = addInventoryItem(prepared, id, 1);
+    prepared = addInventoryItem(prepared, "shark", 20);
+    prepared = addInventoryItem(prepared, "karambwan", 20);
+    prepared = addInventoryItem(prepared, "prayer_potion", 4);
+    prepared = addInventoryItem(prepared, "super_restore", 2);
+    return prepared;
+  }
+
+  const blueReady = prepare(blue, 15);
+  const redReady = prepare(red, 20);
+  const players = [blueReady, redReady];
+
+  return {
+    tick: 0,
+    blue: blueReady,
+    red: redReady,
+    players,
+    minions: [],
+    towers: [],
+    projectiles: [],
+    pendingHits: [],
+    pidOrder: players.map(player => player.id),
+    nextPidShuffleTick: 45,
+    jungleCamps: [],
+    engagedAttackerTeamByLane: {},
+    teamBuffs: {},
+    pvpTest: true,
+    combatEvents: [],
     log: [],
     rng: Math.random
   };
