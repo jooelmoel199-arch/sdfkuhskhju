@@ -68,10 +68,11 @@ export interface PlayerEntity {
   /** Discrete client commands waiting to be consumed by the combat interaction. */
   queuedSpecialAttacks: number;
   queuedSpecialTargetId?: string;
-  queuedSpecialExpiresAtTick?: number;
+  specialActive: boolean;
   gmaulEquippedTick?: number;
   gmaulSpecBarVisibleTick?: number;
   gmaulPreloaded: boolean;
+  gmaulPreloadExpiresAtTick?: number;
   lastCombatTargetId?: string;
   lastSpecEnergyUseTick: number;
   lastPrayerToggleTick: number;
@@ -202,10 +203,11 @@ export function createPlayer(
     eatDelayUntilTick: 0,
     queuedSpecialAttacks: 0,
     queuedSpecialTargetId: undefined,
-    queuedSpecialExpiresAtTick: undefined,
+    specialActive: false,
     gmaulEquippedTick: undefined,
     gmaulSpecBarVisibleTick: undefined,
     gmaulPreloaded: false,
+    gmaulPreloadExpiresAtTick: undefined,
     lastCombatTargetId: undefined,
     lastSpecEnergyUseTick: -1000,
     lastPrayerToggleTick: -1000,
