@@ -68,6 +68,15 @@ export function setMoveTarget(x) {
 
 export function stopMovement() {
   delete state.humanControl.moveTargetX;
+  delete state.humanControl.attackTargetId;
+}
+
+export function setAttackTarget(targetId) {
+  state.humanControl.attackTargetId = targetId;
+}
+
+export function clearAttackTarget() {
+  delete state.humanControl.attackTargetId;
 }
 
 export function setLane(laneId) {
