@@ -612,7 +612,10 @@ const combatStage: TickStage<SimulationState> = {
       // exercised without needing a second human client. Its decisions remain
       // AI-controlled and it cannot consume the human command stream.
 
-      const enemy = opponentOf(state, actor.id);
+      const queuedSpecialTarget = actor.queuedSpecialTargetId
+        ? state.players.find(player => player.id === actor.queuedSpecialTargetId && player.alive && player.team !== actor.team)
+        : undefined;
+      const enemy = queuedSpecialTarget ?? opponentOf(state, actor.id);
       const decision = decisionFor(state, actor, enemy);
 
       if (!decision.attackStyle) continue;
@@ -697,7 +700,7 @@ const combatStage: TickStage<SimulationState> = {
         : decision.useSpecial && weapon.special && actor.specEnergy >= weapon.special.energyCost
           ? weapon.special
           : undefined;
-      const currentEnemy = opponentOf(state, actor.id);
+      const currentEnemy = enemy;
       const prayerBoosts = aggregatePrayerBoosts(actor.activePrayers);
       const targetPrayerBoosts = aggregatePrayerBoosts(currentEnemy.activePrayers);
       const attackStyle = weapon.style ?? "slash";
