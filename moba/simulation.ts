@@ -618,7 +618,7 @@ const pendingHitStage: TickStage<SimulationState> = {
           tick: state.tick,
           attackerId: hit.attackerId,
           targetId: target.id,
-          style: hit.style,
+          style: eventStyle(hit.style),
           damage: 0,
           landed: false
         });
