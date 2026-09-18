@@ -595,10 +595,9 @@ function testGraniteMaulSpecialIgnoresAttackCooldown() {
   equal(state.blue.specEnergy, 50, "one Granite maul special should consume 50% special energy");
   equal(state.blue.attackTimer.lastAttackTick, 0, "Granite maul special should not start the normal 7-tick attack cooldown");
   equal(state.blue.queuedSpecialAttacks, 0, "the instant Granite maul special should consume its queued special command");
-  ok(
-    state.pendingHits.some(hit => hit.attackerId === state.blue.id && hit.targetId === state.red.id),
-    "Granite maul special should enqueue an impact for the target's PID turn"
-  );
+  equal(state.red.currentHp < state.red.maxHp, true, "Granite maul special should resolve on the target's PID turn");
+  equal(state.pendingHits.some(hit => hit.attackerId === state.blue.id && hit.targetId === state.red.id), false,
+    "Granite maul impact should be consumed by the target's PID turn");
 }
 
 function testAuthoritativeStageOrder() {
