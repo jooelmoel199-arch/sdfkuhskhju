@@ -81,7 +81,11 @@ export function useSpecial() {
 export function buyBestAffordableUpgrade() {
   const affordable = state.blue.zone === "base"
     ? shopCatalog
-        .filter(item => item.cost <= state.blue.gp && !state.blue.equipment[item.slot])
+        .filter(item => {
+          if (item.cost > state.blue.gp) return false;
+          const current = state.blue.equipment[item.slot];
+          return !current || item.cost > current.cost;
+        })
         .sort((a, b) => b.cost - a.cost)
     : [];
   const item = affordable[0];
