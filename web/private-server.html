@@ -14,7 +14,7 @@
 .menuItem{padding:5px 8px;cursor:pointer}.menuItem:hover{background:#444}
 #side{background:#302b22;display:flex;flex-direction:column}
 #panel{flex:1;padding:10px;background:linear-gradient(#40392e,#29251f);border-bottom:2px solid #111;overflow:auto}
-#tabs{height:44px;display:grid;grid-template-columns:repeat(6,1fr);background:#171513}
+#tabs{height:76px;display:grid;grid-template-columns:repeat(6,1fr);background:#171513}
 .tab{border:1px solid #555;background:#302b25;color:#ddd;font-size:18px;cursor:pointer}.tab.active{background:#5b513f;box-shadow:inset 0 0 0 2px #111}
 #bottom{grid-column:1/3;background:#302b22;border-top:3px solid #111;display:grid;grid-template-columns:230px 1fr 230px;align-items:center;padding:8px}
 #chat{height:105px;background:#181818;border:2px solid #555;padding:6px;overflow:hidden;font-family:monospace}
@@ -35,12 +35,17 @@
   <aside id="side">
     <div id="panel"></div>
     <div id="tabs">
-      <button class="tab active" data-tab="inventory" title="Inventory">🎒</button>
-      <button class="tab" data-tab="equipment" title="Equipment">🛡</button>
-      <button class="tab" data-tab="stats" title="Stats">📜</button>
+      <button class="tab active" data-tab="combat" title="Combat">⚔</button>
+      <button class="tab" data-tab="stats" title="Stats">☷</button>
+      <button class="tab" data-tab="quests" title="Quest List">📜</button>
+      <button class="tab" data-tab="inventory" title="Inventory">🎒</button>
+      <button class="tab" data-tab="equipment" title="Worn Equipment">🛡</button>
       <button class="tab" data-tab="prayer" title="Prayer">✦</button>
-      <button class="tab" data-tab="combat" title="Combat">⚔</button>
+      <button class="tab" data-tab="magic" title="Magic">✧</button>
+      <button class="tab" data-tab="social" title="Friends / Clan">♟</button>
       <button class="tab" data-tab="settings" title="Settings">⚙</button>
+      <button class="tab" data-tab="emotes" title="Emotes">☺</button>
+      <button class="tab" data-tab="music" title="Music">♫</button>
     </div>
   </aside>
   <div id="bottom">
@@ -109,6 +114,11 @@ function renderPanel(){
  if(activeTab==='stats') panel.innerHTML='<div class="section">Combat stats</div>'+[['Attack',p.attack],['Strength',p.strength],['Defence',p.defence],['Hitpoints',p.hp+'/'+p.maxHp]].map(x=>'<div class="stat"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('');
  if(activeTab==='prayer') panel.innerHTML='<div class="section">Prayer</div><div class="inv">'+['Protect melee','Protect mage','Protect range','Deactivate'].map((x,i)=>'<div class="slot" onclick="prayer('+i+')">'+x+'</div>').join('')+'</div>';
  if(activeTab==='combat') panel.innerHTML='<div class="section">Combat options</div><div id="combatbox">Rune scimitar<br>Attack speed: '+p.equipment.attackSpeed+' ticks<br>Attack bonus: +'+p.equipment.attackBonus+'<br>Strength bonus: +'+p.equipment.strengthBonus+'</div>';
+ if(activeTab==='quests') panel.innerHTML='<div class="section">Quest List</div><p class="small">Quest system ready for RuneScript content.</p>';
+ if(activeTab==='magic') panel.innerHTML='<div class="section">Magic</div><p class="small">Spellbook interface.</p>';
+ if(activeTab==='social') panel.innerHTML='<div class="section">Social</div><div class="stat"><span>Friends</span><b>0</b></div><div class="stat"><span>Clan</span><b>None</b></div>';
+ if(activeTab==='emotes') panel.innerHTML='<div class="section">Emotes</div><div class="inv">'+['Wave','Yes','No','Laugh','Cheer','Dance'].map(x=>'<div class="slot">'+x+'</div>').join('')+'</div>';
+ if(activeTab==='music') panel.innerHTML='<div class="section">Music</div><p class="small">Music tracks will be client-side assets.</p>';
  if(activeTab==='settings') panel.innerHTML='<div class="section">Settings</div><div class="stat"><span>Controls</span><b>Mouse</b></div><div class="stat"><span>Tick</span><b>'+state.tick+'</b></div><p class="small">This client intentionally uses mouse interaction rather than WASD/space controls.</p>';
  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===activeTab));
 }
