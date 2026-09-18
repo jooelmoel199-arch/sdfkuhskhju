@@ -593,7 +593,8 @@ function testGraniteMaulSpecialIgnoresAttackCooldown() {
     attackEnabled: false,
     laneId: "middle",
     attackTargetId: state.red.id,
-    equipItemId: "granite_maul"
+    equipItemId: "granite_maul",
+    useSpecial: true
   };
 
   advanceTick(state);
@@ -604,10 +605,8 @@ function testGraniteMaulSpecialIgnoresAttackCooldown() {
   equal(state.blue.attackTimer.lastAttackTick, 0, "equipping should not itself start the attack cycle");
   equal(state.blue.specEnergy, 100, "equipping should not spend special energy");
 
-  // A spec issued while the bar is still hidden must fail rather than being
-  // silently retained as a permanent queued flag.
-  queueClientCommand(state, { kind: "special" }, false);
-  advanceTick(state);
+  // The same client input that equips the maul cannot use its special
+  // yet because the spec bar is not visible until the following tick.
   equal(state.blue.queuedSpecialAttacks, 0, "Gmaul spec should fail while its special bar is not yet visible");
 
   // The bar is visible now. Queue and execute a Gmaul special despite the
