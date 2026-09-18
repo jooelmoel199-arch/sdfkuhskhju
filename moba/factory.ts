@@ -71,23 +71,34 @@ export function makeTower(
 }
 
 
-export function makeJungleCamp(id: string, name: string, x: number, y: number, rewardGp: number, rewardXp: number): NeutralCampEntity {
+export function makeJungleCamp(
+  id: string,
+  name: string,
+  x: number,
+  y: number,
+  rewardGp: number,
+  rewardXp: number,
+  maxHp = 120,
+  maxHit = 8,
+  attackRange = 4,
+  respawnTicks = 50
+): NeutralCampEntity {
   return {
     id,
     kind: "neutral_camp",
     name,
     tile: { x, y },
-    currentHp: 120,
-    maxHp: 120,
-    maxHit: 8,
-    attackRange: 4,
+    currentHp: maxHp,
+    maxHp,
+    maxHit,
+    attackRange,
     attackTimer: createAttackTimerState(),
     combatLevels: { attack: 35, strength: 35, defence: 35, ranged: 35, magic: 35 },
     bonuses: { ...zeroBonuses },
     style: "crush",
     rewardGp,
     rewardXp,
-    respawnTicks: 50,
+    respawnTicks,
     alive: true
   };
 }
@@ -124,7 +135,8 @@ export function createPrototypeState(): SimulationState {
       makeJungleCamp("camp-top-west", "Hill giant camp", 12, 5, 120, 220),
       makeJungleCamp("camp-top-east", "Hill giant camp", 28, 5, 120, 220),
       makeJungleCamp("camp-bottom-west", "Demonic gorilla camp", 12, 35, 160, 280),
-      makeJungleCamp("camp-bottom-east", "Demonic gorilla camp", 28, 35, 160, 280)
+      makeJungleCamp("camp-bottom-east", "Demonic gorilla camp", 28, 35, 160, 280),
+      makeJungleCamp("river-chaos-elemental", "Chaos Elemental", 20, 10, 350, 520, 350, 16, 5, 150)
     ],
     engagedAttackerTeamByLane: {},
     log: [],
