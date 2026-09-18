@@ -399,13 +399,15 @@ const clientInputStage: TickStage<SimulationState> = {
       const queue = state.clientCommands[actor.id] ?? [];
       const drained = drainPlayerCommands(queue, state.tick, 10);
       state.clientCommands[actor.id] = drained.queue;
-      let current = actor;
+      let current = expireQueuedSpecialIfNeeded(actor, state.tick);
 
       for (const command of drained.commands) {
         switch (command.kind) {
           case "equip": {
             const equipped = equipOwnedItem(current, command.itemId);
-            if (equipped !== current) current = equipped;
+            if (equipped !== current) {
+              current = applyEquipGmaulTiming(current, equipped, state.tick);
+            }
             break;
           }
           case "eat":
@@ -422,13 +424,34 @@ const clientInputStage: TickStage<SimulationState> = {
             };
             break;
           }
-          case "special":
+          case "special": {
+            if (isGmaulEquipped(current)) {
+              if (!gmaulSpecBarVisible(current, state.tick)) {
+                log(state, current.id + " fails Granite maul special: spec bar not yet visible");
+                break;
+              }
+              if (current.specEnergy < 50) {
+                log(state, current.id + " fails Granite maul special: not enough energy");
+                break;
+              }
+              current = {
+                ...current,
+                queuedSpecialAttacks: current.queuedSpecialAttacks + 1,
+                queuedSpecialTargetId: command.targetId,
+                queuedSpecialExpiresAtTick: state.tick + 5,
+                gmaulPreloaded: false
+              };
+              log(state, current.id + " queues Granite maul special");
+              break;
+            }
+
             current = {
               ...current,
               queuedSpecialAttacks: current.queuedSpecialAttacks + 1,
               queuedSpecialTargetId: command.targetId
             };
             break;
+          }
           case "attack-target":
             if (state.players.some(player => player.id === command.targetId && player.alive && player.team !== current.team) ||
                 state.jungleCamps.some(camp => camp.id === command.targetId && camp.alive) ||
