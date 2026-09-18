@@ -237,12 +237,9 @@ const combatStage: TickStage<SimulationState> = {
       }
 
       const special = decision.useSpecial ? weapon.special : undefined;
+      const currentEnemy = opponentOf(state, actor.id);
       const prayerBoosts = aggregatePrayerBoosts(actor.activePrayers);
       const targetPrayerBoosts = aggregatePrayerBoosts(currentEnemy.activePrayers);
-      const statusBoost = (style: PlayerEntity["equipment"]["weapon"] extends infer _ ? string : never) => {
-        const matching = currentEnemy.statusEffects;
-        return matching;
-      };
       const attackStyle = weapon.style ?? "slash";
       const attackType = decision.attackType;
       const relevantStatusBoost = actor.statusEffects
@@ -255,10 +252,10 @@ const combatStage: TickStage<SimulationState> = {
         style: attackStyle,
         attackType,
         attackerLevels: toCombatLevels(actor.stats),
-        defenderLevels: toCombatLevels(enemy.stats),
+        defenderLevels: toCombatLevels(currentEnemy.stats),
         attackerBonuses: equipmentBonuses(actor.equipment),
-        defenderBonuses: equipmentBonuses(enemy.equipment),
-        defenderPrayers: enemy.activePrayers,
+        defenderBonuses: equipmentBonuses(currentEnemy.equipment),
+        defenderPrayers: currentEnemy.activePrayers,
         attackerIsPlayer: true,
         attackBoostMultiplier,
         strengthBoostMultiplier,
@@ -277,7 +274,6 @@ const combatStage: TickStage<SimulationState> = {
       };
       setPlayer(state, attackerAfterAttack);
 
-      const currentEnemy = opponentOf(state, actor.id);
       const newHp = Math.max(0, currentEnemy.currentHp - hit.finalDamage);
       const updatedEnemy: PlayerEntity = {
         ...currentEnemy,
