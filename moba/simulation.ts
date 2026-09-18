@@ -612,6 +612,11 @@ const clientInputStage: TickStage<SimulationState> = {
               }
             }
 
+            current = {
+              ...current,
+              lastTargetId: command.targetId,
+              lastTargetTimeoutTicks: 5
+            };
             if (current.id === state.blue.id) {
               state.humanControl = {
                 ...(state.humanControl ?? { attackEnabled: true, laneId: current.laneId }),
@@ -1061,11 +1066,14 @@ const combatStage: TickStage<SimulationState> = {
         currentTick: state.tick
       };
       if (!canJoinFight(joinInput)) continue;
-      if (enemy.zone === "lane" && enemy.lastDamagedByPlayerId &&
-          enemy.lastDamagedByPlayerId !== actor.id &&
-          state.tick - enemy.lastCombatTick <= 8) {
-        const previousAttacker = state.players.find(player => player.id === enemy.lastDamagedByPlayerId);
-        if (previousAttacker?.alive && previousAttacker.team !== actor.team) continue;
+      if (
+        enemy.zone === "lane" &&
+        enemy.lastTargetId &&
+        enemy.lastTargetId !== actor.id &&
+        enemy.lastTargetTimeoutTicks > 0
+      ) {
+        const previousTarget = state.players.find(player => player.id === enemy.lastTargetId);
+        if (previousTarget?.alive && previousTarget.team !== actor.team) continue;
       }
 
       const weapon = actor.equipment.weapon;
@@ -1161,13 +1169,17 @@ const combatStage: TickStage<SimulationState> = {
         specEnergy: special ? Math.max(0, actor.specEnergy - special.energyCost) : actor.specEnergy,
         lastSpecEnergyUseTick: special ? state.tick : actor.lastSpecEnergyUseTick
       };
-      const combatWithHistory: PlayerEntity = weapon.id === "granite_maul"
-        ? {
-            ...attackerAfterAttack,
-            lastGmaulTargetId: currentEnemy.id,
-            lastGmaulAttackTick: state.tick
-          }
-        : attackerAfterAttack;
+      const combatWithHistory: PlayerEntity = {
+        ...attackerAfterAttack,
+        lastTargetId: currentEnemy.id,
+        lastTargetTimeoutTicks: 5,
+        ...(weapon.id === "granite_maul"
+          ? {
+              lastGmaulTargetId: currentEnemy.id,
+              lastGmaulAttackTick: state.tick
+            }
+          : {})
+      };
       setPlayer(state, combatWithHistory);
       state.engagedAttackerTeamByLane[actor.laneId] = actor.team;
 
@@ -1576,6 +1588,8 @@ function respawnPlayer(state: SimulationState, victim: PlayerEntity): void {
     gmaulSpecBarVisibleTick: undefined,
     gmaulPreloaded: false,
     lastCombatTargetId: undefined,
+    lastTargetId: undefined,
+    lastTargetTimeoutTicks: 0,
     deaths: victim.deaths + 1
   });
 }
