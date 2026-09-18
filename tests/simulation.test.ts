@@ -27,8 +27,8 @@ function testPrototypeShape() {
 
 function testWaveCadence() {
   const state = createPrototypeState();
-  for (let i = 0; i < 15; i += 1) advanceTick(state);
-  equal(state.tick, 15, "15 simulation steps should equal 15 ticks");
+  for (let i = 0; i < 16; i += 1) advanceTick(state);
+  equal(state.tick, 16, "16 simulation steps should advance through authoritative tick 15");
   equal(state.minions.length, 18, "one three-lane wave should create 18 minions");
   deepEqualSet(new Set(state.minions.map(minion => minion.laneId)), new Set(["top", "middle", "bottom"]), "wave should populate all lanes");
 }
