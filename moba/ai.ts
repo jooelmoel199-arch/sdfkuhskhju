@@ -19,6 +19,8 @@ export interface AiDecision {
   readonly useSpecial: boolean;
   readonly investStat: "attack" | "strength" | "defence" | "ranged" | "magic" | "hitpoints" | undefined;
   readonly buyItemId: string | undefined;
+  readonly buyConsumableId?: string;
+  readonly buyConsumableQuantity?: number;
 }
 
 export function decideAction(self: PlayerEntity, enemy: PlayerEntity, currentTick: number): AiDecision {
