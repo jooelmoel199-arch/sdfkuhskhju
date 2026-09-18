@@ -110,22 +110,24 @@ function prayerStageForPlayer(state:GameState,p:Player):void{
  if(state.tick%2===0){p.prayerPoints=Math.max(0,p.prayerPoints-1);if(p.prayerPoints===0)p.prayer=null;}
 }
 function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
- if(p.hitQueuedTick!==state.tick)return;
- const attackerId=Object.values(state.players).find(a=>a.pendingHitTargetId===p.id&&a.hitQueuedTick===state.tick)?.id;
- if(!attackerId)return;
- const a=state.players[attackerId];
- const damage=a.pendingHitDamage;
- const attackRoll=a.pendingHitRoll;
- const defenceRoll=a.pendingDefenceRoll;
- const special=a.pendingSpecial;
- a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingHitTargetId=null;a.pendingSpecial=false;
- if(p.hp<=0)return;
- if(damage>0)p.hp=Math.max(0,p.hp-damage);
- event(state,{tick:state.tick,type:damage>0?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special});
- if(p.hp<=0){
-   p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHitTargetId=null;
-   a.targetId=null;
-   event(state,{tick:state.tick,type:"death",attacker:a.id,defender:p.id});
+ const incoming=Object.values(state.players)
+   .filter(a=>a.id!==p.id&&a.hitQueuedTick===state.tick&&a.pendingHitTargetId===p.id)
+   .sort((a,b)=>a.id.localeCompare(b.id));
+ for(const a of incoming){
+   const damage=a.pendingHitDamage;
+   const attackRoll=a.pendingHitRoll;
+   const defenceRoll=a.pendingDefenceRoll;
+   const special=a.pendingSpecial;
+   a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingHitTargetId=null;a.pendingSpecial=false;
+   if(p.hp<=0)continue;
+   if(damage>0)p.hp=Math.max(0,p.hp-damage);
+   event(state,{tick:state.tick,type:damage>0?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special});
+   if(p.hp<=0){
+     p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHitTargetId=null;
+     a.targetId=null;
+     event(state,{tick:state.tick,type:"death",attacker:a.id,defender:p.id});
+     break;
+   }
  }
 }
 export function step(state:GameState):void{
