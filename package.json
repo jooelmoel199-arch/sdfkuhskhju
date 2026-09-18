@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "sim": "tsx src/index.ts"
+    "sim": "tsx src/index.ts",
+    "runescript": "tsx src/runescript/prototype.ts"
   },
   "devDependencies": {
     "tsx": "^4.19.0",
