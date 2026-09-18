@@ -333,11 +333,14 @@ function testPidTurnPreventsDeadPlayerAction() {
 
   advanceTick(state);
 
-  ok(!state.red.alive, "lower-PID red player should die on its own target turn");
+  ok(state.red.alive && state.red.currentHp === 0, "lethal damage should leave the lower-PID player at zero HP until the next tick");
   ok(
     !state.combatEvents.some(event => event.tick === 0 && event.attackerId === state.red.id),
-    "a player killed during its PID turn must not execute combat later that tick"
+    "a player reduced to zero during its PID turn must not execute combat later that tick"
   );
+
+  advanceTick(state);
+  ok(!state.red.alive, "queued death should resolve on the following tick");
 }
 
 function testPidTurnRunsPrayerBeforeIncomingImpact() {
