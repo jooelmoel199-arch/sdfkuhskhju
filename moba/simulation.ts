@@ -333,6 +333,60 @@ const combatStage: TickStage<SimulationState> = {
       if (newHp <= 0) handlePlayerDeath(state, updatedEnemy, attackerAfterAttack);  }
 };
 
+
+const projectileStage: TickStage<SimulationState> = {
+  name: "projectiles",
+  run: state => {
+    const pending: ProjectileEntity[] = [];
+    for (const projectile of state.projectiles) {
+      if (projectile.hitTick > state.tick) {
+        pending.push(projectile);
+        continue;
+      }
+
+      const target = [state.blue, state.red].find(player => player.id === projectile.targetId);
+      if (!target || !target.alive) {
+        log(state, projectile.style + " projectile fizzles");
+        continue;
+      }
+
+      const targetPrayerBoosts = aggregatePrayerBoosts(target.activePrayers);
+      const hit = rollAttack({
+        style: projectile.style,
+        attackType: projectile.attackType,
+        attackerLevels: projectile.attackerLevels,
+        defenderLevels: toCombatLevels(target.stats),
+        attackerBonuses: projectile.attackerBonuses,
+        defenderBonuses: equipmentBonuses(target.equipment),
+        defenderPrayers: target.activePrayers,
+        attackerIsPlayer: true,
+        attackBoostMultiplier: projectile.attackBoostMultiplier,
+        strengthBoostMultiplier: projectile.strengthBoostMultiplier,
+        defenceBoostMultiplier: 1 + targetPrayerBoosts.defence,
+        accuracyMultiplier: projectile.accuracyMultiplier,
+        damageMultiplier: projectile.damageMultiplier,
+        rng: state.rng
+      });
+
+      const newHp = Math.max(0, target.currentHp - hit.finalDamage);
+      const updatedTarget: PlayerEntity = {
+        ...target,
+        currentHp: newHp,
+        lastCombatTick: state.tick,
+        lastDamagedByPlayerId: projectile.attackerId
+      };
+      setPlayer(state, updatedTarget);
+
+      log(state, hit.landed
+        ? projectile.attackerId + " hits " + target.id + " for " + hit.finalDamage + " (" + projectile.style + " impact)"
+        : projectile.attackerId + " misses " + target.id + " (" + projectile.style + " impact)");
+
+      const attacker = [state.blue, state.red].find(player => player.id === projectile.attackerId);
+      if (newHp <= 0 && attacker) handlePlayerDeath(state, updatedTarget, attacker);
+    }
+    state.projectiles = pending;
+  }
+};
 function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: NeutralCampEntity, attackType: PlayerEntity["attackType"]): void {
   const weapon = actor.equipment.weapon;
   if (!weapon) return;
@@ -752,6 +806,7 @@ export const tickRunner = createTickStageRunner<SimulationState>([
   movementStage,
   prayerStage,
   combatStage,
+  projectileStage,
   effectsStage,
   towerStage,
   minionStage,
