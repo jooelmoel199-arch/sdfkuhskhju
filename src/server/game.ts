@@ -50,7 +50,7 @@ function makePlayer(id:string,name:string,team:Team,x:number,y:number):Player{
 
 export function createGame():GameState{
   const players={player:makePlayer("player","Player","blue",10,10),opponent:makePlayer("opponent","Opponent","red",14,10)};
-  return {tick:0,nextInputSequence:1,pendingInputs:[],events:[],players,combatRules:createCombatRules()};
+  return {tick:0,nextInputSequence:1,nextCombatSequence:1,pendingInputs:[],events:[],players,combatRules:createCombatRules()};
 }
 export function enqueueInput(state:GameState,command:InputCommand):void{state.pendingInputs.push({sequence:state.nextInputSequence++,receivedTick:state.tick,command});}
 function event(state:GameState,e:CombatEvent):void{state.events.push(e);if(state.events.length>300)state.events.splice(0,state.events.length-300);}
@@ -70,7 +70,6 @@ function processInput(state:GameState,command:InputCommand):void{
   case "special":if(p.targetId&&p.inventory.specialEnergy>=p.equipment.specialCost&&p.attackQueuedTick!==null){p.specialQueued=true;event(state,{tick:state.tick,type:"special_queued",attacker:p.id,defender:p.targetId,special:true});}return;
  }
 }
-let nextCombatSequence=1;
 function deterministicRoll(seed:number):number{const x=Math.sin(seed*12.9898)*43758.5453;return x-Math.floor(x);}
 function inMeleeRange(a:Player,b:Player):boolean{return Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<=a.equipment.attackRange;}
 function nearestMeleeTile(from:Tile,target:Tile,range:number):Tile {
