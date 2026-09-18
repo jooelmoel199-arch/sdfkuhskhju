@@ -1476,9 +1476,18 @@ function handleTowerAttack(
     return;
   }
 
+  const distance = Math.max(
+    Math.abs(actor.tile.x - tower.tile.x),
+    Math.abs(actor.tile.y - tower.tile.y)
+  );
+  const impactTick =
+    style === "ranged" || style === "magic"
+      ? projectileHitTick(state.tick, style, distance, playerPriority(state, actor.id), -1)
+      : state.tick + 1;
+
   enqueuePendingNpcHit(state, {
     id: `npc-target-hit-${actor.id}-${state.tick}-${state.pendingHitSequence + 1}`,
-    dueTick: state.tick + 1,
+    dueTick: impactTick,
     attackerId: actor.id,
     targetId: tower.id,
     attackerPid: actor.pid,
@@ -1590,9 +1599,18 @@ function handleCampAttack(state: SimulationState, actor: PlayerEntity, camp: Neu
   const index = state.jungleCamps.findIndex(candidate => candidate.id === camp.id);
   if (index < 0) return;
   const currentCamp = state.jungleCamps[index];
+  const distance = Math.max(
+    Math.abs(actor.tile.x - currentCamp.tile.x),
+    Math.abs(actor.tile.y - currentCamp.tile.y)
+  );
+  const impactTick =
+    style === "ranged" || style === "magic"
+      ? projectileHitTick(state.tick, style, distance, playerPriority(state, actor.id), -1)
+      : state.tick + 1;
+
   enqueuePendingNpcHit(state, {
     id: `npc-target-hit-${actor.id}-${state.tick}-${state.pendingHitSequence + 1}`,
-    dueTick: state.tick + 1,
+    dueTick: impactTick,
     attackerId: actor.id,
     targetId: currentCamp.id,
     attackerPid: actor.pid,
