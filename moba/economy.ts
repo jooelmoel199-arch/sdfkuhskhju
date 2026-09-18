@@ -28,6 +28,9 @@ export const shopCatalog: readonly ShopItem[] = [
   { id: "abyssal_whip", name: "Abyssal whip", cost: 600, slot: "weapon", style: "slash", defaultAttackType: "controlled", attackTypes: ["accurate", "controlled", "defensive"], cooldownTicks: 4, attackRange: 1, bonuses: { slash_attack_bonus: 82, melee_strength_bonus: 82 } },
   { id: "dragon_claws", name: "Dragon claws", cost: 1400, slot: "weapon", style: "slash", defaultAttackType: "aggressive", attackTypes: ["accurate", "aggressive", "controlled", "defensive"], cooldownTicks: 4, attackRange: 1, twoHanded: true, bonuses: { stab_attack_bonus: 41, slash_attack_bonus: 57, crush_attack_bonus: -4, melee_strength_bonus: 56 },
     special: { energyCost: 50, damageMultiplier: 1, accuracyMultiplier: 1 } },
+  // Ornate-handle NH/LMS-style granite maul: 7-tick normal attack, 50% instant spec.
+  { id: "granite_maul", name: "Granite maul", cost: 1200, slot: "weapon", style: "crush", defaultAttackType: "aggressive", attackTypes: ["accurate", "aggressive", "defensive"], cooldownTicks: 7, attackRange: 1, twoHanded: true, bonuses: { crush_attack_bonus: 81, melee_strength_bonus: 79 },
+    special: { energyCost: 50, damageMultiplier: 1, accuracyMultiplier: 1 } },
   { id: "armadyl_godsword", name: "Armadyl godsword", cost: 1600, slot: "weapon", style: "slash", defaultAttackType: "aggressive", attackTypes: ["accurate", "aggressive", "defensive"], cooldownTicks: 6, attackRange: 1, twoHanded: true, bonuses: { slash_attack_bonus: 132, crush_attack_bonus: 80, melee_strength_bonus: 132 },
     special: { energyCost: 50, damageMultiplier: 1.375, accuracyMultiplier: 2 } },
   { id: "rune_defender", name: "Rune defender", cost: 120, slot: "shield", bonuses: { stab_defence_bonus: 24, slash_defence_bonus: 24, crush_defence_bonus: 24, melee_strength_bonus: 6 } },
