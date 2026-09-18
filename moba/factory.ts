@@ -1,7 +1,8 @@
-import { createPlayer, equipItem, addInventoryItem, type TowerEntity } from "./entities";
+import { createPlayer, equipItem, addInventoryItem, type TowerEntity, type NeutralCampEntity } from "./entities";
 import { createAttackTimerState } from "../combat/timers";
 import { shopCatalog } from "./economy";
 import { LANE_Y, LANES, BLUE_TOWER_X, RED_TOWER_X, BLUE_BASE_X, RED_BASE_X, zoneAt, type LaneId } from "./lane";
+import { zeroBonuses } from "../combat/formulas";
 import type { SimulationState } from "./simulation";
 
 export type StartingRole = "melee" | "ranged" | "mage";
@@ -67,6 +68,27 @@ export function makeTower(
   };
 }
 
+
+export function makeJungleCamp(id: string, name: string, x: number, y: number, rewardGp: number, rewardXp: number): NeutralCampEntity {
+  return {
+    id,
+    kind: "neutral_camp",
+    name,
+    tile: { x, y },
+    currentHp: 120,
+    maxHp: 120,
+    maxHit: 8,
+    attackRange: 4,
+    attackTimer: createAttackTimerState(),
+    combatLevels: { attack: 35, strength: 35, defence: 35, ranged: 35, magic: 35 },
+    bonuses: { ...zeroBonuses },
+    style: "crush",
+    rewardGp,
+    rewardXp,
+    respawnTicks: 50,
+    alive: true
+  };
+}
 export function createPrototypeState(): SimulationState {
   return {
     tick: 0,
@@ -76,6 +98,12 @@ export function createPrototypeState(): SimulationState {
     towers: [
       ...LANES.map(lane => makeTower(`blue-${lane}-tower`, "blue", lane, BLUE_TOWER_X)),
       ...LANES.map(lane => makeTower(`red-${lane}-tower`, "red", lane, RED_TOWER_X))
+    ],
+    jungleCamps: [
+      makeJungleCamp("camp-top-west", "Hill giant camp", 12, 5, 120, 220),
+      makeJungleCamp("camp-top-east", "Hill giant camp", 28, 5, 120, 220),
+      makeJungleCamp("camp-bottom-west", "Demonic gorilla camp", 12, 35, 160, 280),
+      makeJungleCamp("camp-bottom-east", "Demonic gorilla camp", 28, 35, 160, 280)
     ],
     engagedAttackerTeamByLane: {},
     log: [],
