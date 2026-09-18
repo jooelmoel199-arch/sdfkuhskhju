@@ -39,12 +39,10 @@ ranged.players.player.x = 0;
 ranged.players.opponent.x = 5;
 enqueueInput(ranged, { type: "attack", targetId: "opponent" });
 step(ranged);
-assert(ranged.players.player.attackQueuedTick !== null, "out-of-range attack remains queued");
+assert(ranged.players.player.targetId === "opponent", "out-of-range attack retains its target");
 assert(!ranged.events.some(e => e.type === "attack"), "out-of-range attack cannot resolve");
-
-enqueueInput(ranged, { type: "move", x: 4, y: 10 });
 step(ranged);
-assert(ranged.events.some(e => e.type === "attack"), "queued attack resolves after entering range");
+assert(ranged.events.some(e => e.type === "attack"), "queued attack resolves once movement reaches range");
 
 // Special attacks consume energy only when the attack actually resolves.
 const special = createGame();
@@ -53,6 +51,8 @@ step(special);
 const energyBefore = special.players.player.inventory.specialEnergy;
 enqueueInput(special, { type: "special" });
 assert(special.players.player.inventory.specialEnergy === energyBefore, "queueing special must not spend energy");
+step(special);
+assert(special.players.player.inventory.specialEnergy === energyBefore, "special must remain queued while out of melee range");
 step(special);
 assert(special.players.player.inventory.specialEnergy === energyBefore - 50, "special spends energy on resolution");
 assert(special.events.some(e => e.type === "special" && e.special), "special resolution event expected");
