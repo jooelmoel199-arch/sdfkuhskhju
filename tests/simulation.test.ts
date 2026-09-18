@@ -57,6 +57,26 @@ function testHumanPrayerInputIsOneShot() {
   ok(state.blue.activePrayers.includes("protect_from_melee"), "prayer should remain active until another explicit toggle");
 }
 
+function testGearSwapCanAttackSameTick() {
+  const state = createPvpTestState();
+  state.blue = {
+    ...state.blue,
+    attackTimer: { lastAttackTick: -10, weaponCooldownTicks: 0, additiveAttackDelayTicks: 0 }
+  };
+  state.players = state.players.map(player => player.id === state.blue.id ? state.blue : player);
+  state.humanControl = {
+    attackEnabled: true,
+    laneId: "middle",
+    attackTargetId: state.red.id,
+    equipItemId: "armadyl_godsword"
+  };
+  advanceTick(state);
+  equal(state.blue.equipment.weapon?.id, "armadyl_godsword", "AGS should equip on the input tick");
+  ok(state.pendingHits.length > 0 || state.combatEvents.some(event => event.attackerId === state.blue.id),
+    "gear switch should not consume the entire player turn");
+  equal(state.blue.attackType, "aggressive", "AGS should select its default aggressive style");
+}
+
 function testFoodAddsToCombatTimer() {
   const state = createPvpTestState();
   state.humanControl = {
@@ -186,6 +206,7 @@ function testCampRespawnSchedule() {
 testPrototypeShape();
 testPvpTestLane();
 testHumanPrayerInputIsOneShot();
+testGearSwapCanAttackSameTick();
 testFoodAddsToCombatTimer();
 testKarambwanCombo();
 testWaveCadence();
