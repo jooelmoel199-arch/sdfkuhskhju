@@ -10,8 +10,7 @@ function lex(source: string): Token[] {
     const c = source[i];
     if (/\s/.test(c)) { i++; continue; }
     if (source.startsWith("//", i)) {
-      const end = source.indexOf("
-", i);
+      const end = source.indexOf("\n", i);
       i = end === -1 ? source.length : end + 1;
       continue;
     }
