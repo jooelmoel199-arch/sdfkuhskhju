@@ -37,7 +37,7 @@ export interface Player {
   hp:number; maxHp:number; prayerPoints:number; maxPrayerPoints:number;
   attack:number; strength:number; defence:number; ranged:number; magic:number; xp:CombatXp; equipment:Equipment; inventory:Inventory;
   prayer:Prayer; activePrayers:PrayerName[]; prayerNextDrainTick:number|null; prayerDrainCounter:number; attackStyle:AttackStyle; rangedStyle:RangedStyle; magicStyle:MagicStyle; targetId:string|null; nextAttackTick:number;
-  attackQueuedTick:number|null; hitQueuedTick:number|null; specialQueued:boolean; path:Tile[];
+  attackQueuedTick:number|null; hitQueuedTick:number|null; specialQueued:boolean; path:Tile[]; freezeUntilTick:number;
 }
 export interface CombatEvent {
   tick:number; type:"attack_queued"|"attack_cancelled"|"attack"|"hit"|"miss"|"eat"|"special_queued"|"special"|"move"|"prayer"|"attack_style"|"death"|"projectile"|"spell";
@@ -57,7 +57,7 @@ const PRAYER_DRAIN_EFFECT:Record<Exclude<Prayer,null>,number>={
 function makePlayer(pid:number,id:string,name:string,team:Team,x:number,y:number):Player{
   return {pid,id,name,team,x,y,destinationX:x,destinationY:y,hp:99,maxHp:99,prayerPoints:20,maxPrayerPoints:20,
     attack:75,strength:75,defence:70,ranged:75,magic:75,xp:{attack:0,strength:0,defence:0,ranged:0,magic:0,hitpoints:0},equipment:{weapon:WEAPONS.rune_scimitar.id,...WEAPONS.rune_scimitar, defenceBonus:0, defenceStab:0, defenceSlash:0, defenceCrush:0},
-    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},{id:"shortbow",quantity:1},{id:"bronze_arrow",quantity:250},{id:"fire_rune",quantity:100},{id:"air_rune",quantity:300},{id:"fire_strike",quantity:1},null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,activePrayers:[],prayerNextDrainTick:null,prayerDrainCounter:0,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,specialQueued:false,path:[]};
+    inventory:{slots:[{id:"rune_scimitar",quantity:1},{id:"lobster",quantity:10},{id:"coins",quantity:2500},{id:"shortbow",quantity:1},{id:"bronze_arrow",quantity:250},{id:"fire_rune",quantity:100},{id:"air_rune",quantity:300},{id:"fire_strike",quantity:1},{id:"ice_barrage",quantity:1},{id:"death_rune",quantity:100},{id:"chaos_rune",quantity:400},{id:"water_rune",quantity:600},null,null,null,null,null],food:10,specialEnergy:100,coins:2500},prayer:null,activePrayers:[],prayerNextDrainTick:null,prayerDrainCounter:0,attackStyle:"accurate",rangedStyle:"accurate",magicStyle:"standard",targetId:null,nextAttackTick:0,attackQueuedTick:null,hitQueuedTick:null,specialQueued:false,path:[],freezeUntilTick:0};
 }
 
 export function createGame():GameState{
@@ -114,7 +114,7 @@ function processInput(state:GameState,command:InputCommand):void{
   case "item_action":{const stack=p.inventory.slots[command.slot];if(!stack||stack.quantity<=0)return;if(command.action==="eat"&&stack.id==="lobster"&&p.hp<p.maxHp){stack.quantity--;p.inventory.food=Math.max(0,p.inventory.food-1);p.hp=Math.min(p.maxHp,p.hp+12);event(state,{tick:state.tick,type:"eat",attacker:p.id,damage:-12});if(stack.quantity===0)p.inventory.slots[command.slot]=null;return;}if(command.action==="equip"){
       if(stack.id==="rune_scimitar"){Object.assign(p.equipment,{...WEAPONS.rune_scimitar,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0});delete p.equipment.ammoId;delete p.equipment.spellId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped rune scimitar"});return;}
       if(stack.id==="shortbow"){Object.assign(p.equipment,{...WEAPONS.shortbow,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0,ammoId:"bronze_arrow"});delete p.equipment.spellId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"equipped shortbow"});return;}
-      if(stack.id==="fire_strike"){const spell=SPELLS.fire_strike;Object.assign(p.equipment,{...WEAPONS.fire_strike,attackSpeed:spell.attackSpeed,attackRange:spell.attackRange,magicAttackBonus:spell.magicAttackBonus,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0,spellId:spell.id});delete p.equipment.ammoId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"selected fire strike"});return;}
+      if(stack.id==="fire_strike"||stack.id==="ice_barrage"){const spell=SPELLS[stack.id];Object.assign(p.equipment,{...WEAPONS.fire_strike,attackSpeed:spell.attackSpeed,attackRange:spell.attackRange,magicAttackBonus:spell.magicAttackBonus,defenceBonus:0,defenceStab:0,defenceSlash:0,defenceCrush:0,spellId:spell.id});delete p.equipment.ammoId;event(state,{tick:state.tick,type:"attack_style",attacker:p.id,reason:"selected "+stack.id});return;}
       return;
     }return;}
   case "eat":{const slot=p.inventory.slots.findIndex(v=>v?.id==="lobster");if(slot>=0)processInput(state,{type:"item_action",slot,action:"eat"});return;}
@@ -227,6 +227,7 @@ function resolveAttack(state:GameState,a:Player):void{
 }
 function movementStageForPlayer(state:GameState,p:Player):void{
  if(p.hp<=0)return;
+ if(p.freezeUntilTick>state.tick){p.path=[];return;}
  if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&p.equipment.attackType==="melee"&&!inAttackRange(p,t)){const goal=nearestMeleeTile({x:p.x,y:p.y},{x:t.x,y:t.y},p.equipment.attackRange);setDestination(p,goal.x,goal.y);}}
  if(p.path.length){const next=p.path.shift()!;p.x=next.x;p.y=next.y;}
 }
@@ -266,6 +267,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    const a=state.players[hit.attackerId];
    if(!a)continue;
    const rawDamage=hit.rawDamage;
+   const spell=hit.attackType==="magic"?SPELLS[state.players[hit.attackerId]?.equipment.spellId??""]:undefined;
    const attackRoll=hit.attackRoll;
    const defenceRoll=hit.defenceRoll;
    const special=hit.special;
@@ -279,6 +281,7 @@ function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
    const damage=protectedByPrayer?Math.min(rawDamage,Math.floor(rawDamage*0.6)):rawDamage;
    if(damage>0)p.hp=Math.max(0,p.hp-damage);
    awardCombatXp(a,damage,attackType,hit.baseXp);
+   if(attackType==="magic"&&succeeded&&spell?.freezeTicks)p.freezeUntilTick=Math.max(p.freezeUntilTick,state.tick+spell.freezeTicks);
    event(state,{tick:state.tick,type:succeeded?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special,attackType,reason:hit.delivery});
    if(p.hp<=0){
      p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;
