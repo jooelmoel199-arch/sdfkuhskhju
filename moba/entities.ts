@@ -11,6 +11,7 @@ import { createStatBlock, maxHitpoints } from "./stats";
 import type { BonusTable, CombatLevels, CombatStyle } from "../combat/formulas";
 import { emptyEquipmentBonuses } from "./economy";
 import type { ShopItem, ConsumableDef } from "./economy";
+import { shopCatalog } from "./economy";
 
 export type Team = "blue" | "red";
 export type ZoneKind = "lane" | "river" | "jungle" | "base";
@@ -204,6 +205,34 @@ export function equipItem(player: PlayerEntity, item: ShopItem): PlayerEntity {
     equipment.shield = undefined;
   }
   return { ...player, gp: player.gp - item.cost, equipment };
+}
+
+export function equipOwnedItem(player: PlayerEntity, itemId: string): PlayerEntity {
+  const item = shopCatalog.find(candidate => candidate.id === itemId);
+  if (!item || inventoryCount(player, itemId) <= 0) return player;
+
+  let inventory = player.inventory
+    .map(entry => entry.id === itemId ? { ...entry, quantity: entry.quantity - 1 } : entry)
+    .filter(entry => entry.quantity > 0);
+  let equipment: Equipment = { ...player.equipment };
+
+  const displaced = equipment[item.slot];
+  if (displaced) {
+    inventory = inventory.some(entry => entry.id === displaced.id)
+      ? inventory.map(entry => entry.id === displaced.id ? { ...entry, quantity: entry.quantity + 1 } : entry)
+      : [...inventory, { id: displaced.id, quantity: 1 }];
+  }
+
+  if (item.twoHanded && equipment.shield) {
+    const shield = equipment.shield;
+    inventory = inventory.some(entry => entry.id === shield.id)
+      ? inventory.map(entry => entry.id === shield.id ? { ...entry, quantity: entry.quantity + 1 } : entry)
+      : [...inventory, { id: shield.id, quantity: 1 }];
+    equipment = { ...equipment, shield: undefined };
+  }
+
+  equipment = { ...equipment, [item.slot]: item };
+  return { ...player, inventory, equipment };
 }
 
 export function inventoryCount(player: PlayerEntity, itemId: string): number {
