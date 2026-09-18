@@ -37,7 +37,7 @@ export interface Equipment {
   cape?: ShopItem;
 }
 
-export type AttackType = "accurate" | "aggressive" | "controlled" | "rapid_ranged" | "long_ranged";
+export type AttackType = "accurate" | "aggressive" | "defensive" | "controlled" | "rapid_ranged" | "long_ranged";
 
 export interface PlayerEntity {
   readonly id: string;
