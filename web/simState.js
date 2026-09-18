@@ -99,7 +99,18 @@ export function buyBestAffordableUpgrade() {
     .filter(item => item.cost <= state.blue.gp && !state.blue.equipment[item.slot])
     .sort((a, b) => b.cost - a.cost);
   const item = affordable[0];
-  if (item && state.blue.zone === "base") state.humanControl.buyItemId = item.id;
+  if (item && state.blue.zone === "base") {
+    state.humanControl.buyItemId = item.id;
+    return;
+  }
+  buyConsumables("shark", 3);
+}
+
+export function buyConsumables(itemId, quantity = 1) {
+  if (state.blue.zone === "base") {
+    state.humanControl.buyConsumableId = itemId;
+    state.humanControl.buyConsumableQuantity = quantity;
+  }
 }
 
 export function setLane(laneId) {
