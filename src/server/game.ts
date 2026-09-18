@@ -51,7 +51,7 @@ const styleBonus=MELEE_STYLE_BONUS;
 const PRAYER_DRAIN_EFFECT:Record<Exclude<Prayer,null>,number>={
  protect_melee:12,protect_mage:12,protect_range:12,
  eagle_eye:12,mystic_might:12,
- burst_of_strength:3,clarity_of_thought:3,superhuman_strength:6,improved_reflexes:6,incredible_reflexes:12,ultimate_strength:12,steel_skin:12
+ burst_of_strength:1,clarity_of_thought:1,superhuman_strength:6,improved_reflexes:6,incredible_reflexes:12,ultimate_strength:12,steel_skin:12
 };
 
 function makePlayer(pid:number,id:string,name:string,team:Team,x:number,y:number):Player{
