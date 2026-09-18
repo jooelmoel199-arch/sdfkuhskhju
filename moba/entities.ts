@@ -252,7 +252,7 @@ export function consumeItem(player: PlayerEntity, item: ConsumableDef, currentTi
   if (inventoryCount(player, item.id) <= 0) return player;
   const maxHp = maxHitpoints(player.stats);
   const currentHp = item.healAmount ? Math.min(maxHp, player.currentHp + item.healAmount) : player.currentHp;
-  const prayerPoints = item.restorePrayer ? player.prayerPoints + item.restorePrayer : player.prayerPoints;
+  const prayerPoints = item.restorePrayer ? Math.min(30, player.prayerPoints + item.restorePrayer) : player.prayerPoints;
   const statusEffects = item.boostStat
     ? [...player.statusEffects, { ...item.boostStat, expiresAtTick: currentTick + item.boostStat.durationTicks }]
     : player.statusEffects;
