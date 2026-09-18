@@ -258,6 +258,61 @@ function setPlayer(state: SimulationState, player: PlayerEntity): void {
   if (state.red.id === player.id) state.red = player;
 }
 
+function isGmaulEquipped(player: PlayerEntity): boolean {
+  return player.equipment.weapon?.id === "granite_maul";
+}
+
+function gmaulSpecBarVisible(player: PlayerEntity, currentTick: number): boolean {
+  return isGmaulEquipped(player) &&
+    player.gmaulSpecBarVisibleTick !== undefined &&
+    player.gmaulSpecBarVisibleTick <= currentTick;
+}
+
+function expireQueuedSpecialIfNeeded(player: PlayerEntity, currentTick: number): PlayerEntity {
+  if (player.queuedSpecialAttacks <= 0) return player;
+  if (player.queuedSpecialExpiresAtTick === undefined || currentTick < player.queuedSpecialExpiresAtTick) {
+    return player;
+  }
+  return {
+    ...player,
+    queuedSpecialAttacks: 0,
+    queuedSpecialTargetId: undefined,
+    queuedSpecialExpiresAtTick: undefined,
+    gmaulPreloaded: false
+  };
+}
+
+function applyEquipGmaulTiming(
+  playerBefore: PlayerEntity,
+  playerAfter: PlayerEntity,
+  currentTick: number
+): PlayerEntity {
+  const wasGmaul = isGmaulEquipped(playerBefore);
+  const isGmaul = isGmaulEquipped(playerAfter);
+  if (!isGmaul) {
+    return {
+      ...playerAfter,
+      queuedSpecialAttacks: wasGmaul ? 0 : playerAfter.queuedSpecialAttacks,
+      queuedSpecialTargetId: wasGmaul ? undefined : playerAfter.queuedSpecialTargetId,
+      queuedSpecialExpiresAtTick: wasGmaul ? undefined : playerAfter.queuedSpecialExpiresAtTick,
+      gmaulEquippedTick: undefined,
+      gmaulSpecBarVisibleTick: undefined,
+      gmaulPreloaded: false
+    };
+  }
+  const previousWeaponHadVisibleSpecBar = Boolean(playerBefore.equipment.weapon?.special);
+  if (wasGmaul) return playerAfter;
+  return {
+    ...playerAfter,
+    queuedSpecialAttacks: 0,
+    queuedSpecialTargetId: undefined,
+    queuedSpecialExpiresAtTick: undefined,
+    gmaulEquippedTick: currentTick,
+    gmaulSpecBarVisibleTick: previousWeaponHadVisibleSpecBar ? currentTick : currentTick + 1,
+    gmaulPreloaded: false
+  };
+}
+
 function decisionFor(state: SimulationState, actor: PlayerEntity, enemy: PlayerEntity) {
   const ai = decideAction(actor, enemy, state.tick);
   if (actor.id !== state.blue.id || !state.humanControl) return ai;
