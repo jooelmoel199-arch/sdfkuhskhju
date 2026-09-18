@@ -37,23 +37,20 @@ export function clearAttackTarget() {
 
 export function setLane(laneId) {
   state.humanControl.laneId = laneId;
-  state.blue = {
+  const moved = {
     ...state.blue,
     laneId,
     tile: { x: state.blue.tile.x, y: LANE_Y[laneId] },
     zone: zoneAt({ x: state.blue.tile.x, y: LANE_Y[laneId] })
   };
+  state.blue = moved;
+  state.players = state.players.map(player => player.id === moved.id ? moved : player);
   delete state.humanControl.moveTargetX;
   delete state.humanControl.moveTargetY;
 }
 
 export function cycleAttackType() {
-  const style = state.blue.equipment.weapon?.style;
-  const modes = style === "ranged"
-    ? ["accurate", "rapid_ranged", "long_ranged"]
-    : style === "magic"
-      ? ["accurate"]
-      : ["accurate", "aggressive", "controlled"];
+  const modes = state.blue.equipment.weapon?.attackTypes ?? ["accurate"];
   const current = modes.indexOf(state.blue.attackType);
   state.blue = { ...state.blue, attackType: modes[(current + 1) % modes.length] };
 }
