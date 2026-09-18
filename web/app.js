@@ -32,8 +32,8 @@ let lastRenderedLogTick = -1;
 
 function simToWorldX(x) { return 150 + x * 82.5; }
 function worldToSimX(x) { return (x - 150) / 82.5; }
-function worldToSimY(y) { return y * SIM_Y_PER_WORLD_PX - 20 * SIM_Y_PER_WORLD_PX * 0; }
-function simToWorldY(y) { return y / SIM_Y_PER_WORLD_PX; }
+function worldToSimY(y) { return (y - 350) / (1 / SIM_Y_PER_WORLD_PX); }
+function simToWorldY(y) { return 350 + y * (1 / SIM_Y_PER_WORLD_PX); }
 function laneToWorldY(laneId) { return CAMERA_LANE_Y[laneId]; }
 function worldToLane(y) {
   return LANES.reduce((best, lane) =>
@@ -324,9 +324,13 @@ canvas.addEventListener("click", event => {
       state.humanControl.moveTargetY = enemy.tile.y;
     } else {
       clearAttackTarget();
-      setMoveTarget(simX, simY);
       const lane = worldToLane(world.y);
-      if (Math.abs(world.y - laneToWorldY(lane)) < 70) setLane(lane);
+      if (Math.abs(world.y - laneToWorldY(lane)) < 70) {
+        setLane(lane);
+        setMoveTarget(simX, simY);
+      } else {
+        setMoveTarget(simX, simY);
+      }
     }
   }
 });
