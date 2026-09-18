@@ -568,17 +568,20 @@ function testClientCommandQueueIsFifoAndCapped() {
 function testTargetMemoryExpiresAfterFiveTicks() {
   const state = createPvpTestState();
   queueClientCommand(state, { kind: "attack-target", targetId: state.red.id });
+
   advanceTick(state);
+  equal(state.blue.lastTargetId, undefined, "target command should still be in client delivery on the first tick");
   advanceTick(state);
 
   equal(state.blue.lastTargetId, state.red.id, "target interaction should remember the selected target");
-  equal(state.blue.lastTargetTimeoutTicks, 4, "target memory should begin counting down after the command-processing tick");
+  equal(state.blue.lastTargetTimeoutTicks, 5, "target memory should start at five ticks when the interaction is processed");
 
-  for (let tick = 0; tick < 4; tick += 1) advanceTick(state);
+  for (let tick = 0; tick < 5; tick += 1) advanceTick(state);
 
-  equal(state.blue.lastTargetId, undefined, "target memory should expire after five ticks");
+  equal(state.blue.lastTargetId, undefined, "target memory should expire after five subsequent ticks");
   equal(state.blue.lastTargetTimeoutTicks, 0, "expired target memory should clear its timeout");
 }
+
 
 function testQueuedAttackTargetHasOneTickLatency() {
   const state = createPvpTestState();
