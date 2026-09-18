@@ -565,6 +565,20 @@ function testClientCommandQueueIsFifoAndCapped() {
   );
 }
 
+function testTargetMemoryExpiresAfterFiveTicks() {
+  const state = createPvpTestState();
+  queueClientCommand(state, { kind: "attack-target", targetId: state.red.id });
+  advanceTick(state);
+
+  equal(state.blue.lastTargetId, state.red.id, "target interaction should remember the selected target");
+  equal(state.blue.lastTargetTimeoutTicks, 4, "target memory should begin counting down after the command-processing tick");
+
+  for (let tick = 0; tick < 4; tick += 1) advanceTick(state);
+
+  equal(state.blue.lastTargetId, undefined, "target memory should expire after five ticks");
+  equal(state.blue.lastTargetTimeoutTicks, 0, "expired target memory should clear its timeout");
+}
+
 function testQueuedAttackTargetHasOneTickLatency() {
   const state = createPvpTestState();
   state.humanControl = { attackEnabled: true, laneId: "middle" };
@@ -1046,6 +1060,7 @@ testDragonClawsSpecial();
 testClientCommandQueueIsFifoAndCapped();
 testClientCommandHasOneTickInputLatency();
 testQueuedAttackTargetHasOneTickLatency();
+testTargetMemoryExpiresAfterFiveTicks();
 testQueuedMovementAndAttackPreserveFifo();
 
 
