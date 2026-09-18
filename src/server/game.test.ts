@@ -272,10 +272,10 @@ assert(rangedReach.events.some(e=>e.type==="projectile"),"longrange should exten
 const ammoAccuracy=createGame();
 ammoAccuracy.players.player.x=10;ammoAccuracy.players.opponent.x=14;
 enqueueInput(ammoAccuracy,{type:"item_action",slot:3,action:"equip"});step(ammoAccuracy);
-const arrowsBefore=ammoAccuracy.players.player.inventory.slots.find(v=>v?.id==="bronze_arrow")?.quantity??0;
+const ammoAccuracyBefore=ammoAccuracy.players.player.inventory.slots.find(v=>v?.id==="bronze_arrow")?.quantity??0;
 enqueueInput(ammoAccuracy,{type:"attack",targetId:"opponent"});step(ammoAccuracy);
 const arrowsAfter=ammoAccuracy.players.player.inventory.slots.find(v=>v?.id==="bronze_arrow")?.quantity??0;
-assert(arrowsAfter===arrowsBefore-1,"ranged attack should consume exactly one ammunition unit");
+assert(arrowsAfter===ammoAccuracyBefore-1,"ranged attack should consume exactly one ammunition unit");
 const magicDefence=createGame();
 magicDefence.players.player.x=10;magicDefence.players.opponent.x=14;
 enqueueInput(magicDefence,{type:"item_action",slot:7,action:"equip"});step(magicDefence);
