@@ -683,6 +683,7 @@ function handleGraniteMaulSpecial(
   setPlayer(state, {
     ...actor,
     specEnergy: Math.max(0, actor.specEnergy - hitsQueued * specialEnergyCost),
+    lastSpecEnergyUseTick: state.tick,
     queuedSpecialAttacks: Math.max(0, actor.queuedSpecialAttacks - hitsQueued),
     queuedSpecialTargetId: actor.queuedSpecialAttacks - hitsQueued > 0 ? target.id : undefined,
     lastCombatTick: state.tick,
@@ -821,7 +822,8 @@ const combatStage: TickStage<SimulationState> = {
         queuedSpecialTargetId: humanQueuedSpecial && actor.queuedSpecialAttacks <= 1
           ? undefined
           : actor.queuedSpecialTargetId,
-        specEnergy: special ? Math.max(0, actor.specEnergy - special.energyCost) : actor.specEnergy
+        specEnergy: special ? Math.max(0, actor.specEnergy - special.energyCost) : actor.specEnergy,
+        lastSpecEnergyUseTick: special ? state.tick : actor.lastSpecEnergyUseTick
       };
       setPlayer(state, attackerAfterAttack);
       state.engagedAttackerTeamByLane[actor.laneId] = actor.team;
@@ -1267,7 +1269,9 @@ const effectsStage: TickStage<SimulationState> = {
       updated = {
         ...updated,
         statusEffects: updated.statusEffects.filter(effect => effect.expiresAtTick > state.tick),
-        specEnergy: Math.min(100, updated.specEnergy + 0.1),
+        specEnergy: updated.lastSpecEnergyUseTick === state.tick
+          ? updated.specEnergy
+          : Math.min(100, updated.specEnergy + 0.1),
         gp: updated.gp + gpRewards.passivePerTick
       };
       setPlayer(state, updated);
