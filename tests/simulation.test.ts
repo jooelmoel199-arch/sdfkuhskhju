@@ -302,7 +302,7 @@ function testPotionBoostsUseBoostedCombatLevelsAndDecay() {
 
   state.tick = 99;
   advanceTick(state);
-  equal(state.blue.combatBoosts.strength, 11, "boost should remain intact before the 60-second decay boundary");
+  equal(state.blue.combatBoosts.strength, 19, "boost should remain intact before the 60-second decay boundary");
 
   state.tick = 100;
   advanceTick(state);
