@@ -840,9 +840,9 @@ const lockDecayStage: TickStage<SimulationState> = {
   name: "lock-decay",
   run: state => {
     for (const actor of [...state.players]) {
-      setPlayer(state, { ...actor, locks: tickLocks(actor.locks, state.tick) });
+      const locks = tickLocks(actor.locks, state.tick);
       const consumed = consumeExpiredAttackDelay(actor.attackTimer, state.tick);
-      setPlayer(state, { ...actor, attackTimer: consumed.state });
+      setPlayer(state, { ...actor, locks, attackTimer: consumed.state });
     }
   }
 };
