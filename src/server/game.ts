@@ -163,7 +163,9 @@ function resolveRangedOrMagicAttack(state:GameState,a:Player,d:Player):void{
  const effectiveAttack=effectiveLevel(ranged?a.ranged:a.magic,ranged?attackerPrayer.rangedAttack:attackerPrayer.magicAttack,style.attack);
  const effectiveDefence=effectiveLevel(d.defence,defenderPrayer.defence,styleBonus[d.attackStyle].defence+style.defence);
  const attackBonus=a.equipment.attackBonus, defenceBonus=d.equipment.defenceBonus;
- const attackRoll=effectiveAttack*(attackBonus+64),defenceRoll=effectiveDefence*(defenceBonus+64);
+ const effectiveMagicDefence=effectiveLevel(d.magic,defenderPrayer.magicDefence,styleBonus[d.attackStyle].defence+style.defence);
+ const rangedDefence=effectiveDefence, magicDefence=effectiveMagicDefence;
+ const attackRoll=effectiveAttack*(attackBonus+64),defenceRoll=(ranged?rangedDefence:magicDefence)*(defenceBonus+64);
  const hitChance=attackRoll<=defenceRoll?attackRoll/(2*(defenceRoll+1)):1-(defenceRoll+2)/(2*(attackRoll+1));
  const rules=state.combatRules.onAttack(a.id,d.id,deterministicRoll(state.tick*7919+a.x*97+a.y*53+d.x*31+d.y*17),hitChance,attackRoll,defenceRoll);
  let damage=0;
@@ -195,18 +197,18 @@ function movementStageForPlayer(state:GameState,p:Player):void{
  if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&p.equipment.attackType==="melee"&&!inAttackRange(p,t)){const goal=nearestMeleeTile({x:p.x,y:p.y},{x:t.x,y:t.y},p.equipment.attackRange);setDestination(p,goal.x,goal.y);}}
  if(p.path.length){const next=p.path.shift()!;p.x=next.x;p.y=next.y;}
 }
-function prayerModifiers(p:Player):{attack:number;strength:number;defence:number;rangedAttack:number;rangedStrength:number;magicAttack:number}{
+function prayerModifiers(p:Player):{attack:number;strength:number;defence:number;rangedAttack:number;rangedStrength:number;magicAttack:number;magicDefence:number}{
  switch(p.prayer){
-  case "eagle_eye": return {attack:1,strength:1,defence:1,rangedAttack:1.15,rangedStrength:1.15,magicAttack:1};
-  case "mystic_might": return {attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1.15};
-  case "burst_of_strength": return {attack:1,strength:1.05,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1};
-  case "clarity_of_thought": return {attack:1.05,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1};
-  case "superhuman_strength": return {attack:1,strength:1.1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1};
-  case "improved_reflexes": return {attack:1.1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1};
-  case "incredible_reflexes": return {attack:1.15,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1};
-  case "ultimate_strength": return {attack:1,strength:1.15,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1};
-  case "steel_skin": return {attack:1,strength:1,defence:1.15,rangedAttack:1,rangedStrength:1,magicAttack:1};
-  default: return {attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1};
+  case "eagle_eye": return {attack:1,strength:1,defence:1,rangedAttack:1.15,rangedStrength:1.15,magicAttack:1,magicDefence:1};
+  case "mystic_might": return {attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1.15,magicDefence:1.15};
+  case "burst_of_strength": return {attack:1,strength:1.05,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
+  case "clarity_of_thought": return {attack:1.05,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
+  case "superhuman_strength": return {attack:1,strength:1.1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
+  case "improved_reflexes": return {attack:1.1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
+  case "incredible_reflexes": return {attack:1.15,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
+  case "ultimate_strength": return {attack:1,strength:1.15,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
+  case "steel_skin": return {attack:1,strength:1,defence:1.15,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
+  default: return {attack:1,strength:1,defence:1,rangedAttack:1,rangedStrength:1,magicAttack:1,magicDefence:1};
  }
 }
 function effectiveLevel(base:number,multiplier:number,style:number):number{return Math.floor(base*multiplier)+style+8;}
