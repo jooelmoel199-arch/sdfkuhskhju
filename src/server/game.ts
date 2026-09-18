@@ -100,37 +100,46 @@ function resolveAttack(state:GameState,a:Player):void{
  a.pendingHitDamage=damage;a.pendingHitRoll=attackRoll;a.pendingDefenceRoll=defenceRoll;a.pendingHitTargetId=d.id;a.pendingSpecial=special;
  a.hitQueuedTick=state.tick+1;
 }
-function movementStage(state:GameState):void{
- for(const p of Object.values(state.players)){
-   if(p.hp<=0)continue;
-   if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&!inMeleeRange(p,t)){const goal=nearestMeleeTile({x:p.x,y:p.y},{x:t.x,y:t.y});setDestination(p,goal.x,goal.y);}}
-   if(p.path.length){const next=p.path.shift()!;p.x=next.x;p.y=next.y;}
- }
+function movementStageForPlayer(state:GameState,p:Player):void{
+ if(p.hp<=0)return;
+ if(p.targetId){const t=state.players[p.targetId];if(t&&t.hp>0&&!inMeleeRange(p,t)){const goal=nearestMeleeTile({x:p.x,y:p.y},{x:t.x,y:t.y});setDestination(p,goal.x,goal.y);}}
+ if(p.path.length){const next=p.path.shift()!;p.x=next.x;p.y=next.y;}
 }
-function prayerStage(state:GameState):void{
- for(const p of Object.values(state.players)){
-   if(!p.prayer)continue;
-   if(state.tick%2===0){p.prayerPoints=Math.max(0,p.prayerPoints-1);if(p.prayerPoints===0)p.prayer=null;}
- }
+function prayerStageForPlayer(state:GameState,p:Player):void{
+ if(!p.prayer)return;
+ if(state.tick%2===0){p.prayerPoints=Math.max(0,p.prayerPoints-1);if(p.prayerPoints===0)p.prayer=null;}
 }
-function resolveQueuedHits(state:GameState):void{
- for(const a of Object.values(state.players)){
-   if(a.hitQueuedTick!==state.tick)continue;
-   const d=a.pendingHitTargetId?state.players[a.pendingHitTargetId]:undefined;
-   const damage=a.pendingHitDamage;
-   const attackRoll=a.pendingHitRoll;
-   const defenceRoll=a.pendingDefenceRoll;
-   const special=a.pendingSpecial;
-   a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingHitTargetId=null;a.pendingSpecial=false;
-   if(!d||d.hp<=0)continue;
-   if(damage>0)d.hp=Math.max(0,d.hp-damage);
-   event(state,{tick:state.tick,type:damage>0?"hit":"miss",attacker:a.id,defender:d.id,damage,attackRoll,defenceRoll,special});
-   if(d.hp<=0){d.targetId=null;d.attackQueuedTick=null;d.hitQueuedTick=null;d.pendingHitTargetId=null;a.targetId=null;event(state,{tick:state.tick,type:"death",attacker:a.id,defender:d.id});}
+function resolveQueuedHitForPlayer(state:GameState,p:Player):void{
+ if(p.hitQueuedTick!==state.tick)return;
+ const attackerId=Object.values(state.players).find(a=>a.pendingHitTargetId===p.id&&a.hitQueuedTick===state.tick)?.id;
+ if(!attackerId)return;
+ const a=state.players[attackerId];
+ const damage=a.pendingHitDamage;
+ const attackRoll=a.pendingHitRoll;
+ const defenceRoll=a.pendingDefenceRoll;
+ const special=a.pendingSpecial;
+ a.hitQueuedTick=null;a.pendingHitDamage=0;a.pendingHitTargetId=null;a.pendingSpecial=false;
+ if(p.hp<=0)return;
+ if(damage>0)p.hp=Math.max(0,p.hp-damage);
+ event(state,{tick:state.tick,type:damage>0?"hit":"miss",attacker:a.id,defender:p.id,damage,attackRoll,defenceRoll,special});
+ if(p.hp<=0){
+   p.targetId=null;p.attackQueuedTick=null;p.hitQueuedTick=null;p.pendingHitTargetId=null;
+   a.targetId=null;
+   event(state,{tick:state.tick,type:"death",attacker:a.id,defender:p.id});
  }
 }
 export function step(state:GameState):void{
  state.tick++;
- const inputs=state.pendingInputs.splice(0).sort((a,b)=>a.sequence-b.sequence).slice(0,10);for(const input of inputs)processInput(state,input.command);
- resolveQueuedHits(state);
- movementStage(state);prayerStage(state);for(const p of Object.values(state.players))resolveAttack(state,p);
+ const inputs=state.pendingInputs.splice(0).sort((a,b)=>a.sequence-b.sequence).slice(0,10);
+ for(const input of inputs)processInput(state,input.command);
+ // Player turns are deliberately ordered by stable player id. A hit is queued
+ // onto the defender and resolves when that defender reaches their turn, which
+ // preserves the PvP ordering asymmetry documented for OSRS.
+ const players=Object.values(state.players).sort((a,b)=>a.id.localeCompare(b.id));
+ for(const p of players){
+   resolveQueuedHitForPlayer(state,p);
+   prayerStageForPlayer(state,p);
+   movementStageForPlayer(state,p);
+   resolveAttack(state,p);
+ }
 }
